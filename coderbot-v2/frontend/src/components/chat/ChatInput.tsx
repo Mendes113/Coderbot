@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,8 +29,8 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled }: ChatIn
         onChange={(e) => setInput(e.target.value)}
         disabled={isLoading}
         className={cn(
-          "flex-1 transition-all duration-200",
-          analogiesEnabled && "border-education-primary focus-visible:ring-education-primary/20"
+          "flex-1 transition-all duration-200 bg-white/80 border-2 border-transparent focus:border-[hsl(var(--education-purple))] focus:ring-2 focus:ring-[hsl(var(--education-purple))] rounded-xl shadow-sm text-base placeholder:text-gray-400",
+          analogiesEnabled && "border-[hsl(var(--education-purple))] focus:ring-[hsl(var(--education-purple))]"
         )}
         aria-label="Mensagem"
       />
@@ -40,11 +39,11 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled }: ChatIn
         disabled={isLoading || !input.trim()} 
         aria-label="Enviar"
         className={cn(
-          "transition-all duration-200",
-          analogiesEnabled && "bg-education-primary hover:bg-education-secondary"
+          "transition-all duration-200 bg-[hsl(var(--education-purple))] hover:bg-[hsl(var(--education-purple-dark))] text-white rounded-xl shadow-md px-5 py-2 text-base font-semibold",
+          analogiesEnabled && "bg-[hsl(var(--education-purple-dark))]"
         )}
       >
-        <Send className="h-4 w-4" />
+        <Send className="h-5 w-5" />
       </Button>
     </form>
   );

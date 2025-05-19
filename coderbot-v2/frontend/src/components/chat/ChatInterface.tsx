@@ -247,7 +247,41 @@ export const ChatInterface = () => {
   // No longer need inline definitions for DesktopSettings and MobileSettingsDrawer
 
   return (
-    <div className="flex h-full">
+    <div className="relative flex h-full overflow-hidden">
+      <style>{`
+        @keyframes auroraMove1 {
+          0% { transform: scale(1) translate(0, 0); opacity: 0.7; }
+          50% { transform: scale(1.08) translate(30px, 20px); opacity: 1; }
+          100% { transform: scale(1) translate(0, 0); opacity: 0.7; }
+        }
+        @keyframes auroraMove2 {
+          0% { transform: scale(1) translate(0, 0); opacity: 0.5; }
+          50% { transform: scale(1.12) translate(-40px, 10px); opacity: 0.7; }
+          100% { transform: scale(1) translate(0, 0); opacity: 0.5; }
+        }
+        @keyframes auroraMove3 {
+          0% { transform: scale(1) translate(0, 0); opacity: 0.3; }
+          50% { transform: scale(1.06) translate(20px, -20px); opacity: 0.5; }
+          100% { transform: scale(1) translate(0, 0); opacity: 0.3; }
+        }
+      `}</style>
+      {/* Aurora/Bolhas de fundo */}
+      <div className="pointer-events-none absolute inset-0 z-0">
+        {/* Bolha roxa superior esquerda */}
+        <div className="absolute -top-32 -left-32 w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle,rgba(108,58,209,0.35)_0%,rgba(108,58,209,0)_70%)] blur-2xl"
+          style={{ animation: 'auroraMove1 16s ease-in-out infinite alternate' }}
+        />
+        {/* Bolha roxa inferior direita */}
+        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(108,58,209,0.25)_0%,rgba(108,58,209,0)_80%)] blur-3xl"
+          style={{ animation: 'auroraMove2 22s ease-in-out infinite alternate' }}
+        />
+        {/* Aurora suave centro-direita */}
+        <div className="absolute top-1/3 right-1/4 w-[350px] h-[250px] rounded-full bg-[radial-gradient(ellipse,rgba(180,120,255,0.18)_0%,rgba(108,58,209,0)_80%)] blur-2xl"
+          style={{ animation: 'auroraMove3 18s ease-in-out infinite alternate' }}
+        />
+      </div>
+
+
       {/* Session Sidebar - hidden on mobile by default */}
       {showSidebar && (
         <div className={`${isMobile ? 'absolute z-10 h-full' : 'w-72'}`}>
@@ -258,9 +292,24 @@ export const ChatInterface = () => {
           />
         </div>
       )}
+      {/* Conteúdo do chat */}
+      <div className="flex-1 flex flex-col h-full relative z-10 bg-[#0a0a0a]/95">
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col h-full bg-background">
+      <div className="pointer-events-none absolute inset-0 z-0">
+        {/* Bolha roxa superior esquerda */}
+        <div className="absolute -top-32 -left-32 w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle,rgba(108,58,209,0.35)_0%,rgba(108,58,209,0)_70%)] blur-2xl"
+          style={{ animation: 'auroraMove1 16s ease-in-out infinite alternate' }}
+        />
+        {/* Bolha roxa inferior direita */}
+        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(108,58,209,0.25)_0%,rgba(108,58,209,0)_80%)] blur-3xl"
+          style={{ animation: 'auroraMove2 22s ease-in-out infinite alternate' }}
+        />
+        {/* Aurora suave centro-direita */}
+        <div className="absolute top-1/3 right-1/4 w-[350px] h-[250px] rounded-full bg-[radial-gradient(ellipse,rgba(180,120,255,0.18)_0%,rgba(108,58,209,0)_80%)] blur-2xl"
+          style={{ animation: 'auroraMove3 18s ease-in-out infinite alternate' }}
+        />
+      </div>
+      
         <div className="p-4 border-b">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">

@@ -111,7 +111,7 @@ export default function AuthForm({ isLoading, setIsLoading }: AuthFormProps) {
         const loginData = data as LoginData;
         await pb.collection('users').authWithPassword(loginData.email, loginData.password);
         toast.success('Login realizado com sucesso!');
-        navigate('/chat');
+        navigate('/dashboard/chat');
       }
     } catch (error: any) {
       console.error('Auth error:', error);
