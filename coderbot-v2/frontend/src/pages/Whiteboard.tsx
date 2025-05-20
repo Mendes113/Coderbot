@@ -38,6 +38,7 @@ const Whiteboard: React.FC = () => {
   const [lastSaveTime, setLastSaveTime] = useState<number>(0);
   const [dailyBonusGiven, setDailyBonusGiven] = useState(false);
   const [createdBoards, setCreatedBoards] = useState<number>(0);
+  const [isChatOpen, setIsChatOpen] = useState(false); // novo estado para controlar abertura do chat
 
   // Bônus diário ao acessar pela primeira vez no dia
   React.useEffect(() => {
@@ -144,6 +145,18 @@ const Whiteboard: React.FC = () => {
     // Criar novo quadro: 50 pontos (será registrado no saveScene ao criar)
   };
 
+  // Função para obter o JSON atual do quadro
+  const getCurrentSceneJSON = () => {
+    const api = apiRef.current;
+    if (!api) return null;
+    return serializeAsJSON(
+      api.getSceneElements(),
+      api.getAppState(),
+      api.getFiles(),
+      "local",
+    );
+  };
+
   /* ===================== RENDER ===================== */
   return (
     <div className="flex flex-col w-full h-screen bg-background text-foreground">
@@ -151,11 +164,51 @@ const Whiteboard: React.FC = () => {
 
       {/* ---------- Tela Inicial ---------- */}
       {!editorVisible ? (
-        <div className="m-auto flex flex-col gap-6 items-center w-full max-w-lg p-6 border rounded-xl shadow-lg bg-card">
-          <h1 className="text-3xl font-bold">Whiteboard</h1>
+        <div className="m-auto flex flex-col gap-8 items-center w-full max-w-lg p-8 border rounded-2xl shadow-2xl bg-card">
+          <h1 className="text-3xl font-bold mb-2">Whiteboard</h1>
+          <p className="text-gray-600 text-center mb-4">Crie, salve e compartilhe quadros visuais para potencializar seu aprendizado!</p>
+
+          {/* Card de progresso do usuário */}
+          {user && (
+            <div className="w-full">
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-semibold">Progresso</span>
+                  {/* Exemplo: Nível do usuário */}
+                  <span className="text-xs bg-blue-100 text-blue-700 rounded px-2 py-1">Nível 2</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  {/* Exemplo de barra de XP */}
+                  <div className="bg-blue-500 h-3 rounded-full" style={{ width: `${Math.min(createdBoards * 10, 100)}%` }} />
+                </div>
+                <div className="flex gap-2 mt-2">
+                  {/* Badges/conquistas - exemplo visual */}
+                  <span className="inline-block bg-yellow-200 text-yellow-800 rounded px-2 py-1 text-xs">Primeiro Quadro</span>
+                  {createdBoards >= 10 && (
+                    <span className="inline-block bg-green-200 text-green-800 rounded px-2 py-1 text-xs">10 Quadros!</span>
+                  )}
+                  {dailyBonusGiven && (
+                    <span className="inline-block bg-blue-200 text-blue-800 rounded px-2 py-1 text-xs">Bônus Diário</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Seção de desafios/missões */}
+          {user && (
+            <div className="w-full mb-4">
+              <div className="font-semibold mb-1">Desafios</div>
+              <ul className="list-disc pl-5 space-y-1 text-sm">
+                <li>Crie 10 quadros <span className={createdBoards >= 10 ? "text-green-600" : "text-gray-500"}>{createdBoards}/10</span></li>
+                <li>Salve um quadro 5 dias seguidos <span className="text-gray-500">(em breve)</span></li>
+                <li>Ganhe o bônus diário <span className={dailyBonusGiven ? "text-green-600" : "text-gray-500"}>{dailyBonusGiven ? "Concluído" : "Pendente"}</span></li>
+              </ul>
+            </div>
+          )}
 
           {/* upload */}
-          <label className="flex flex-col items-center gap-2 cursor-pointer">
+          <label className="flex flex-col items-center gap-2 cursor-pointer w-full p-4 border rounded-lg bg-gray-50 hover:bg-gray-100 transition mb-2">
             <UploadCloud size={24} />
             <span className="text-sm">Carregar arquivo (.json / .excalidraw)</span>
             <input
@@ -167,13 +220,13 @@ const Whiteboard: React.FC = () => {
           </label>
 
           {/* novo quadro */}
-          <button onClick={newBoard} className="btn-primary flex items-center gap-2">
-            <Plus size={16} /> Novo quadro
+          <button onClick={newBoard} className="btn-primary flex items-center gap-2 w-full justify-center py-3 text-lg rounded-lg shadow hover:scale-105 transition mb-2">
+            <Plus size={20} /> Novo quadro
           </button>
 
           {/* lista do usuário */}
           {user && (
-            <div className="w-full">
+            <div className="w-full mt-2">
               <h2 className="text-lg font-semibold mb-2">Seus quadros</h2>
               {loading ? (
                 <Loader2 className="animate-spin" />
@@ -203,7 +256,7 @@ const Whiteboard: React.FC = () => {
           </button>
 
           {/* ---------- Chat Popup ---------- */}
-          <Sheet>
+          <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
             <SheetTrigger asChild>
               <button
                 title="Abrir chat"
@@ -213,7 +266,8 @@ const Whiteboard: React.FC = () => {
               </button>
             </SheetTrigger>
             <SheetContent side="bottom" className="h-[70vh] p-0">
-              <ChatInterface />
+              {/* Passar o contexto do quadro para o chat */}
+              <ChatInterface whiteboardContext={getCurrentSceneJSON()} />
             </SheetContent>
           </Sheet>
         </>
