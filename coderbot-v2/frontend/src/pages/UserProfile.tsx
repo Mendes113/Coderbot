@@ -127,7 +127,7 @@ const UserProfile = () => {
         <div className="text-center text-blue-700 font-medium mt-2">
           Continue assim! Você está avançando no seu aprendizado 🚀
         </div>
-
+        
         <ProfileForm 
           isEditing={isEditing} 
           onSaved={() => setIsEditing(false)} 
