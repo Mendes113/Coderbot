@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { AnalogySettings } from "@/components/chat/AnalogySettings";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatInput } from "@/components/chat/ChatInput";
-import { Message, fetchChatResponse } from "@/services/api";
+import { Message, fetchChatResponse, fetchMethodologies, MethodologyInfo } from "@/services/api";
 import { toast } from "@/components/ui/sonner";
 import { Loader2, MessageSquarePlus, Settings } from "lucide-react";
 import { 
@@ -27,6 +27,9 @@ interface SettingsProps {
   setKnowledgeBase: (base: string) => void;
   aiModel: string;
   setAiModel: (model: string) => void;
+  methodology: string;
+  setMethodology: (methodology: string) => void;
+  availableMethodologies: MethodologyInfo[];
 }
 
 // Renamed to avoid conflict and indicate it's a view component
@@ -46,6 +49,33 @@ const DesktopSettingsView: React.FC<SettingsProps> = (props) => (
           <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
         </SelectContent>
       </Select>
+    </div>
+    
+    <div className="mt-4">
+      <h3 className="text-sm font-medium mb-2">Metodologia de Ensino</h3>
+      <Select 
+        value={props.methodology} 
+        onValueChange={props.setMethodology}
+        disabled={props.availableMethodologies.length === 0}
+      >
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="Selecione a metodologia" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="default">Padrão</SelectItem>
+          <SelectItem value="analogy">Analogias</SelectItem>
+          {props.availableMethodologies.map(m => (
+            <SelectItem key={m.id} value={m.id}>
+              {m.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {props.methodology && props.methodology !== "default" && props.methodology !== "analogy" && (
+        <div className="mt-2 text-xs text-gray-500">
+          {props.availableMethodologies.find(m => m.id === props.methodology)?.description || ""}
+        </div>
+      )}
     </div>
   </div>
 );
@@ -76,6 +106,33 @@ const MobileSettingsDrawerView: React.FC<SettingsProps> = (props) => (
             </SelectContent>
           </Select>
         </div>
+
+        <div className="mt-4">
+          <h3 className="text-sm font-medium mb-2">Metodologia de Ensino</h3>
+          <Select 
+            value={props.methodology} 
+            onValueChange={props.setMethodology}
+            disabled={props.availableMethodologies.length === 0}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Selecione a metodologia" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Padrão</SelectItem>
+              <SelectItem value="analogy">Analogias</SelectItem>
+              {props.availableMethodologies.map(m => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {props.methodology && props.methodology !== "default" && props.methodology !== "analogy" && (
+            <div className="mt-2 text-xs text-gray-500">
+              {props.availableMethodologies.find(m => m.id === props.methodology)?.description || ""}
+            </div>
+          )}
+        </div>
       </div>
       <div className="flex justify-end mt-4">
         <DrawerClose asChild>
@@ -89,6 +146,10 @@ const MobileSettingsDrawerView: React.FC<SettingsProps> = (props) => (
 
 // --- Main Chat Interface Component ---
 
+interface ChatInterfaceProps {
+  whiteboardContext?: Record<string, any> | null;
+}
+
 const INITIAL_MESSAGES: Message[] = [
   {
     id: "1",
@@ -98,15 +159,18 @@ const INITIAL_MESSAGES: Message[] = [
   },
 ];
 
-export const ChatInterface = () => {
+export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext }) => {
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [isLoading, setIsLoading] = useState(false);
   const [analogiesEnabled, setAnalogiesEnabled] = useState(false);
   const [knowledgeBase, setKnowledgeBase] = useState("");
   const [aiModel, setAiModel] = useState<string>("gpt-3.5-turbo");
+  const [methodology, setMethodology] = useState<string>("default");
+  const [availableMethodologies, setAvailableMethodologies] = useState<MethodologyInfo[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [showSidebar, setShowSidebar] = useState(!isMobile);
+  const [showAnalogyDropdown, setShowAnalogyDropdown] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -115,6 +179,40 @@ export const ChatInterface = () => {
   const [sessionId, setSessionId] = useState<string>("");
 
   // Load or create session
+  // Load available methodologies
+  useEffect(() => {
+    const loadMethodologies = async () => {
+      try {
+        setIsLoading(true);
+        const methodologies = await fetchMethodologies();
+        
+        if (methodologies && methodologies.length > 0) {
+          setAvailableMethodologies(methodologies);
+          console.log("Available methodologies loaded:", methodologies);
+          
+          // Set default methodology to Sequential Thinking if available
+          const sequentialThinking = methodologies.find(m => 
+            m.name.toLowerCase().includes("sequential") || 
+            m.id === "sequential_thinking"
+          );
+          
+          if (sequentialThinking) {
+            setMethodology(sequentialThinking.id);
+          }
+        } else {
+          console.warn("No teaching methodologies found");
+        }
+      } catch (error) {
+        console.error("Error loading methodologies:", error);
+        toast.error("Não foi possível carregar as metodologias de ensino");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadMethodologies();
+  }, []);
+
   useEffect(() => {
     const initSession = async () => {
       try {
@@ -206,12 +304,24 @@ export const ChatInterface = () => {
         timestamp: new Date(),
       }]);
 
+      // Define user profile information for the AI
+      const userProfile = {
+        difficulty_level: "medium",
+        subject_area: "programming",
+        style_preference: analogiesEnabled ? "analogies" : "concise",
+        learning_progress: { questions_answered: messages.length / 2, correct_answers: 0 },
+        baseKnowledge: knowledgeBase || "basic"
+      };
+
       const response = await fetchChatResponse(
         input, 
         analogiesEnabled, 
         false,
         knowledgeBase,
-        aiModel
+        aiModel,
+        methodology,
+        userProfile,
+        whiteboardContext
       );
       
       // Save AI response
@@ -243,8 +353,6 @@ export const ChatInterface = () => {
       setIsLoading(false);
     }
   };
-
-  // No longer need inline definitions for DesktopSettings and MobileSettingsDrawer
 
   return (
     <div className="relative flex h-full overflow-hidden">
@@ -311,7 +419,7 @@ export const ChatInterface = () => {
       </div>
       
         <div className="p-4 border-b">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
             <div className="flex items-center gap-2">
               {/* Toggle sidebar button on mobile */}
               {isMobile && (
@@ -329,17 +437,94 @@ export const ChatInterface = () => {
                 <p className="text-sm text-muted-foreground">Tire suas dúvidas sobre programação</p>
               </div>
             </div>
-            {/* Use the externally defined MobileSettingsDrawerView */}
-            {isMobile && (
-              <MobileSettingsDrawerView
-                analogiesEnabled={analogiesEnabled}
-                setAnalogiesEnabled={setAnalogiesEnabled}
-                knowledgeBase={knowledgeBase}
-                setKnowledgeBase={setKnowledgeBase}
-                aiModel={aiModel}
-                setAiModel={setAiModel}
-              />
-            )}
+            {/* Modern header controls: modelo, metodologia, analogia dropdown */}
+            <div className="flex items-center gap-2 mt-2 sm:mt-0 relative">
+              <Select value={aiModel} onValueChange={setAiModel}>
+                <SelectTrigger className="w-[120px] h-8 text-xs">
+                  <SelectValue placeholder="Modelo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gpt-3.5-turbo">GPT-3.5</SelectItem>
+                  <SelectItem value="gpt-4">GPT-4</SelectItem>
+                  <SelectItem value="claude-3-opus">Claude 3</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select 
+                value={methodology} 
+                onValueChange={setMethodology}
+                disabled={availableMethodologies.length === 0}
+              >
+                <SelectTrigger className="w-[120px] h-8 text-xs">
+                  <SelectValue placeholder="Metodologia" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Padrão</SelectItem>
+                  <SelectItem value="analogy">Analogias</SelectItem>
+                  {availableMethodologies.map(m => (
+                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {/* Dropdown de analogias */}
+              <div className="relative">
+                <button
+                  type="button"
+                  aria-label={analogiesEnabled ? "Gerenciar analogias" : "Ativar analogias"}
+                  title={analogiesEnabled ? "Gerenciar analogias" : "Ativar analogias"}
+                  onClick={() => {
+                    if (!analogiesEnabled) { // If analogies are currently OFF
+                      setAnalogiesEnabled(true);    // Turn them ON
+                      setShowAnalogyDropdown(true); // And show the dropdown
+                    } else { // If analogies are already ON
+                      setShowAnalogyDropdown((prev) => !prev); // Just toggle dropdown visibility
+                    }
+                  }}
+                  className={cn(
+                    "flex items-center gap-1 px-2 py-1 rounded-full border border-gray-200 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+                    analogiesEnabled
+                      ? "bg-[hsl(var(--education-purple)/0.12)] text-[hsl(var(--education-purple))] border-[hsl(var(--education-purple))]"
+                      : "bg-white text-gray-500 hover:text-[hsl(var(--education-purple))] hover:border-[hsl(var(--education-purple))]"
+                  )}
+                  tabIndex={0}
+                  style={{ minHeight: 28 }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  <span>Analogias</span>
+                  <svg className={cn("h-3 w-3 ml-1 transition-transform", showAnalogyDropdown ? "rotate-180" : "rotate-0")}
+                    fill="none" viewBox="0 0 20 20" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 8l4 4 4-4" />
+                  </svg>
+                </button>
+                {/* Dropdown/colapsável */}
+                {showAnalogyDropdown && (
+                  <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-3 animate-fade-in">
+                    <label htmlFor="knowledge-base" className="block text-xs font-medium text-gray-700 mb-1">O que você já sabe ou quer usar como analogia?</label>
+                    <textarea
+                      id="knowledge-base"
+                      value={knowledgeBase}
+                      onChange={e => setKnowledgeBase(e.target.value)}
+                      rows={3}
+                      placeholder="Ex: Já sei variáveis, quero analogias com futebol..."
+                      className="w-full rounded-lg border border-gray-200 bg-white text-gray-900 px-3 py-2 text-sm focus:border-[hsl(var(--education-purple))] focus:ring-2 focus:ring-[hsl(var(--education-purple))] transition-all outline-none resize-none"
+                      style={{ minHeight: 36, maxHeight: 100 }}
+                      autoFocus
+                    />
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="text-xs text-red-600 hover:text-red-700 mt-2 p-0 h-auto font-medium"
+                      onClick={() => {
+                        setAnalogiesEnabled(false);    // Turn OFF analogies feature
+                        setShowAnalogyDropdown(false); // And hide the dropdown
+                        // setKnowledgeBase(""); // Optionally clear the knowledge base
+                      }}
+                    >
+                      Desativar Analogias
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
         
@@ -367,18 +552,6 @@ export const ChatInterface = () => {
           isMobile ? "pb-6" : ""
         )}>
           <div className="max-w-3xl mx-auto">
-            {/* Use the externally defined DesktopSettingsView */}
-            {!isMobile && (
-              <DesktopSettingsView
-                analogiesEnabled={analogiesEnabled}
-                setAnalogiesEnabled={setAnalogiesEnabled}
-                knowledgeBase={knowledgeBase}
-                setKnowledgeBase={setKnowledgeBase}
-                aiModel={aiModel}
-                setAiModel={setAiModel}
-              />
-            )}
-
             <ChatInput
               onSendMessage={handleSendMessage}
               isLoading={isLoading}

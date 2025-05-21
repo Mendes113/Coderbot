@@ -1,9 +1,15 @@
 from fastapi import FastAPI
-from .routers import deepseek_router, judge_router, exercises_router  # Importa os roteadores
+from app.routers import deepseek_router, judge_router, exercises_router  # Importa os roteadores
 from app.config import settings  # Importa para garantir que a config seja lida na inicialização
 from supabase import create_client, Client
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers.whiteboard_router import router as whiteboard_router
+from app.routers.educational_chat_router import router as educational_chat_router
+import logging
+
+# Configuração de logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 # if settings.supabase_url == "your_supabase_url":
@@ -15,8 +21,8 @@ from app.routers.whiteboard_router import router as whiteboard_router
 
 
 app = FastAPI(
-    title="Meu Serviço com DeepSeek API",
-    description="Backend para gerenciar o serviço X e integrar com DeepSeek.",
+    title="Chatbot Educacional",
+    description="Backend robusto para integração de IA com suporte a sequential thinking e retrieval augmented generation (RAG).",
     version="1.0.0",
 )
 
@@ -31,37 +37,31 @@ app.add_middleware(
 )
 
 
-# Mensagem de inicialização (opcional)
+# Evento de startup: inicializações e verificações de configuração
 @app.on_event("startup")
 async def startup_event():
-    print("Iniciando a aplicação...")
-    print(f"Usando DeepSeek Base URL: {settings.deep_seek_api_url}")
+    logger.info("Inicializando a aplicação...")
+    logger.info(f"DeepSeek API URL: {settings.deep_seek_api_url}")
     if not settings.deep_seek_api_key or settings.deep_seek_api_key == "your_deep_seek_api_key":
-        # Verifica se a chave da API está configurada corretamente
-        print("ALERTA: Chave da API DeepSeek não configurada!")
+        logger.warning("ALERTA: Chave da API DeepSeek não configurada!")
     else:
-        print("Chave da API DeepSeek carregada.")
-        
+        logger.info("Chave da API DeepSeek carregada com sucesso.")
+    # Aqui pode-se inicializar serviços compartilhados, como PromptLoader e RAGService,
+    # para que fiquem disponíveis aos endpoints relevantes.
 
 
 
 
-# Incluir os roteadores na aplicação
+# Incluir os roteadores na aplicação (seguindo princípios SOLID e modularização)
 app.include_router(deepseek_router.router)
-# app.include_router(chat_router.router)  # Adicione outros roteadores aqui
-# app.include_router(user_router.router)  # Adicione outros roteadores aqui 
-# app.include_router(exercises_router.router)  # Adicione outros roteadores aqui
-# app.include_router(other_router.router)  # Adicione outros roteadores aqui
-
-# app.include_router(claude_router.router)
-app.include_router(judge_router.router)  # Adicione outros roteadores aqui
-
-app.include_router(exercises_router.router)  # Adicione outros roteadores aqui
+app.include_router(judge_router.router)
+app.include_router(exercises_router.router)
 app.include_router(whiteboard_router)
+app.include_router(educational_chat_router)  # Novo router para chat com metodologias educacionais
 
-# Rota raiz simples para teste
+# Rota raiz para teste simples
 @app.get("/", tags=["Root"])
 async def read_root():
-    return {"message": "Bem-vindo ao backend do serviço!"}
+    return {"message": "Bem-vindo ao backend do Chatbot Educacional!"}
 
 

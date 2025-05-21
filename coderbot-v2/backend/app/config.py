@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     pocketbase_user_email: str = Field(..., env="POCKETBASE_USER_EMAIL")
     pocketbase_user_password: str = Field(..., env="POCKETBASE_USER_PASSWORD")
     
+    # Configurações de administrador do PocketBase (para gerenciamento de prompts)
+    pocketbase_admin_email: str = Field(..., env="POCKETBASE_ADMIN_EMAIL")
+    pocketbase_admin_password: str = Field(..., env="POCKETBASE_ADMIN_PASSWORD")
+    
     # Configurações de Providers de IA
     open_ai_api_key: str = Field(..., env="OPEN_AI_API_KEY")
     open_ai_api_url: str = Field("https://api.openai.com/v1", env="OPENAI_API_URL")

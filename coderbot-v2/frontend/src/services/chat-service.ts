@@ -55,6 +55,7 @@ export const chatService = {
       const chatMessage = await pb.collection('chat_messages').create({
         content: message.content,
         isAi: message.isAi,
+        sessionId: message.sessionId, // Ensure sessionId is saved
         timestamp: new Date().toISOString(),
       });
 

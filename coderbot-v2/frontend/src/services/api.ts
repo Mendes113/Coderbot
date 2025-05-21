@@ -24,15 +24,39 @@ interface ChatMessageInput {
   context?: string;
 }
 
+export interface UserProfile {
+  difficulty_level?: string;
+  baseKnowledge?: string;
+  learning_progress?: any;
+  style_preference?: string;
+  subject_area?: string;
+}
+
+export interface MethodologyInfo {
+  id: string;
+  name: string;
+  description: string;
+  recommended_for: string[];
+}
+
+// Define MethodologyType if not imported from backend
+export const MethodologyType = {
+  DEFAULT: { value: "default" },
+  ANALOGY: { value: "analogy" },
+  SEQUENTIAL: { value: "sequential" },
+};
+
 export const fetchChatResponse = async (
   message: string,
   useAnalogies: boolean = false,
   useSequential: boolean = false,
   knowledge: string = "",
-  model: string = "gpt-3.5-turbo"
+  model: string = "gpt-3.5-turbo",
+  methodology: string = "default",
+  userProfile?: UserProfile,
+  whiteboardContext?: Record<string, any> | null
 ): Promise<ApiResponse> => {
   try {
-    // Preparar mensagem no formato esperado pela API
     const messages: ChatMessageInput[] = [
       { 
         role: "user", 
@@ -42,26 +66,79 @@ export const fetchChatResponse = async (
       }
     ];
 
-    // Parâmetros de URL para controle de analogias
-    const url = `${BASE_URL}?use_analogies=${useAnalogies}`;
-    
-    // Enviar requisição para a API
+    let url: string;
+    let body: any;
+
+    if (whiteboardContext) {
+      url = "http://localhost:8000/api/whiteboard/ask";
+      
+      let effectiveMethodology: string | null;
+      // If the frontend's methodology is "default" or "analogy" (which implies default behavior for whiteboard context),
+      // send null to let the backend apply its Pydantic default for WhiteboardAskRequest.methodology.
+      // Otherwise, send the specific methodology string.
+      if (methodology === MethodologyType.DEFAULT.value || methodology === MethodologyType.ANALOGY.value) {
+        effectiveMethodology = null; 
+      } else {
+        effectiveMethodology = methodology; 
+      }
+
+      let processedExcalidrawJson: Record<string, any>;
+      if (typeof whiteboardContext === 'string') {
+        try {
+          processedExcalidrawJson = JSON.parse(whiteboardContext);
+        } catch (parseError) {
+          console.error("Failed to parse whiteboardContext string into JSON:", parseError);
+          throw new Error("whiteboardContext was provided as a string, but it's not valid JSON.");
+        }
+      } else if (typeof whiteboardContext === 'object' && whiteboardContext !== null) {
+        processedExcalidrawJson = whiteboardContext;
+      } else {
+        console.error("Invalid type for whiteboardContext. Expected object or JSON string, got:", typeof whiteboardContext);
+        throw new Error("Invalid type for whiteboardContext. Expected object or JSON string.");
+      }
+
+      body = {
+        message: message,
+        excalidraw_json: processedExcalidrawJson, // Use the processed version
+        chat_id: null, // Consistently send null for now
+        prompt_template: null, // Consistently send null for now
+        use_rag: false, // Default to false
+        methodology: effectiveMethodology, // Will be a specific string or null
+        user_profile: userProfile // Will be the userProfile object or undefined
+      };
+      // Ensure that if userProfile was undefined, it's removed from the body so Pydantic uses its default (None)
+      Object.keys(body).forEach(key => {
+        if (body[key] === undefined) {
+          delete body[key];
+        }
+      });
+    } else {
+      url = methodology !== "default" && methodology !== "analogy" 
+        ? "http://localhost:8000/chat/completions" 
+        : `${BASE_URL}?use_analogies=${useAnalogies}`;
+      
+      body = {
+        model: model,
+        messages: messages,
+        max_tokens: 350,
+        temperature: 0.7,
+        methodology: methodology,
+        user_profile: userProfile || {
+          difficulty_level: "medium",
+          subject_area: "programming",
+          style_preference: useAnalogies ? "analogies" : "concise",
+          learning_progress: { questions_answered: 0, correct_answers: 0 },
+          baseKnowledge: knowledge || "basic"
+        }
+      };
+    }
+
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: model,
-        messages: messages,
-        max_tokens: 350,
-        temperature: 0.7,
-        difficulty_level: "medium",
-        subject_area: "programming",
-        style_preference: useAnalogies ? "analogies" : "concise",
-        learning_progress: { questions_answered: 0, correct_answers: 0 },
-        baseKnowledge: knowledge || "basic"
-      }),
+      body: JSON.stringify(body),
     });
     
     if (!response.ok) {
@@ -90,5 +167,22 @@ export const fetchChatResponse = async (
     return { 
       content: "Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente."
     };
+  }
+};
+
+// Add a function to fetch available methodologies
+export const fetchMethodologies = async (): Promise<MethodologyInfo[]> => {
+  try {
+    const response = await fetch("http://localhost:8000/chat/methodologies");
+    if (!response.ok) {
+      throw new Error(`Error fetching methodologies: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return data.methodologies;
+  } catch (error) {
+    console.error("Error fetching methodologies:", error);
+    toast.error("Failed to load teaching methodologies");
+    return [];
   }
 };

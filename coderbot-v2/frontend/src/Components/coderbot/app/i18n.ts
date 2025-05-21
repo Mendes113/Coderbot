@@ -25,6 +25,7 @@ const resources = {
         updateError: 'Error updating title',
         deleteError: 'Error deleting conversation',
         loadError: 'Error loading sessions',
+        sessionExpired: 'Session expired',
       }
     }
   },
