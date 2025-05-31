@@ -21,6 +21,8 @@ const Whiteboard = React.lazy(() => import("./pages/Whiteboard"));
 const Home = React.lazy(() => import("./home/Home"));
 const Mermaid = React.lazy(() => import("./pages/Mermaid"));
 const FlashCardPage = React.lazy(() => import("./pages/FlashCardPage"));
+const AdaptiveLearning = React.lazy(() => import("./pages/AdaptiveLearning"));
+const Analytics = React.lazy(() => import("./pages/Analytics"));
 
 const queryClient = new QueryClient();
 
@@ -42,6 +44,8 @@ const App = () => {
                 <Route path="dashboard" element={<RequireAuth><Index /></RequireAuth>}>
                   <Route path="chat" element={<ChatInterface />} />
                   <Route path="playground" element={<CodeEditor />} />
+                  <Route path="adaptive" element={<AdaptiveLearning />} />
+                  <Route path="analytics" element={<Analytics />} />
                   <Route path="exercises" element={<ExerciseInterface />} />
                   <Route path="metrics" element={<LearningMetrics />} />
                   <Route path="teacher" element={<TeacherDashboard />} />

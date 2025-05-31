@@ -15,7 +15,11 @@ dependencies = [
     "pocketbase>=0.15.0",
     "supabase>=2.15.1",
     "sqlalchemy>=2.0.41",
-    "agno>=1.5.1"
+    "agno>=1.5.1",
+    "numpy>=2.2.6",
+    "requests>=2.32.3",
+    "scikit-learn>=1.6.1",
+    "pandas>=2.2.3"
 ]
 
 

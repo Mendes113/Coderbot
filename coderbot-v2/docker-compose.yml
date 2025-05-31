@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  coderbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"  # Backend API
+      - "8090:8090"  # PocketBase
+      - "3000:3000"  # Frontend (if needed)
+      - "8080:8080"  # Code-Server IDE
+    environment:
+      # Backend Configuration
+      - POCKETBASE_URL=http://localhost:8090
+      - POCKETBASE_ADMIN_EMAIL=${POCKETBASE_ADMIN_EMAIL:-admin@coderbot.dev}
+      - POCKETBASE_ADMIN_PASSWORD=${POCKETBASE_ADMIN_PASSWORD:-defaultpassword}
+      - POCKETBASE_USER_EMAIL=${POCKETBASE_USER_EMAIL:-user@coderbot.dev}
+      - POCKETBASE_USER_PASSWORD=${POCKETBASE_USER_PASSWORD:-userpassword}
+      
+      # AI API Keys
+      - DEEP_SEEK_API_KEY=${DEEP_SEEK_API_KEY}
+      - DEEP_SEEK_API_URL=${DEEP_SEEK_API_URL:-https://api.deepseek.com/v1}
+      - OPEN_AI_API_KEY=${OPEN_AI_API_KEY}
+      - OPENAI_API_URL=${OPENAI_API_URL:-https://api.openai.com/v1}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - RAPIDAPI_KEY=${RAPIDAPI_KEY}
+      
+      # Supabase (optional)
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      
+      # Runtime Environment
+      - PYTHONUNBUFFERED=1
+      - NODE_ENV=production
+      
+      # Code-Server Configuration
+      - CODE_SERVER_PASSWORD=${CODE_SERVER_PASSWORD:-coderbot2024}
+    volumes:
+      - pocketbase_data:/app/data/pb_data
+      - code_server_data:/app/data/code-server
+      - workspace_data:/app/workspace
+      - logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - coderbot_network
+
+volumes:
+  pocketbase_data:
+    driver: local
+  code_server_data:
+    driver: local
+  workspace_data:
+    driver: local
+  logs:
+    driver: local
+    driver: local
+
+networks:
+  coderbot_network:
+    driver: bridge

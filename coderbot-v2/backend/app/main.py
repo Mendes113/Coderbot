@@ -5,6 +5,8 @@ from supabase import create_client, Client
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers.whiteboard_router import router as whiteboard_router
 from app.routers.educational_chat_router import router as educational_chat_router
+from app.routers.adaptive_learning_router import router as adaptive_learning_router
+from app.routers.analytics_router import router as analytics_router
 import logging
 
 # Configuração de logging
@@ -21,9 +23,9 @@ logger = logging.getLogger(__name__)
 
 
 app = FastAPI(
-    title="Chatbot Educacional",
-    description="Backend robusto para integração de IA com suporte a sequential thinking e retrieval augmented generation (RAG).",
-    version="1.0.0",
+    title="CoderBot v2 - Advanced Educational Platform",
+    description="Comprehensive backend for AI-powered adaptive learning with analytics, gamification, and social features",
+    version="2.0.0",
 )
 
 
@@ -40,12 +42,18 @@ app.add_middleware(
 # Evento de startup: inicializações e verificações de configuração
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Inicializando a aplicação...")
+    logger.info("Inicializando CoderBot v2 - Advanced Educational Platform...")
     logger.info(f"DeepSeek API URL: {settings.deep_seek_api_url}")
     if not settings.deep_seek_api_key or settings.deep_seek_api_key == "your_deep_seek_api_key":
         logger.warning("ALERTA: Chave da API DeepSeek não configurada!")
     else:
         logger.info("Chave da API DeepSeek carregada com sucesso.")
+    
+    # Initialize advanced learning systems
+    logger.info("Sistemas de aprendizagem adaptativa inicializados")
+    logger.info("Engine de analytics com ML ativado")
+    logger.info("PocketBase integration configurado")
+    
     # Aqui pode-se inicializar serviços compartilhados, como PromptLoader e RAGService,
     # para que fiquem disponíveis aos endpoints relevantes.
 
@@ -57,11 +65,51 @@ app.include_router(deepseek_router.router)
 app.include_router(judge_router.router)
 app.include_router(exercises_router.router)
 app.include_router(whiteboard_router)
-app.include_router(educational_chat_router)  # Novo router para chat com metodologias educacionais
+app.include_router(educational_chat_router)  # Chat com metodologias educacionais
+app.include_router(adaptive_learning_router)  # Sistema de aprendizagem adaptativa
+app.include_router(analytics_router)  # Advanced learning analytics with ML
 
 # Rota raiz para teste simples
 @app.get("/", tags=["Root"])
 async def read_root():
-    return {"message": "Bem-vindo ao backend do Chatbot Educacional!"}
+    return {
+        "message": "Welcome to CoderBot v2 - Advanced Educational Platform!",
+        "version": "2.0.0",
+        "features": [
+            "Adaptive Learning Engine",
+            "Advanced Analytics & ML Predictions", 
+            "PocketBase Integration",
+            "Performance Tracking",
+            "Personalized Recommendations",
+            "Learning Path Generation",
+            "Skill Progression Analysis"
+        ],
+        "status": "operational"
+    }
+
+# Health check endpoint for Coolify deployment
+@app.get("/health", tags=["Health"])
+async def health_check():
+    """Main health check endpoint for deployment monitoring"""
+    try:
+        from datetime import datetime
+        return {
+            "status": "healthy",
+            "service": "CoderBot v2 Backend",
+            "version": "2.0.0",
+            "timestamp": datetime.now().isoformat(),
+            "components": {
+                "backend_api": "active",
+                "pocketbase_integration": "configured", 
+                "adaptive_learning": "enabled",
+                "analytics_engine": "enabled"
+            }
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
 
 

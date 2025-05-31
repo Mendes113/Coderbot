@@ -1,4 +1,4 @@
-import { User, MessageSquare, Code, BarChart3, GraduationCap, FileText, Presentation, GitBranch, ClipboardEdit } from "lucide-react";
+import { User, MessageSquare, Code, BarChart3, GraduationCap, FileText, Presentation, GitBranch, ClipboardEdit, Brain, TrendingUp } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -17,6 +17,15 @@ import { useEffect, useState } from "react";
 import { getCurrentUser } from "@/integrations/pocketbase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+type NavItem = {
+  id: string;
+  label: string;
+  icon: React.ComponentType<any>;
+  accessKey: string;
+  path: string;
+  roles?: string[];
+};
 
 type AppSidebarProps = {
   currentNav: string;
@@ -39,32 +48,34 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
   }, []);
 
   // Map navigation items to their corresponding routes
-  const mainNavItems = [
+  const mainNavItems: NavItem[] = [
     { id: "chat", label: "Chat", icon: MessageSquare, accessKey: "c", path: "/dashboard/chat" },
     { id: "playground", label: "Playground", icon: Code, accessKey: "p", path: "/dashboard/playground" },
-    // { id: "exercises", label: "Exercícios", icon: FileText, accessKey: "e", path: "/dashboard/exercises" },
-    // { id: "metrics", label: "Métricas", icon: BarChart3, accessKey: "m", path: "/dashboard/metrics" },
+    { id: "adaptive", label: "Adaptive Learning", icon: Brain, accessKey: "a", path: "/dashboard/adaptive" },
+    { id: "analytics", label: "Learning Analytics", icon: TrendingUp, accessKey: "l", path: "/dashboard/analytics" },
+    { id: "exercises", label: "Exercícios", icon: FileText, accessKey: "e", path: "/dashboard/exercises" },
+    { id: "metrics", label: "Métricas", icon: BarChart3, accessKey: "m", path: "/dashboard/metrics" },
     // Only show teacher dashboard for teachers and admins
-    // {
-    //   id: "teacher",
-    //   label: "Professor",
-    //   icon: GraduationCap,
-    //   accessKey: "t",
-    //   path: "/dashboard/teacher",
-    //   roles: ["teacher", "admin"],
-    // },
-    // // Show student dashboard for students (can also be visible to teachers/admins)
-    // {
-    //   id: "student",
-    //   label: "Aluno",
-    //   icon: GraduationCap,
-    //   accessKey: "s",
-    //   path: "/dashboard/student",
-    //   roles: ["student", "teacher", "admin"],
-    // },
+    {
+      id: "teacher",
+      label: "Professor",
+      icon: GraduationCap,
+      accessKey: "t",
+      path: "/dashboard/teacher",
+      roles: ["teacher", "admin"],
+    },
+    // Show student dashboard for students (can also be visible to teachers/admins)
+    {
+      id: "student",
+      label: "Aluno",
+      icon: GraduationCap,
+      accessKey: "s",
+      path: "/dashboard/student",
+      roles: ["student", "teacher", "admin"],
+    },
     { id: "whiteboard", label: "Quadro", icon: Presentation, accessKey: "w", path: "/dashboard/whiteboard" },
-    // { id: "mermaid", label: "Diagramas", icon: GitBranch, accessKey: "d", path: "/dashboard/mermaid" },
-    // { id: "flashcard", label: "Flashcards", icon: ClipboardEdit, accessKey: "f", path: "/dashboard/flashcard" },
+    { id: "mermaid", label: "Diagramas", icon: GitBranch, accessKey: "d", path: "/dashboard/mermaid" },
+    { id: "flashcard", label: "Flashcards", icon: ClipboardEdit, accessKey: "f", path: "/dashboard/flashcard" },
   ];
 
   // Filter items based on user role
