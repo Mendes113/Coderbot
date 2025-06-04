@@ -1,7 +1,13 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 
 class ChatMessageInput(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+        validate_assignment=True,
+        str_strip_whitespace=True
+    )
+    
     role: str  # "user", "system", "assistant"
     content: str
     knowledge_level: Optional[str] = "beginner"  # "beginner", "intermediate", "advanced"
@@ -9,6 +15,11 @@ class ChatMessageInput(BaseModel):
     context: Optional[str] = "teaching"  # "teaching", "informal", "explanation-focused"
 
 class ChatCompletionRequest(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+        validate_assignment=True
+    )
+    
     model: str = "deepseek-chat"  # Ou o modelo específico que você quer usar
     messages: List[ChatMessageInput]
     max_tokens: Optional[int] = 350
@@ -20,6 +31,11 @@ class ChatCompletionRequest(BaseModel):
     baseKnowledge: Optional[str] = "basic"  # "basic", "intermediate", "advanced"
 
 class ChatCompletionResponse(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',  # API responses may have extra fields
+        validate_assignment=True
+    )
+    
     id: str
     object: str
     created: int

@@ -27,7 +27,7 @@ class PocketBaseService:
             "concept_masteries": "concept_masteries",
             "adaptive_recommendations": "adaptive_recommendations",
             "skill_matrices": "skill_matrices",
-            "learning_analytics": "user_analytics",  # Fixed: use the correct collection name
+            "learning_analytics": "learning_analytics",
             "user_achievements": "user_achievements",
             "learning_streaks": "learning_streaks"
         }

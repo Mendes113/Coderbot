@@ -121,17 +121,13 @@ export const LearningAnalyticsDashboard: React.FC<LearningAnalyticsDashboardProp
     );
   }
 
-  if (!analytics || !analytics.overview) {
+  if (!analytics) {
     return (
       <div className={`flex items-center justify-center h-96 ${className}`}>
         <div className="text-center space-y-4">
           <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto" />
           <h3 className="text-lg font-semibold">No Analytics Data</h3>
           <p className="text-muted-foreground">Start learning to generate analytics insights!</p>
-          <Button onClick={() => loadAnalytics(true)} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Try Loading Again
-          </Button>
         </div>
       </div>
     );
@@ -175,28 +171,28 @@ export const LearningAnalyticsDashboard: React.FC<LearningAnalyticsDashboardProp
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           title="Total Sessions"
-          value={overview?.total_sessions || 0}
+          value={overview.total_sessions}
           icon={<BookOpen className="h-4 w-4" />}
-          trend={overview?.performance_trend || 'stable'}
+          trend={overview.performance_trend}
         />
         <MetricCard
           title="Study Time"
-          value={`${(overview?.total_study_time_hours || 0).toFixed(1)}h`}
+          value={`${overview.total_study_time_hours.toFixed(1)}h`}
           icon={<Clock className="h-4 w-4" />}
-          subtitle={`${overview?.active_days || 0} active days`}
+          subtitle={`${overview.active_days} active days`}
         />
         <MetricCard
           title="Performance"
-          value={`${((overview?.average_performance || 0) * 100).toFixed(1)}%`}
+          value={`${(overview.average_performance * 100).toFixed(1)}%`}
           icon={<TrendingUp className="h-4 w-4" />}
-          trend={overview?.performance_trend || 'stable'}
+          trend={overview.performance_trend}
         />
         <MetricCard
           title="Current Streak"
-          value={overview?.current_streak || 0}
+          value={overview.current_streak}
           icon={<Flame className="h-4 w-4" />}
           subtitle="days"
-          highlight={(overview?.current_streak || 0) > 7}
+          highlight={overview.current_streak > 7}
         />
       </div>
 
@@ -295,19 +291,8 @@ const MetricCard: React.FC<MetricCardProps> = ({
 
 // Overview Tab Component
 const OverviewTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) => {
-  const overview = analytics?.overview;
-  const patterns = analytics?.learning_patterns;
-
-  if (!overview || !patterns) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center space-y-2">
-          <AlertTriangle className="h-8 w-8 text-yellow-500 mx-auto" />
-          <p className="text-muted-foreground">Overview data not available</p>
-        </div>
-      </div>
-    );
-  }
+  const overview = analytics.overview;
+  const patterns = analytics.learning_patterns;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -322,15 +307,15 @@ const OverviewTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) => {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Learning Style</span>
-            <Badge variant="secondary">{overview?.learning_style || 'Unknown'}</Badge>
+            <Badge variant="secondary">{overview.learning_style}</Badge>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Concepts Mastered</span>
-            <span className="font-semibold">{overview?.concepts_mastered || 0}</span>
+            <span className="font-semibold">{overview.concepts_mastered}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Active Days</span>
-            <span className="font-semibold">{overview?.active_days || 0}</span>
+            <span className="font-semibold">{overview.active_days}</span>
           </div>
         </CardContent>
       </Card>
@@ -344,14 +329,14 @@ const OverviewTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) => {
           <div>
             <div className="flex justify-between text-sm mb-2">
               <span>Session Consistency</span>
-              <span>{((patterns?.regularity_score || 0) * 100).toFixed(0)}%</span>
+              <span>{(patterns.regularity_score * 100).toFixed(0)}%</span>
             </div>
-            <Progress value={(patterns?.regularity_score || 0) * 100} />
+            <Progress value={patterns.regularity_score * 100} />
           </div>
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">Peak Learning Hours</p>
             <div className="flex flex-wrap gap-1">
-              {(patterns?.peak_learning_hours || []).map(hour => (
+              {patterns.peak_learning_hours.map(hour => (
                 <Badge key={hour} variant="outline" className="text-xs">
                   {hour}:00
                 </Badge>
@@ -361,7 +346,7 @@ const OverviewTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) => {
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">Preferred Days</p>
             <div className="flex flex-wrap gap-1">
-              {(patterns?.preferred_days || []).slice(0, 3).map(day => (
+              {patterns.preferred_days.slice(0, 3).map(day => (
                 <Badge key={day} variant="outline" className="text-xs">
                   {day}
                 </Badge>
@@ -408,20 +393,8 @@ const OverviewTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) => {
 
 // Performance Tab Component
 const PerformanceTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) => {
-  const performance = analytics?.performance_analysis;
-  
-  if (!performance) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center space-y-2">
-          <AlertTriangle className="h-8 w-8 text-yellow-500 mx-auto" />
-          <p className="text-muted-foreground">Performance data not available</p>
-        </div>
-      </div>
-    );
-  }
-  
-  const chartData = formatAnalyticsData.performanceTrend(performance?.weekly_trends || {});
+  const performance = analytics.performance_analysis;
+  const chartData = formatAnalyticsData.performanceTrend(performance.weekly_trends);
 
   return (
     <div className="space-y-6">
@@ -461,15 +434,15 @@ const PerformanceTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) =
           <CardContent className="space-y-2">
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Average</span>
-              <span className="font-semibold">{((performance?.statistics?.mean || 0) * 100).toFixed(1)}%</span>
+              <span className="font-semibold">{(performance.statistics.mean * 100).toFixed(1)}%</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Best</span>
-              <span className="font-semibold">{((performance?.statistics?.max || 0) * 100).toFixed(1)}%</span>
+              <span className="font-semibold">{(performance.statistics.max * 100).toFixed(1)}%</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Consistency</span>
-              <span className="font-semibold">{((performance?.consistency_score || 0) * 100).toFixed(1)}%</span>
+              <span className="font-semibold">{(performance.consistency_score * 100).toFixed(1)}%</span>
             </div>
           </CardContent>
         </Card>
@@ -510,20 +483,8 @@ const PerformanceTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) =
 
 // Engagement Tab Component
 const EngagementTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) => {
-  const engagement = analytics?.engagement_analysis;
-  
-  if (!engagement) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center space-y-2">
-          <AlertTriangle className="h-8 w-8 text-yellow-500 mx-auto" />
-          <p className="text-muted-foreground">Engagement data not available</p>
-        </div>
-      </div>
-    );
-  }
-  
-  const chartData = formatAnalyticsData.engagementPatterns(engagement?.hourly_patterns || {});
+  const engagement = analytics.engagement_analysis;
+  const chartData = formatAnalyticsData.engagementPatterns(engagement.hourly_patterns);
 
   return (
     <div className="space-y-6">
@@ -557,12 +518,12 @@ const EngagementTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) =>
           <CardContent className="space-y-4">
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Average Engagement</span>
-              <span className="font-semibold">{((engagement?.statistics?.mean || 0) * 100).toFixed(1)}%</span>
+              <span className="font-semibold">{(engagement.statistics.mean * 100).toFixed(1)}%</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Trend</span>
-              <Badge variant={engagement?.statistics?.trend === 'improving' ? 'default' : 'secondary'}>
-                {engagement?.statistics?.trend || 'stable'}
+              <Badge variant={engagement.statistics.trend === 'improving' ? 'default' : 'secondary'}>
+                {engagement.statistics.trend}
               </Badge>
             </div>
             <div className="flex justify-between">
@@ -600,25 +561,9 @@ const EngagementTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) =>
 
 // Skills Tab Component
 const SkillsTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) => {
-  const skills = analytics?.skill_progression;
-  
-  if (!skills) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center space-y-2">
-          <AlertTriangle className="h-8 w-8 text-yellow-500 mx-auto" />
-          <p className="text-muted-foreground">Skills data not available</p>
-        </div>
-      </div>
-    );
-  }
-  
-  const chartData = formatAnalyticsData.skillProgression(skills?.concept_progression || {});
-  const timelineData = formatAnalyticsData.learningTimeline(skills?.daily_progress || []);
-  
-  // Ensure chartData is an array
-  const chartDataArray = Array.isArray(chartData) ? chartData : [];
-  const timelineDataArray = Array.isArray(timelineData) ? timelineData : [];
+  const skills = analytics.skill_progression;
+  const chartData = formatAnalyticsData.skillProgression(skills.concept_progression);
+  const timelineData = formatAnalyticsData.learningTimeline(skills.daily_progress);
 
   return (
     <div className="space-y-6">
@@ -630,7 +575,7 @@ const SkillsTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) => {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <RadarChart data={chartDataArray.slice(0, 8)}>
+            <RadarChart data={chartData.slice(0, 8)}>
               <PolarGrid />
               <PolarAngleAxis dataKey="skill" />
               <PolarRadiusAxis domain={[0, 1]} />
@@ -648,7 +593,7 @@ const SkillsTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) => {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={timelineDataArray.slice(-14)}>
+            <LineChart data={timelineData.slice(-14)}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
               <YAxis domain={[0, 1]} />
@@ -684,7 +629,7 @@ const SkillsTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) => {
           <CardContent>
             <div className="text-center">
               <div className="text-3xl font-bold text-purple-600">
-                {skills?.mastery_prediction?.estimated_weeks || 'N/A'}
+                {skills.mastery_prediction?.estimated_weeks || 'N/A'}
               </div>
               <p className="text-sm text-muted-foreground">weeks to next milestone</p>
             </div>
@@ -697,19 +642,8 @@ const SkillsTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) => {
 
 // Predictions Tab Component
 const PredictionsTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) => {
-  const predictions = analytics?.predictions;
-  const comparative = analytics?.comparative_analysis;
-
-  if (!predictions || !comparative) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center space-y-2">
-          <AlertTriangle className="h-8 w-8 text-yellow-500 mx-auto" />
-          <p className="text-muted-foreground">Predictions data not available</p>
-        </div>
-      </div>
-    );
-  }
+  const predictions = analytics.predictions;
+  const comparative = analytics.comparative_analysis;
 
   return (
     <div className="space-y-6">
@@ -725,7 +659,7 @@ const PredictionsTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) =
           <CardContent>
             <div className="text-center space-y-2">
               <div className="text-2xl font-bold">
-                {predictions?.next_session_performance?.predicted_score 
+                {predictions.next_session_performance?.predicted_score 
                   ? `${(predictions.next_session_performance.predicted_score * 100).toFixed(1)}%`
                   : 'N/A'
                 }
@@ -733,7 +667,7 @@ const PredictionsTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) =
               <p className="text-sm text-muted-foreground">Next session prediction</p>
               <div className="flex items-center justify-center space-x-2">
                 <Badge variant="outline">
-                  {((predictions?.confidence_interval || 0) * 100).toFixed(0)}% confidence
+                  {(predictions.confidence_interval * 100).toFixed(0)}% confidence
                 </Badge>
               </div>
             </div>
@@ -747,13 +681,13 @@ const PredictionsTab: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) =
           <CardContent>
             <div className="text-center space-y-2">
               <div className={`text-2xl font-bold ${
-                predictions?.dropout_risk?.risk_level === 'low' ? 'text-green-600' :
-                predictions?.dropout_risk?.risk_level === 'medium' ? 'text-yellow-600' : 'text-red-600'
+                predictions.dropout_risk?.risk_level === 'low' ? 'text-green-600' :
+                predictions.dropout_risk?.risk_level === 'medium' ? 'text-yellow-600' : 'text-red-600'
               }`}>
-                {predictions?.dropout_risk?.risk_level?.toUpperCase() || 'N/A'}
+                {predictions.dropout_risk?.risk_level?.toUpperCase() || 'N/A'}
               </div>
               <p className="text-sm text-muted-foreground">
-                {predictions?.dropout_risk?.probability 
+                {predictions.dropout_risk?.probability 
                   ? `${(predictions.dropout_risk.probability * 100).toFixed(1)}% probability`
                   : 'Risk assessment'
                 }

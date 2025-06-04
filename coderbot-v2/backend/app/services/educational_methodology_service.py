@@ -25,6 +25,7 @@ class MethodologyType(Enum):
     ANALOGY = "analogy"
     SOCRATIC = "socratic"
     SCAFFOLDING = "scaffolding"
+    WORKED_EXAMPLES = "worked_examples"
     DEFAULT = "default"
 
 class EducationalMethodologyService:
@@ -149,6 +150,12 @@ class EducationalMethodologyService:
             
         elif methodology_type == MethodologyType.SCAFFOLDING:
             result["metadata"]["scaffolding_level"] = user_profile.get("learning_progress", "intermediate")
+            
+        elif methodology_type == MethodologyType.WORKED_EXAMPLES:
+            result["metadata"]["example_phases"] = additional_params.get("example_phases", 6)
+            result["metadata"]["cognitive_load_management"] = True
+            result["metadata"]["step_by_step_demo"] = additional_params.get("step_by_step_demo", True)
+            result["metadata"]["error_examples"] = additional_params.get("error_examples", True)
         
         return result
     
@@ -183,5 +190,11 @@ class EducationalMethodologyService:
                 "name": "Scaffolding (Andaime)",
                 "description": "Fornece diferentes níveis de suporte conforme a necessidade do aluno, removendo gradualmente a ajuda conforme o aluno progride.",
                 "recommended_for": ["aprendizado gradual", "desenvolvimento de habilidades"],
+            },
+            {
+                "id": MethodologyType.WORKED_EXAMPLES.value,
+                "name": "Exemplos Trabalhados",
+                "description": "Usa exemplos passo-a-passo para demonstrar resolução de problemas, reduzindo carga cognitiva e facilitando aquisição de habilidades.",
+                "recommended_for": ["novatos em programação", "aquisição de novas habilidades", "conceitos complexos"],
             },
         ]

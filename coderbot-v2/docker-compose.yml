@@ -1,67 +1,99 @@
-version: '3.8'
-
 services:
-  coderbot:
+  # PocketBase Database
+  pocketbase:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile.pocketbase
+    container_name: coderbot-pocketbase
     ports:
-      - "8000:8000"  # Backend API
-      - "8090:8090"  # PocketBase
-      - "3000:3000"  # Frontend (if needed)
-      - "8080:8080"  # Code-Server IDE
+      - "8090:8090"
+    volumes:
+      # - pocketbase_data:/pb/pb_data  # Comentado para usar dados do Dockerfile
+      - ./pocketbase_0.27.2_linux_amd64/pb_migrations:/pb/pb_migrations:ro
     environment:
-      # Backend Configuration
-      - POCKETBASE_URL=http://localhost:8090
-      - POCKETBASE_ADMIN_EMAIL=${POCKETBASE_ADMIN_EMAIL:-admin@coderbot.dev}
-      - POCKETBASE_ADMIN_PASSWORD=${POCKETBASE_ADMIN_PASSWORD:-defaultpassword}
-      - POCKETBASE_USER_EMAIL=${POCKETBASE_USER_EMAIL:-user@coderbot.dev}
-      - POCKETBASE_USER_PASSWORD=${POCKETBASE_USER_PASSWORD:-userpassword}
-      
-      # AI API Keys
+      - POCKETBASE_ADMIN_EMAIL=${POCKETBASE_ADMIN_EMAIL}
+      - POCKETBASE_ADMIN_PASSWORD=${POCKETBASE_ADMIN_PASSWORD}
+    networks:
+      - coderbot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: coderbot-backend
+    ports:
+      - "8000:8000"
+    environment:
       - DEEP_SEEK_API_KEY=${DEEP_SEEK_API_KEY}
-      - DEEP_SEEK_API_URL=${DEEP_SEEK_API_URL:-https://api.deepseek.com/v1}
+      - DEEP_SEEK_API_URL=${DEEP_SEEK_API_URL}
       - OPEN_AI_API_KEY=${OPEN_AI_API_KEY}
-      - OPENAI_API_URL=${OPENAI_API_URL:-https://api.openai.com/v1}
+      - OPENAI_API_URL=${OPENAI_API_URL}
       - CLAUDE_API_KEY=${CLAUDE_API_KEY}
       - RAPIDAPI_KEY=${RAPIDAPI_KEY}
-      
-      # Supabase (optional)
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
-      
-      # Runtime Environment
-      - PYTHONUNBUFFERED=1
-      - NODE_ENV=production
-      
-      # Code-Server Configuration
-      - CODE_SERVER_PASSWORD=${CODE_SERVER_PASSWORD:-coderbot2024}
-    volumes:
-      - pocketbase_data:/app/data/pb_data
-      - code_server_data:/app/data/code-server
-      - workspace_data:/app/workspace
-      - logs:/app/logs
+      - POCKETBASE_URL=http://pocketbase:8090
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+    networks:
+      - coderbot-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+
+  # Frontend React App
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: coderbot-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - VITE_POCKETBASE_URL=http://localhost:8090
+    depends_on:
+      - backend
     networks:
-      - coderbot_network
+      - coderbot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Code Server IDE (opcional)
+  code-server:
+    image: codercom/code-server:latest
+    container_name: coderbot-code-server
+    ports:
+      - "8787:8787"
+    volumes:
+      - ./:/home/coder/project
+      - code_server_data:/home/coder/.local/share/code-server
+    networks:
+      - coderbot-network
+    restart: unless-stopped
+    command: --bind-addr 0.0.0.0:8787 --auth none /home/coder/project
 
 volumes:
-  pocketbase_data:
-    driver: local
+  # pocketbase_data:  # Comentado para usar dados do Dockerfile
+  #   driver: local
   code_server_data:
-    driver: local
-  workspace_data:
-    driver: local
-  logs:
-    driver: local
     driver: local
 
 networks:
-  coderbot_network:
+  coderbot-network:
     driver: bridge

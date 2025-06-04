@@ -87,29 +87,13 @@ async def read_root():
         "status": "operational"
     }
 
-# Health check endpoint for Coolify deployment
+# Endpoint de health check para Docker
 @app.get("/health", tags=["Health"])
 async def health_check():
-    """Main health check endpoint for deployment monitoring"""
-    try:
-        from datetime import datetime
-        return {
-            "status": "healthy",
-            "service": "CoderBot v2 Backend",
-            "version": "2.0.0",
-            "timestamp": datetime.now().isoformat(),
-            "components": {
-                "backend_api": "active",
-                "pocketbase_integration": "configured", 
-                "adaptive_learning": "enabled",
-                "analytics_engine": "enabled"
-            }
-        }
-    except Exception as e:
-        return {
-            "status": "unhealthy",
-            "error": str(e),
-            "timestamp": datetime.now().isoformat()
-        }
+    return {
+        "status": "healthy",
+        "service": "CoderBot v2 Backend",
+        "version": "2.0.0"
+    }
 
 

@@ -11,7 +11,7 @@ export const chatService = {
     const session = await pb.collection('sessao').create({
       usuario: userId,
       messageIDs: [],
-      Title: title  // Changed from lowercase 'title' to 'Title'
+      title: title  // Use lowercase 'title' to match the DB schema
     });
     
     return session.id;
@@ -24,9 +24,9 @@ export const chatService = {
       
       console.log(`Attempting to update session ${sessionId} title to: ${finalTitle}`);
       
-      // Update the session with the new title using the correct field name (Title with capital T)
+      // Update the session with the new title using the correct field name (title with lowercase t)
       const data = {
-        "Title": finalTitle
+        "title": finalTitle
       };
       
       await pb.collection('sessao').update(sessionId, data);
@@ -34,10 +34,10 @@ export const chatService = {
       // Verify the update worked by fetching the session again
       const updatedSession = await pb.collection('sessao').getOne(sessionId);
       console.log("Session after title update:", updatedSession);
-      console.log("Updated title value:", updatedSession.Title);
+      console.log("Updated title value:", updatedSession.title);
       
-      if (updatedSession.Title !== finalTitle) {
-        console.warn(`Title mismatch: expected "${finalTitle}" but got "${updatedSession.Title}"`);
+      if (updatedSession.title !== finalTitle) {
+        console.warn(`Title mismatch: expected "${finalTitle}" but got "${updatedSession.title}"`);
       }
     } catch (error) {
       console.error("Error updating session title:", error);
@@ -160,7 +160,7 @@ export const chatService = {
       
       return {
         id: item.id,
-        title: item.Title || "Conversa sem título",  // Changed from lowercase 'title' to 'Title'
+        title: item.title || "Conversa sem título",  // Use lowercase 'title' to match DB schema
         created: item.created,
         usuario: item.usuario,
         messageIDs: Array.isArray(messageIDs) ? messageIDs : []

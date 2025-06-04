@@ -9,13 +9,11 @@
 
 migrate(
   /* ---------------- UP ---------------- */
-  (db) => {
-    const dao = new Dao(db);
-
+  (app) => {
     /* 1. Coleção ------------------------------------------------------- */
     let coll;
     try {
-      coll = dao.findCollectionByNameOrId("dynamic_prompts");
+      coll = app.findCollectionByNameOrId("dynamic_prompts");
     } catch {
       coll = new Collection({
         name:  "dynamic_prompts",
@@ -34,7 +32,7 @@ migrate(
           { name:"is_active",   type:"bool" }
         ],
       });
-      dao.saveCollection(coll);
+      app.save(coll);
     }
 
     /* 2. Templates ---------------------------------------------------- */
@@ -142,9 +140,9 @@ Por favor, analise o código acima usando o processo de debugging sequencial est
     ].forEach(({n,t,d})=>{
       let r;
       try {
-        r = dao.findFirstRecordByData(coll.id,"name",n);
+        r = app.findFirstRecordByData(coll.id,"name",n);
       } catch {
-        r = new Record(coll.id);
+        r = new Record(coll);
         r.set("name", n);
       }
       r.set("methodology","sequential_thinking");
@@ -152,15 +150,15 @@ Por favor, analise o código acima usando o processo de debugging sequencial est
       r.set("description",d);
       r.set("version",    1);
       r.set("is_active",  true);
-      dao.saveRecord(r);
+      app.save(r);
     });
   },
 
   /* --------------- DOWN --------------- */
-  (db) => {
-    const dao = new Dao(db);
+  (app) => {
     try {
-      dao.deleteCollection(dao.findCollectionByNameOrId("dynamic_prompts"));
+      const coll = app.findCollectionByNameOrId("dynamic_prompts");
+      app.delete(coll);
     } catch {/* já removida */}
   }
 );

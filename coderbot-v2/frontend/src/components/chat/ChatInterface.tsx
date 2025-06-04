@@ -4,7 +4,7 @@ import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { Message, fetchChatResponse, fetchMethodologies, MethodologyInfo } from "@/services/api";
 import { toast } from "@/components/ui/sonner";
-import { Loader2, MessageSquarePlus, Settings } from "lucide-react";
+import { Loader2, MessageSquarePlus, Settings, Brain, Sparkles, Heart, Zap, Star, Trophy, Target, Flame, Gift, ThumbsUp, Smile, PartyPopper } from "lucide-react";
 import { 
   Drawer, 
   DrawerClose, 
@@ -17,6 +17,431 @@ import { cn } from "@/lib/utils";
 import { chatService } from "@/services/chat-service";
 import { SessionSidebar } from "@/components/chat/SessionSidebar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+// --- Componentes de Design Emocional ---
+
+// Componente do mascote CodeBot (inspirado no Duo)
+const CodeBotMascot = ({ emotion = 'neutral', size = 'medium', isIdle = false }: { emotion?: 'happy' | 'thinking' | 'celebrating' | 'encouraging' | 'neutral'; size?: 'small' | 'medium' | 'large'; isIdle?: boolean }) => {
+  const [idleAnimation, setIdleAnimation] = useState(0);
+  
+  const sizeClasses = {
+    small: 'w-8 h-8',
+    medium: 'w-12 h-12',
+    large: 'w-16 h-16'
+  };
+
+  // Animações de idle (quando parado)
+  useEffect(() => {
+    if (isIdle) {
+      const interval = setInterval(() => {
+        setIdleAnimation(prev => (prev + 1) % 4);
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [isIdle]);
+
+  const getEmotionAnimation = () => {
+    if (isIdle) {
+      const idleAnimations = ['animate-bounce', 'animate-pulse', 'animate-wiggle', ''];
+      return idleAnimations[idleAnimation];
+    }
+    
+    switch (emotion) {
+      case 'happy': return 'animate-bounce';
+      case 'thinking': return 'animate-pulse';
+      case 'celebrating': return 'animate-spin';
+      case 'encouraging': return 'animate-wiggle';
+      default: return '';
+    }
+  };
+
+  return (
+    <div className={`relative ${sizeClasses[size]} ${getEmotionAnimation()} transition-all duration-500`}>
+      <img
+        src="/coderbot_colorfull.png"
+        alt="CodeBot"
+        className="w-full h-full rounded-full shadow-lg object-contain hover:scale-110 transition-transform cursor-pointer"
+      />
+      {emotion === 'celebrating' && (
+        <div className="absolute -top-1 -right-1">
+          <Star className="w-4 h-4 text-yellow-400 animate-spin" />
+        </div>
+      )}
+      {emotion === 'encouraging' && (
+        <div className="absolute -top-1 -right-1">
+          <Heart className="w-3 h-3 text-red-400 animate-pulse" />
+        </div>
+      )}
+      {isIdle && (
+        <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
+          <div className="flex space-x-1">
+            <div className="w-1 h-1 bg-purple-400 rounded-full animate-bounce"></div>
+            <div className="w-1 h-1 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+            <div className="w-1 h-1 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Componente de confetti (inspirado no Duolingo)
+const ConfettiExplosion = ({ onComplete }: { onComplete: () => void }) => {
+  useEffect(() => {
+    const timer = setTimeout(onComplete, 3000);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  return (
+    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+      {/* Confetti pieces */}
+      {[...Array(50)].map((_, i) => (
+        <div
+          key={i}
+          className="absolute animate-confetti"
+          style={{
+            left: `${Math.random() * 100}%`,
+            backgroundColor: ['#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6'][Math.floor(Math.random() * 5)],
+            width: `${Math.random() * 10 + 5}px`,
+            height: `${Math.random() * 10 + 5}px`,
+            animationDelay: `${Math.random() * 2}s`,
+            animationDuration: `${Math.random() * 2 + 1}s`,
+          }}
+        />
+      ))}
+      
+      {/* Central celebration message */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-4 rounded-full shadow-2xl animate-bounce text-xl font-bold">
+          <div className="flex items-center gap-2">
+            <PartyPopper className="w-6 h-6" />
+            Incrível! 🎉
+            <Sparkles className="w-6 h-6 animate-spin" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Componente de streak/progresso (inspirado no Duolingo)
+const StreakTracker = ({ streak, target = 5 }: { streak: number; target?: number }) => {
+  const progress = Math.min(streak / target, 1);
+  
+  return (
+    <div className="flex items-center gap-2 bg-gradient-to-r from-orange-100 to-red-100 px-3 py-2 rounded-full">
+      <Flame className={`w-4 h-4 ${streak > 0 ? 'text-orange-500 animate-pulse' : 'text-gray-400'}`} />
+      <span className="text-sm font-medium text-orange-700">
+        {streak} de {target}
+      </span>
+      <div className="w-16 h-2 bg-orange-200 rounded-full overflow-hidden">
+        <div 
+          className="h-full bg-gradient-to-r from-orange-400 to-red-500 transition-all duration-500 ease-out"
+          style={{ width: `${progress * 100}%` }}
+        />
+      </div>
+    </div>
+  );
+};
+
+// Sistema de conquistas (badges)
+const AchievementBadge = ({ type, unlocked = false }: { type: 'first_chat' | 'streak_5' | 'curious_learner' | 'problem_solver'; unlocked?: boolean }) => {
+  const badges = {
+    first_chat: { icon: Heart, label: 'Primeiro Chat', color: 'from-pink-400 to-purple-400' },
+    streak_5: { icon: Flame, label: 'Sequência de 5', color: 'from-orange-400 to-red-400' },
+    curious_learner: { icon: Brain, label: 'Curioso', color: 'from-blue-400 to-indigo-400' },
+    problem_solver: { icon: Target, label: 'Solucionador', color: 'from-green-400 to-emerald-400' }
+  };
+
+  const badge = badges[type];
+  const IconComponent = badge.icon;
+
+  return (
+    <div className={`relative ${unlocked ? 'animate-pulse' : 'opacity-50'}`}>
+      <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${badge.color} flex items-center justify-center shadow-lg ${unlocked ? 'animate-bounce' : ''}`}>
+        <IconComponent className="w-6 h-6 text-white" />
+      </div>
+      {unlocked && (
+        <div className="absolute -top-1 -right-1">
+          <Star className="w-4 h-4 text-yellow-400 animate-spin" />
+        </div>
+      )}
+      <div className="text-xs text-center mt-1 font-medium">{badge.label}</div>
+    </div>
+  );
+};
+
+// Componente de carregamento emocional/humanizado
+const EmotionalLoadingIndicator = ({ messages }: { messages: string[] }) => {
+  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentMessageIndex((prev) => (prev + 1) % messages.length);
+    }, 2000);
+    
+    return () => clearInterval(interval);
+  }, [messages.length]);
+
+  return (
+    <div className="flex flex-col items-center justify-center py-8 px-4">
+      {/* CodeBot pensando */}
+      <div className="mb-4">
+        <CodeBotMascot emotion="thinking" size="large" />
+      </div>
+      
+      {/* Mensagem dinâmica */}
+      <div className="text-center max-w-xs">
+        <p className="text-sm text-gray-600 font-medium animate-fade-in-out">
+          {messages[currentMessageIndex]}
+        </p>
+        
+        {/* Indicador de digitação tipo messenger */}
+        <div className="flex justify-center mt-3 space-x-1">
+          <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
+          <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+          <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Componente de boas-vindas emocional
+const EmotionalWelcome = ({ onStartChat }: { onStartChat: () => void }) => {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+      {/* CodeBot animado */}
+      <div className="mb-6">
+        <CodeBotMascot emotion="happy" size="large" />
+      </div>
+      
+      <h2 className="text-2xl font-bold text-gray-800 mb-2">
+        Olá! Eu sou o CodeBot ✨
+      </h2>
+      
+      <p className="text-gray-600 mb-6 max-w-md leading-relaxed">
+        Estou aqui para tornar seu aprendizado mais divertido e envolvente. 
+        Que tal começarmos esta jornada juntos?
+      </p>
+      
+      <Button 
+        onClick={onStartChat}
+        className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-6 py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+      >
+        <Zap className="w-4 h-4 mr-2" />
+        Vamos começar!
+      </Button>
+      
+      {/* Mini badges de demonstração */}
+      <div className="flex gap-4 mt-8">
+        <AchievementBadge type="first_chat" unlocked={false} />
+        <AchievementBadge type="curious_learner" unlocked={false} />
+        <AchievementBadge type="problem_solver" unlocked={false} />
+      </div>
+    </div>
+  );
+};
+
+// Componente de feedback de conquista
+const AchievementFeedback = ({ message, onClose }: { message: string; onClose: () => void }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className="fixed top-4 right-4 z-50 bg-gradient-to-r from-green-400 to-blue-500 text-white px-6 py-3 rounded-full shadow-lg animate-bounce">
+      <div className="flex items-center gap-2">
+        <Trophy className="w-5 h-5 animate-pulse" />
+        <span className="font-medium">{message}</span>
+        <Sparkles className="w-4 h-4 animate-spin" />
+      </div>
+    </div>
+  );
+};
+
+// Componente de reações emotivas do CodeBot
+const CodeBotReaction = ({ type }: { type: 'encouragement' | 'celebration' | 'thinking' | 'supportive' }) => {
+  const reactions = {
+    encouragement: {
+      message: "Ótima pergunta! Continue assim! 💪",
+      emotion: 'encouraging' as const,
+      icon: ThumbsUp,
+      gradient: "from-blue-400 to-purple-400"
+    },
+    celebration: {
+      message: "Incrível! Você está indo muito bem! 🎉",
+      emotion: 'celebrating' as const,
+      icon: PartyPopper,
+      gradient: "from-yellow-400 to-orange-400"
+    },
+    thinking: {
+      message: "Interessante... deixe-me pensar na melhor resposta 🤔",
+      emotion: 'thinking' as const,
+      icon: Brain,
+      gradient: "from-purple-400 to-pink-400"
+    },
+    supportive: {
+      message: "Não se preocupe, estamos aprendendo juntos! 🤗",
+      emotion: 'encouraging' as const,
+      icon: Heart,
+      gradient: "from-pink-400 to-red-400"
+    }
+  };
+
+  const reaction = reactions[type];
+  const IconComponent = reaction.icon;
+
+  return (
+    <div className="flex items-start gap-3 mb-4 animate-slide-in-left">
+      <CodeBotMascot emotion={reaction.emotion} size="medium" />
+      <div className={`bg-gradient-to-r ${reaction.gradient} text-white px-4 py-2 rounded-2xl rounded-bl-none shadow-lg max-w-xs`}>
+        <div className="flex items-center gap-2">
+          <IconComponent className="w-4 h-4" />
+          <span className="text-sm font-medium">{reaction.message}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Componente de estado idle - versão limpa e atrativa
+const IdleState = ({ 
+  onSuggestedQuestion, 
+  idleLevel = 'mild' 
+}: { 
+  onSuggestedQuestion: (question: string) => void;
+  idleLevel?: 'none' | 'mild' | 'moderate' | 'high';
+}) => {
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  
+  // Diferentes níveis de engajamento - mais sutis e amigáveis
+  const getEngagementData = () => {
+    switch (idleLevel) {
+      case 'mild':
+        return {
+          emotion: 'neutral' as const,
+          message: "💭 Alguma dúvida?",
+          suggestions: [],
+          showParticles: false,
+          delay: 3000
+        };
+      case 'moderate':
+        return {
+          emotion: 'thinking' as const,
+          message: "💡 Posso ajudar?",
+          suggestions: [
+            "Como funciona um loop?",
+            "O que são variáveis?",
+            "Explique uma função"
+          ],
+          showParticles: true,
+          delay: 2000
+        };
+      case 'high':
+        return {
+          emotion: 'encouraging' as const,
+          message: "🚀 Vamos aprender?",
+          suggestions: [
+            "Vamos criar algo juntos?",
+            "Que tal um exemplo prático?",
+            "Posso te ensinar algo novo?",
+            "Quer ver um projeto legal?"
+          ],
+          showParticles: true,
+          delay: 1500
+        };
+      default:
+        return null;
+    }
+  };
+
+  const engagementData = getEngagementData();
+  
+  if (!engagementData) return null;
+
+  useEffect(() => {
+    const suggestionTimer = setTimeout(() => {
+      setShowSuggestions(true);
+    }, engagementData.delay);
+    
+    return () => clearTimeout(suggestionTimer);
+  }, [idleLevel, engagementData.delay]);
+
+  return (
+    <div className="flex flex-col items-center justify-center py-6 space-y-4 relative">
+      {/* CodeBot com animação muito sutil */}
+      <div className="flex flex-col items-center space-y-3">
+        <div className="animate-gentle-bounce">
+          <CodeBotMascot emotion={engagementData.emotion} size="medium" isIdle={true} />
+        </div>
+        
+        {/* Mensagem discreta e amigável */}
+        <div className="bg-white/90 backdrop-blur-sm border border-purple-100 text-purple-600 px-4 py-2 rounded-full shadow-sm">
+          <span className="text-sm font-medium">{engagementData.message}</span>
+        </div>
+      </div>
+
+      {/* Partículas flutuantes suaves - só algumas e bem discretas */}
+      {engagementData.showParticles && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {[...Array(3)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute animate-float-smoothly"
+              style={{
+                left: `${30 + (i * 25)}%`,
+                top: `${40 + (i * 8)}%`,
+                animationDuration: `${8 + i * 2}s`,
+                animationDelay: `${i * 3}s`
+              }}
+            >
+              <div className="w-1.5 h-1.5 bg-purple-200 rounded-full opacity-40"></div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Sugestões minimalistas e elegantes */}
+      {showSuggestions && engagementData.suggestions.length > 0 && (
+        <div className="w-full max-w-sm space-y-2 animate-fade-in">
+          {engagementData.suggestions.map((suggestion, index) => (
+            <button
+              key={index}
+              onClick={() => onSuggestedQuestion(suggestion)}
+              className="w-full text-left px-4 py-2.5 bg-white/70 backdrop-blur-sm border border-purple-100 
+                       rounded-xl hover:bg-purple-50 hover:border-purple-200 transition-all duration-300 
+                       text-sm text-gray-700 hover:text-purple-600 shadow-sm hover:shadow-md group"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-purple-400 group-hover:text-purple-500 transition-colors">→</span>
+                <span>{suggestion}</span>
+              </div>
+            </button>
+          ))}
+          
+          {/* Botão especial apenas para nível alto */}
+          {idleLevel === 'high' && (
+            <div className="pt-2">
+              <button
+                onClick={() => onSuggestedQuestion("Surpreenda-me! 🎲")}
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white 
+                         rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-300 
+                         text-sm font-medium shadow-md hover:shadow-lg hover:scale-105"
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <span>🎲</span>
+                  <span>Surpreenda-me!</span>
+                </div>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // --- Define Settings Components Outside ---
 
@@ -143,7 +568,6 @@ const MobileSettingsDrawerView: React.FC<SettingsProps> = (props) => (
   </Drawer>
 );
 
-
 // --- Main Chat Interface Component ---
 
 interface ChatInterfaceProps {
@@ -153,7 +577,7 @@ interface ChatInterfaceProps {
 const INITIAL_MESSAGES: Message[] = [
   {
     id: "1",
-    content: "Olá! Como posso ajudar com seu aprendizado hoje?",
+    content: "Olá! 👋 Eu sou o CodeBot, seu assistente educacional! Estou aqui para tornar seu aprendizado mais divertido e personalizado. Que tal começarmos nossa jornada de conhecimento juntos? 🚀✨",
     isAi: true,
     timestamp: new Date(),
   },
@@ -171,9 +595,81 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
   const isMobile = useIsMobile();
   const [showSidebar, setShowSidebar] = useState(!isMobile);
   const [showAnalogyDropdown, setShowAnalogyDropdown] = useState(false);
+  
+  // Estados emocionais e de experiência do usuário
+  const [isFirstInteraction, setIsFirstInteraction] = useState(true);
+  const [userEngagement, setUserEngagement] = useState<'low' | 'medium' | 'high'>('medium');
+  const [loadingMessages] = useState([
+    "Analisando sua pergunta com carinho... 🤔",
+    "Buscando a melhor forma de explicar... 💡",
+    "Preparando uma resposta especial para você... ✨",
+    "Organizando os conceitos de forma clara... 📚",
+    "Quase pronto! Criando algo incrível... 🚀"
+  ]);
+  const [celebrationCount, setCelebrationCount] = useState(0);
+  const [showAchievement, setShowAchievement] = useState(false);
+  const [achievementMessage, setAchievementMessage] = useState("");
+  const [emotionalState, setEmotionalState] = useState<'neutral' | 'encouraging' | 'celebrating' | 'supportive'>('neutral');
+
+  // Novos estados emocionais inspirados no Duolingo
+  const [streakCount, setStreakCount] = useState(0);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [unlockedBadges, setUnlockedBadges] = useState<string[]>([]);
+  const [showCodeBotReaction, setShowCodeBotReaction] = useState<string | null>(null);
+  const [sessionMessagesCount, setSessionMessagesCount] = useState(0);
+  const [lastInteractionTime, setLastInteractionTime] = useState<Date | null>(null);
+  
+  // Estados para idle/waiting
+  const [isUserIdle, setIsUserIdle] = useState(false);
+  const [idleTimer, setIdleTimer] = useState<NodeJS.Timeout | null>(null);
+  const [idleShowSuggestions, setIdleShowSuggestions] = useState(false);
+  const [idleLevel, setIdleLevel] = useState<'none' | 'mild' | 'moderate' | 'high'>('none');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Função para gerenciar idle state
+  const resetIdleTimer = () => {
+    // Limpa timer anterior
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+    }
+    
+    // Reset estados idle
+    if (isUserIdle) {
+      setIsUserIdle(false);
+      setIdleLevel('none');
+      setIdleShowSuggestions(false);
+    }
+    
+    // Inicia novo timer
+    const newTimer = setTimeout(() => {
+      handleUserIdle();
+    }, 15000); // 15 segundos de inatividade
+    
+    setIdleTimer(newTimer);
+  };
+
+  const handleUserIdle = () => {
+    setIsUserIdle(true);
+    setIdleLevel('mild');
+    
+    // Escalar o nível de idle ao longo do tempo
+    setTimeout(() => {
+      setIdleLevel('moderate');
+      setIdleShowSuggestions(true);
+    }, 10000); // +10s = mild -> moderate
+    
+    setTimeout(() => {
+      setIdleLevel('high');
+    }, 25000); // +25s = moderate -> high
+  };
+
+  // Detectar interação do usuário
+  const handleUserInteraction = () => {
+    resetIdleTimer();
+    setLastInteractionTime(new Date());
   };
 
   const [sessionId, setSessionId] = useState<string>("");
@@ -211,6 +707,33 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
     };
     
     loadMethodologies();
+    
+    // Inicializar timer idle
+    resetIdleTimer();
+    
+    // Event listeners para detectar atividade do usuário
+    const handleUserActivity = () => {
+      handleUserInteraction();
+    };
+    
+    // Detectar movimento do mouse, cliques, rolagem e digitação
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    activityEvents.forEach(event => {
+      document.addEventListener(event, handleUserActivity, true);
+    });
+    
+    // Cleanup
+    return () => {
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+      }
+      
+      // Remover event listeners
+      activityEvents.forEach(event => {
+        document.removeEventListener(event, handleUserActivity, true);
+      });
+    };
   }, []);
 
   useEffect(() => {
@@ -267,6 +790,78 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
 
   const handleSendMessage = async (input: string) => {
     if (!input.trim() || !sessionId) return;
+    
+    // Reset idle quando usuário envia mensagem
+    handleUserInteraction();
+    
+    // Sistema emocional inspirado no Duolingo
+    const now = new Date();
+    
+    // Detectar primeiro uso e celebrar
+    if (isFirstInteraction) {
+      setIsFirstInteraction(false);
+      setEmotionalState('encouraging');
+      setShowCodeBotReaction('encouragement');
+      
+      // Desbloquear badge de primeiro chat
+      if (!unlockedBadges.includes('first_chat')) {
+        setUnlockedBadges(prev => [...prev, 'first_chat']);
+        setAchievementMessage("🎉 Primeira pergunta desbloqueada!");
+        setShowAchievement(true);
+      }
+      
+      setTimeout(() => setShowCodeBotReaction(null), 3000);
+    }
+
+    // Incrementar contadores
+    setCelebrationCount(prev => prev + 1);
+    setSessionMessagesCount(prev => prev + 1);
+    setLastInteractionTime(now);
+
+    // Sistema de streak (perguntas consecutivas)
+    if (lastInteractionTime) {
+      const timeDiff = now.getTime() - lastInteractionTime.getTime();
+      const minutesDiff = timeDiff / (1000 * 60);
+      
+      // Se passou menos de 30 minutos, manter streak
+      if (minutesDiff < 30) {
+        setStreakCount(prev => prev + 1);
+      } else {
+        setStreakCount(1); // Reset streak
+      }
+    } else {
+      setStreakCount(1);
+    }
+
+    // Celebrações baseadas no número de mensagens (como Duolingo)
+    if (celebrationCount > 0) {
+      if (celebrationCount === 3) {
+        setShowCodeBotReaction('celebration');
+        setAchievementMessage("🚀 Você está pegando o ritmo!");
+        setShowAchievement(true);
+        setTimeout(() => setShowCodeBotReaction(null), 3000);
+      } else if (celebrationCount === 10) {
+        setShowConfetti(true);
+        setAchievementMessage("🎯 10 perguntas! Você é um verdadeiro explorador!");
+        setShowAchievement(true);
+        if (!unlockedBadges.includes('curious_learner')) {
+          setUnlockedBadges(prev => [...prev, 'curious_learner']);
+        }
+      } else if (celebrationCount % 15 === 0) {
+        setShowConfetti(true);
+        setAchievementMessage(`🔥 ${celebrationCount} perguntas! Incrível dedicação!`);
+        setShowAchievement(true);
+        setEmotionalState('celebrating');
+      }
+    }
+
+    // Sistema de streak com celebrations
+    if (streakCount === 5 && !unlockedBadges.includes('streak_5')) {
+      setUnlockedBadges(prev => [...prev, 'streak_5']);
+      setShowConfetti(true);
+      setAchievementMessage("🔥 Sequência de 5! Você está em chamas!");
+      setShowAchievement(true);
+    }
     
     const userMessage = {
       id: Date.now().toString(), // Temporary ID for UI
@@ -357,6 +952,65 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
   return (
     <div className="relative flex h-full overflow-hidden">
       <style>{`
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        
+        @keyframes fade-in-out {
+          0%, 100% { opacity: 0.6; }
+          50% { opacity: 1; }
+        }
+        
+        @keyframes floatSmoothly {
+          0%, 100% {
+            transform: translateY(0px) translateX(0px);
+            opacity: 0.3;
+          }
+          25% {
+            transform: translateY(-10px) translateX(5px);
+            opacity: 0.6;
+          }
+          50% {
+            transform: translateY(-5px) translateX(-3px);
+            opacity: 0.8;
+          }
+          75% {
+            transform: translateY(-15px) translateX(2px);
+            opacity: 0.4;
+          }
+        }
+        
+        @keyframes gentleBounce {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-3px); }
+        }
+        
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-spin-slow {
+          animation: spin-slow 3s linear infinite;
+        }
+        
+        .animate-fade-in-out {
+          animation: fade-in-out 2s ease-in-out infinite;
+        }
+        
+        .animate-float-smoothly {
+          animation: floatSmoothly ease-in-out infinite;
+        }
+        
+        .animate-gentle-bounce {
+          animation: gentleBounce 2s ease-in-out infinite;
+        }
+        
+        .animate-fade-in {
+          animation: fadeIn 0.3s ease-out forwards;
+        }
+        
         @keyframes auroraMove1 {
           0% { transform: scale(1) translate(0, 0); opacity: 0.7; }
           50% { transform: scale(1.08) translate(30px, 20px); opacity: 1; }
@@ -432,9 +1086,33 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
                   <MessageSquarePlus className="h-4 w-4" />
                 </Button>
               )}
-              <div>
-                <h1 className="text-xl font-semibold text-primary">Assistente de Aprendizado</h1>
-                <p className="text-sm text-muted-foreground">Tire suas dúvidas sobre programação</p>
+              <div className="flex items-center gap-3">
+                {/* Avatar emocional do assistente */}
+                <div className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300",
+                  emotionalState === 'celebrating' ? "bg-gradient-to-br from-yellow-400 to-orange-400 animate-bounce" :
+                  emotionalState === 'encouraging' ? "bg-gradient-to-br from-green-400 to-blue-400 animate-pulse" :
+                  emotionalState === 'supportive' ? "bg-gradient-to-br from-purple-400 to-pink-400" :
+                  "bg-gradient-to-br from-purple-500 to-pink-500"
+                )}>
+                  <Brain className={cn(
+                    "w-6 h-6 text-white transition-transform duration-300",
+                    isLoading ? "animate-bounce" : ""
+                  )} />
+                </div>
+                <div>
+                  <h1 className="text-xl font-semibold text-primary">
+                    {emotionalState === 'celebrating' ? "Parabéns! 🎉" :
+                     emotionalState === 'encouraging' ? "Você está indo bem! ✨" :
+                     "Assistente de Aprendizado"}
+                  </h1>
+                  <p className="text-sm text-muted-foreground">
+                    {isLoading ? "Pensando em como ajudar você... 🤔" : 
+                     celebrationCount > 10 ? "Que aprendiz dedicado! Continue assim! 🌟" :
+                     celebrationCount > 5 ? "Ótimas perguntas! Vamos continuar! 💪" :
+                     "Tire suas dúvidas sobre programação"}
+                  </p>
+                </div>
               </div>
             </div>
             {/* Modern header controls: modelo, metodologia, analogia dropdown */}
@@ -530,6 +1208,42 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
         
         <div className="flex-1 overflow-y-auto p-4">
           <div className="space-y-4 max-w-3xl mx-auto">
+            {/* Header com progresso e streak - inspirado no Duolingo */}
+            {messages.length > 1 && (
+              <div className="flex items-center justify-between mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
+                <div className="flex items-center gap-4">
+                  <CodeBotMascot emotion="happy" size="medium" />
+                  <div>
+                    <h3 className="font-bold text-gray-800">Sessão de Aprendizado</h3>
+                    <p className="text-sm text-gray-600">{sessionMessagesCount} perguntas nesta sessão</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  {streakCount > 0 && (
+                    <StreakTracker streak={streakCount} target={5} />
+                  )}
+                  
+                  {/* Mini badges earned */}
+                  <div className="flex gap-1">
+                    {unlockedBadges.map(badge => (
+                      <AchievementBadge 
+                        key={badge} 
+                        type={badge as any} 
+                        unlocked={true} 
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Reação do CodeBot */}
+            {showCodeBotReaction && (
+              <CodeBotReaction type={showCodeBotReaction as any} />
+            )}
+
+            {/* Messages */}
             {messages.map((message) => (
               <ChatMessage
                 key={message.id}
@@ -538,10 +1252,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
                 timestamp={message.timestamp}
               />
             ))}
+            
+            {/* IdleState - Aparecer quando usuário estiver idle (mas não em nível 'none') */}
+            {isUserIdle && !isLoading && idleLevel !== 'none' && (
+              <IdleState 
+                onSuggestedQuestion={handleSendMessage}
+                idleLevel={idleLevel}
+              />
+            )}
+            
             {isLoading && (
-              <div className="flex justify-center py-4">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              </div>
+              <EmotionalLoadingIndicator messages={loadingMessages} />
             )}
             <div ref={messagesEndRef} />
           </div>
@@ -560,6 +1281,19 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
           </div>
         </div>
       </div>
+      
+      {/* Confetti celebration - inspirado no Duolingo */}
+      {showConfetti && (
+        <ConfettiExplosion onComplete={() => setShowConfetti(false)} />
+      )}
+      
+      {/* Feedback de conquista */}
+      {showAchievement && (
+        <AchievementFeedback 
+          message={achievementMessage}
+          onClose={() => setShowAchievement(false)} 
+        />
+      )}
     </div>
   );
 };
