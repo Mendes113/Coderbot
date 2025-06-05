@@ -39,11 +39,13 @@ def _load_json(path: Path) -> Dict[str, Any]:
 
 def get_prompt_cfg() -> Dict[str, str]:  # noqa: D401 – estilo curto
     """Carrega instruções de prompt (base, sequential, analogies…)"""
+    _load_json.cache_clear()  # Clear cache to pick up changes
     return _load_json(PROMPT_CFG_PATH)
 
 
 def get_model_cfg() -> Dict[str, Dict[str, str]]:
     """Retorna dicionário {alias: {provider, model_name}}"""
+    _load_json.cache_clear()  # Clear cache to pick up changes
     return _load_json(MODEL_CFG_PATH)
 
 
@@ -58,11 +60,15 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 openai_client = AsyncOpenAI(api_key=settings.open_ai_api_key)
 claude_client = AsyncAnthropic(api_key=settings.claude_api_key)
+deepseek_client = AsyncOpenAI(
+    api_key=settings.deep_seek_api_key,
+    base_url=settings.deep_seek_api_url
+)
 
 CLIENTS = {
     "openai": openai_client,
     "claude": claude_client,
-    # "deepseek": deepseek_client,  # Ex.: adicionar quando necessário
+    "deepseek": deepseek_client,
 }
 
 # ---------------------------------------------------------------------------

@@ -31,11 +31,22 @@ class PromptLoader:
             
             records = self.client.collection("dynamic_prompts").get_list(
                 page=1, 
-                per_page=1, 
+                per_page=100,  # Aumentado para garantir que obtemos todos os templates
                 query_params={"filter": filter_string, "sort": "-version"} # Pega a versão mais recente
             ).items
 
+            # Log para depuração
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Templates encontrados para metodologia '{methodology}': {len(records)}")
+            
             if records:
+                # Se houver duplicatas, use o que tem a maior versão
+                # Ou, se as versões forem iguais, use o primeiro
+                if len(records) > 1:
+                    logger.info(f"Múltiplos templates encontrados para '{methodology}', usando o de maior versão.")
+                    records.sort(key=lambda x: (x.version if hasattr(x, 'version') else 0), reverse=True)
+                
                 return records[0].template
             
             # Fallback para um prompt global padrão se nenhum específico for encontrado

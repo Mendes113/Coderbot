@@ -14,6 +14,9 @@
     "claude-3-opus": {
       "provider": "claude",
       "model_name": "claude-3-opus-20240229"
+    },
+    "deepseek-chat": {
+      "provider": "deepseek",
+      "model_name": "deepseek-chat"
     }
-    
 }

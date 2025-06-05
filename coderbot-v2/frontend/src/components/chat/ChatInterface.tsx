@@ -5,6 +5,7 @@ import { ChatInput } from "@/components/chat/ChatInput";
 import { Message, fetchChatResponse, fetchMethodologies, MethodologyInfo } from "@/services/api";
 import { toast } from "@/components/ui/sonner";
 import { Loader2, MessageSquarePlus, Settings, Brain, Sparkles, Heart, Zap, Star, Trophy, Target, Flame, Gift, ThumbsUp, Smile, PartyPopper } from "lucide-react";
+import confetti from 'canvas-confetti';
 import { 
   Drawer, 
   DrawerClose, 
@@ -17,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { chatService } from "@/services/chat-service";
 import { SessionSidebar } from "@/components/chat/SessionSidebar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { soundEffects } from "@/utils/sounds";
 
 // --- Componentes de Design Emocional ---
 
@@ -85,31 +87,60 @@ const CodeBotMascot = ({ emotion = 'neutral', size = 'medium', isIdle = false }:
   );
 };
 
-// Componente de confetti (inspirado no Duolingo)
+// Componente de confetti (inspirado no Duolingo) - Agora com canvas-confetti profissional
 const ConfettiExplosion = ({ onComplete }: { onComplete: () => void }) => {
   useEffect(() => {
+    // Múltiplas explosões de confetti para efeito mais impressionante
+    const confettiAnimations = [
+      // Primeiro burst - do centro
+      () => {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      },
+      // Segunda explosão - lateral esquerda
+      () => {
+        confetti({
+          particleCount: 50,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0, y: 0.5 }
+        });
+      },
+      // Terceira explosão - lateral direita
+      () => {
+        confetti({
+          particleCount: 50,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1, y: 0.5 }
+        });
+      },
+      // Quarta explosão - chuva de estrelas
+      () => {
+        confetti({
+          particleCount: 30,
+          spread: 360,
+          ticks: 200,
+          origin: { y: 0.3 },
+          colors: ['#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6']
+        });
+      }
+    ];
+
+    // Executar cada animação com intervalos
+    confettiAnimations.forEach((animation, index) => {
+      setTimeout(animation, index * 200);
+    });
+
     const timer = setTimeout(onComplete, 3000);
     return () => clearTimeout(timer);
   }, [onComplete]);
 
   return (
     <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-      {/* Confetti pieces */}
-      {[...Array(50)].map((_, i) => (
-        <div
-          key={i}
-          className="absolute animate-confetti"
-          style={{
-            left: `${Math.random() * 100}%`,
-            backgroundColor: ['#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6'][Math.floor(Math.random() * 5)],
-            width: `${Math.random() * 10 + 5}px`,
-            height: `${Math.random() * 10 + 5}px`,
-            animationDelay: `${Math.random() * 2}s`,
-            animationDuration: `${Math.random() * 2 + 1}s`,
-          }}
-        />
-      ))}
-      
       {/* Central celebration message */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-4 rounded-full shadow-2xl animate-bounce text-xl font-bold">
@@ -625,6 +656,71 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
   const [idleShowSuggestions, setIdleShowSuggestions] = useState(false);
   const [idleLevel, setIdleLevel] = useState<'none' | 'mild' | 'moderate' | 'high'>('none');
 
+  // Funções de celebração profissionais usando canvas-confetti + sons
+  const triggerBasicCelebration = () => {
+    confetti({
+      particleCount: 50,
+      spread: 50,
+      origin: { y: 0.7 }
+    });
+    soundEffects.playSuccess();
+  };
+
+  const triggerMajorCelebration = () => {
+    // Explosão dupla
+    setTimeout(() => {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+    }, 0);
+    
+    setTimeout(() => {
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: { y: 0.7 }
+      });
+    }, 300);
+    
+    soundEffects.playAchievement();
+  };
+
+  const triggerEpicCelebration = () => {
+    setShowConfetti(true);
+    
+    // Múltiplas explosões épicas
+    const duration = 3 * 1000;
+    const animationEnd = Date.now() + duration;
+
+    const randomInRange = (min: number, max: number) => {
+      return Math.random() * (max - min) + min;
+    };
+
+    const frame = () => {
+      confetti({
+        particleCount: 5,
+        angle: randomInRange(55, 125),
+        spread: randomInRange(50, 70),
+        origin: { x: randomInRange(0.1, 0.3), y: randomInRange(0.1, 0.3) }
+      });
+      confetti({
+        particleCount: 5,
+        angle: randomInRange(55, 125),
+        spread: randomInRange(50, 70),
+        origin: { x: randomInRange(0.7, 0.9), y: randomInRange(0.1, 0.3) }
+      });
+
+      if (Date.now() < animationEnd) {
+        requestAnimationFrame(frame);
+      }
+    };
+
+    frame();
+    soundEffects.playEpicCelebration();
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -833,33 +929,51 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
       setStreakCount(1);
     }
 
-    // Celebrações baseadas no número de mensagens (como Duolingo)
+    // Celebrações baseadas no número de mensagens (como Duolingo) - Agora com confetti profissional
     if (celebrationCount > 0) {
       if (celebrationCount === 3) {
+        triggerBasicCelebration();
         setShowCodeBotReaction('celebration');
         setAchievementMessage("🚀 Você está pegando o ritmo!");
         setShowAchievement(true);
         setTimeout(() => setShowCodeBotReaction(null), 3000);
       } else if (celebrationCount === 10) {
-        setShowConfetti(true);
+        triggerMajorCelebration();
         setAchievementMessage("🎯 10 perguntas! Você é um verdadeiro explorador!");
         setShowAchievement(true);
         if (!unlockedBadges.includes('curious_learner')) {
           setUnlockedBadges(prev => [...prev, 'curious_learner']);
         }
-      } else if (celebrationCount % 15 === 0) {
-        setShowConfetti(true);
-        setAchievementMessage(`🔥 ${celebrationCount} perguntas! Incrível dedicação!`);
+      } else if (celebrationCount === 25) {
+        triggerEpicCelebration();
+        setAchievementMessage("🌟 25 perguntas! Você é um mestre da curiosidade!");
+        setShowAchievement(true);
+        setEmotionalState('celebrating');
+        if (!unlockedBadges.includes('problem_solver')) {
+          setUnlockedBadges(prev => [...prev, 'problem_solver']);
+        }
+      } else if (celebrationCount % 20 === 0 && celebrationCount > 25) {
+        triggerMajorCelebration();
+        setAchievementMessage(`🔥 ${celebrationCount} perguntas! Dedicação impressionante!`);
         setShowAchievement(true);
         setEmotionalState('celebrating');
       }
     }
 
-    // Sistema de streak com celebrations
+    // Sistema de streak com celebrations aprimoradas
     if (streakCount === 5 && !unlockedBadges.includes('streak_5')) {
       setUnlockedBadges(prev => [...prev, 'streak_5']);
-      setShowConfetti(true);
+      triggerMajorCelebration();
       setAchievementMessage("🔥 Sequência de 5! Você está em chamas!");
+      setShowAchievement(true);
+    } else if (streakCount === 10) {
+      triggerEpicCelebration();
+      setAchievementMessage("⚡ Sequência de 10! Você é imparável!");
+      setShowAchievement(true);
+    } else if (streakCount > 10 && streakCount % 5 === 0) {
+      triggerBasicCelebration();
+      soundEffects.playStreak();
+      setAchievementMessage(`🌟 Sequência de ${streakCount}! Que constância!`);
       setShowAchievement(true);
     }
     
@@ -1262,7 +1376,26 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
             )}
             
             {isLoading && (
-              <EmotionalLoadingIndicator messages={loadingMessages} />
+              <div className="flex flex-col items-center justify-center py-8 px-4">
+                {/* CodeBot pensando */}
+                <div className="mb-4">
+                  <CodeBotMascot emotion="thinking" size="large" />
+                </div>
+                
+                {/* Enhanced typing indicator */}
+                <div className="bg-white/90 backdrop-blur-sm border border-purple-100 rounded-2xl p-4 shadow-lg max-w-md w-full">
+                  <div className="flex items-center space-x-2">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    </div>
+                    <span className="text-sm text-gray-600 ml-2">
+                      {loadingMessages[Math.floor(Date.now() / 2000) % loadingMessages.length]}
+                    </span>
+                  </div>
+                </div>
+              </div>
             )}
             <div ref={messagesEndRef} />
           </div>

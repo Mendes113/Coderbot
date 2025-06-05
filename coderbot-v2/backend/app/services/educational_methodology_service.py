@@ -77,6 +77,34 @@ class EducationalMethodologyService:
         
         if not template:
             logger.warning(f"Template não encontrado para metodologia: {methodology_type.value}")
+            
+            # Log adicional específico para worked_examples dado o problema reportado
+            if methodology_type.value == 'worked_examples':
+                logger.error("ERRO CRÍTICO: Template worked_examples não encontrado apesar de existir no banco.")
+                # Verificar diretamente os templates no banco de dados
+                try:
+                    # Uma abordagem alternativa para buscar o template worked_examples
+                    import os
+                    from pocketbase import PocketBase
+                    pb_url = os.getenv("POCKETBASE_URL")
+                    pb_client = PocketBase(pb_url)
+                    records = pb_client.collection("dynamic_prompts").get_list(
+                        page=1, 
+                        per_page=100, 
+                        query_params={"filter": 'methodology="worked_examples" && is_active=true'}
+                    ).items
+                    
+                    logger.info(f"Status: {200 if records else 404}")
+                    logger.info(f"Templates encontrados: {len(records)}")
+                    
+                    if records:
+                        # Usar o primeiro template disponível
+                        template = records[0].template
+                        logger.info("Template worked_examples recuperado por método alternativo")
+                        return template
+                except Exception as e:
+                    logger.error(f"Erro ao tentar recuperar template por método alternativo: {e}")
+            
             # Fallback para template padrão
             template = self.prompt_loader.get_prompt(methodology=MethodologyType.DEFAULT.value)
             if not template:

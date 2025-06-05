@@ -150,12 +150,22 @@ export const fetchChatResponse = async (
     // Processar resposta da API
     const data = await response.json();
     
-    // Extrair conteúdo da resposta conforme formato da DeepSeek API
+    // Extrair conteúdo da resposta conforme formato da API
     let content = "";
+    
+    // Case 1: Direct response from standard DeepSeek API
     if (data.choices && data.choices.length > 0 && data.choices[0].message) {
       content = data.choices[0].message.content;
-    } else if (data.content) {
+    } 
+    // Case 2: Direct content field
+    else if (data.content) {
       content = data.content;
+    }
+    // Case 3: Educational methodology response format (nested response object)
+    else if (data.response && data.response.choices && data.response.choices.length > 0) {
+      if (data.response.choices[0].message && data.response.choices[0].message.content) {
+        content = data.response.choices[0].message.content;
+      }
     }
     
     return { 

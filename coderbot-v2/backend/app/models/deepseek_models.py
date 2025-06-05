@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict
-from typing import List, Optional
+from typing import List, Optional, Union, Dict, Any
 
 class ChatMessageInput(BaseModel):
     model_config = ConfigDict(
@@ -21,7 +21,7 @@ class ChatCompletionRequest(BaseModel):
     )
     
     model: str = "deepseek-chat"  # Ou o modelo específico que você quer usar
-    messages: List[ChatMessageInput]
+    messages: List[Union[ChatMessageInput, Dict[str, Any]]]
     max_tokens: Optional[int] = 350
     temperature: Optional[float] = 0.7
     difficulty_level: Optional[str] = "medium"  # Ex: "easy", "medium", "hard"
@@ -29,6 +29,8 @@ class ChatCompletionRequest(BaseModel):
     style_preference: Optional[str] = "concise"  # "concise", "detailed", "analogies"
     learning_progress: Optional[dict] = {"questions_answered": 0, "correct_answers": 0}  # Acompanhamento de progresso do estudante
     baseKnowledge: Optional[str] = "basic"  # "basic", "intermediate", "advanced"
+    methodology: Optional[str] = "default"  # "default", "analogy", "sequential", etc.
+    user_profile: Optional[dict] = None  # Perfil do usuário
 
 class ChatCompletionResponse(BaseModel):
     model_config = ConfigDict(

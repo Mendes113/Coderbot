@@ -96,14 +96,16 @@ class OrchestrationService:
         messages = request.messages
         
         # Inserir um sistema prompt com instruções da metodologia
-        system_message = {
+        # Create the system message as a dict to avoid serialization issues
+        system_message_dict = {
             "role": "system",
             "content": methodology_result["formatted_prompt"]
         }
         
         # Adiciona sistema prompt no início dos messages
         request_copy = request.model_copy(deep=True)
-        request_copy.messages.insert(0, system_message)
+        # Convert all messages to dict format to avoid Pydantic serialization warnings
+        request_copy.messages = [system_message_dict] + [msg.model_dump() for msg in request_copy.messages]
         
         # 5. Obter resposta da LLM com o contexto enriquecido
         use_analogies = methodology_result.get("metadata", {}).get("use_analogies", False)
