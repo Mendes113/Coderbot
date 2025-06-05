@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { AnalogySettings } from "@/components/chat/AnalogySettings";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatInput } from "@/components/chat/ChatInput";
+import { InitialWelcomeMessages } from "@/components/chat/InitialWelcomeMessages";
 import { Message, fetchChatResponse, fetchMethodologies, MethodologyInfo } from "@/services/api";
 import { toast } from "@/components/ui/sonner";
 import { Loader2, MessageSquarePlus, Settings, Brain, Sparkles, Heart, Zap, Star, Trophy, Target, Flame, Gift, ThumbsUp, Smile, PartyPopper } from "lucide-react";
@@ -337,7 +338,7 @@ const CodeBotReaction = ({ type }: { type: 'encouragement' | 'celebration' | 'th
   );
 };
 
-// Componente de estado idle - versão limpa e atrativa
+// Componente de estado idle - versão ultra sutil e discreta
 const IdleState = ({ 
   onSuggestedQuestion, 
   idleLevel = 'mild' 
@@ -347,41 +348,38 @@ const IdleState = ({
 }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   
-  // Diferentes níveis de engajamento - mais sutis e amigáveis
+  // Diferentes níveis de engajamento - versão minimalista
   const getEngagementData = () => {
     switch (idleLevel) {
       case 'mild':
         return {
           emotion: 'neutral' as const,
-          message: "💭 Alguma dúvida?",
+          message: "Alguma dúvida?",
           suggestions: [],
           showParticles: false,
-          delay: 3000
+          delay: 5000 // Mais tempo antes de aparecer
         };
       case 'moderate':
         return {
           emotion: 'thinking' as const,
-          message: "💡 Posso ajudar?",
+          message: "Posso ajudar?",
           suggestions: [
             "Como funciona um loop?",
-            "O que são variáveis?",
-            "Explique uma função"
+            "O que são variáveis?"
           ],
-          showParticles: true,
-          delay: 2000
+          showParticles: false, // Removido partículas
+          delay: 4000
         };
       case 'high':
         return {
-          emotion: 'encouraging' as const,
-          message: "🚀 Vamos aprender?",
+          emotion: 'neutral' as const, // Menos emoção
+          message: "Como posso ajudar?",
           suggestions: [
-            "Vamos criar algo juntos?",
             "Que tal um exemplo prático?",
-            "Posso te ensinar algo novo?",
-            "Quer ver um projeto legal?"
+            "Posso explicar algo novo?"
           ],
-          showParticles: true,
-          delay: 1500
+          showParticles: false, // Removido partículas
+          delay: 3000
         };
       default:
         return null;
@@ -401,75 +399,20 @@ const IdleState = ({
   }, [idleLevel, engagementData.delay]);
 
   return (
-    <div className="flex flex-col items-center justify-center py-6 space-y-4 relative">
-      {/* CodeBot com animação muito sutil */}
-      <div className="flex flex-col items-center space-y-3">
-        <div className="animate-gentle-bounce">
-          <CodeBotMascot emotion={engagementData.emotion} size="medium" isIdle={true} />
+    <div className="flex flex-col items-center justify-center py-4 space-y-3 relative opacity-80">
+      {/* CodeBot sem animações chamativos */}
+      <div className="flex flex-col items-center space-y-2">
+        <div className="transition-opacity duration-1000">
+          <CodeBotMascot emotion={engagementData.emotion} size="small" isIdle={false} />
         </div>
         
-        {/* Mensagem discreta e amigável */}
-        <div className="bg-white/90 backdrop-blur-sm border border-purple-100 text-purple-600 px-4 py-2 rounded-full shadow-sm">
-          <span className="text-sm font-medium">{engagementData.message}</span>
-        </div>
+        {/* Mensagem ultra discreta */}
+        {/* <div className="bg-gray-50/80 border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg text-xs opacity-70">
+          <span>{engagementData.message}</span>
+        </div> */}
       </div>
 
-      {/* Partículas flutuantes suaves - só algumas e bem discretas */}
-      {engagementData.showParticles && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(3)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute animate-float-smoothly"
-              style={{
-                left: `${30 + (i * 25)}%`,
-                top: `${40 + (i * 8)}%`,
-                animationDuration: `${8 + i * 2}s`,
-                animationDelay: `${i * 3}s`
-              }}
-            >
-              <div className="w-1.5 h-1.5 bg-purple-200 rounded-full opacity-40"></div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Sugestões minimalistas e elegantes */}
-      {showSuggestions && engagementData.suggestions.length > 0 && (
-        <div className="w-full max-w-sm space-y-2 animate-fade-in">
-          {engagementData.suggestions.map((suggestion, index) => (
-            <button
-              key={index}
-              onClick={() => onSuggestedQuestion(suggestion)}
-              className="w-full text-left px-4 py-2.5 bg-white/70 backdrop-blur-sm border border-purple-100 
-                       rounded-xl hover:bg-purple-50 hover:border-purple-200 transition-all duration-300 
-                       text-sm text-gray-700 hover:text-purple-600 shadow-sm hover:shadow-md group"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-purple-400 group-hover:text-purple-500 transition-colors">→</span>
-                <span>{suggestion}</span>
-              </div>
-            </button>
-          ))}
-          
-          {/* Botão especial apenas para nível alto */}
-          {idleLevel === 'high' && (
-            <div className="pt-2">
-              <button
-                onClick={() => onSuggestedQuestion("Surpreenda-me! 🎲")}
-                className="w-full px-4 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white 
-                         rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-300 
-                         text-sm font-medium shadow-md hover:shadow-lg hover:scale-105"
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <span>🎲</span>
-                  <span>Surpreenda-me!</span>
-                </div>
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      
     </div>
   );
 };
@@ -612,10 +555,18 @@ const INITIAL_MESSAGES: Message[] = [
     isAi: true,
     timestamp: new Date(),
   },
+
+  //MENSAGEM EXPLICANDO COMO PODER SER USADO O CHAT
+  {
+    id: "2",
+    content: "Você pode me fazer perguntas sobre programação, pedir explicações de conceitos, solicitar exemplos práticos ou até mesmo pedir analogias para facilitar o entendimento. Estou aqui para ajudar! 😊",
+    isAi: true,
+    timestamp: new Date(),
+  },
 ];
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext }) => {
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [analogiesEnabled, setAnalogiesEnabled] = useState(false);
   const [knowledgeBase, setKnowledgeBase] = useState("");
@@ -626,6 +577,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
   const isMobile = useIsMobile();
   const [showSidebar, setShowSidebar] = useState(!isMobile);
   const [showAnalogyDropdown, setShowAnalogyDropdown] = useState(false);
+  
+  // Estados para controle das mensagens de boas-vindas
+  const [showWelcomeMessages, setShowWelcomeMessages] = useState(true);
+  const [welcomeComplete, setWelcomeComplete] = useState(false);
   
   // Estados emocionais e de experiência do usuário
   const [isFirstInteraction, setIsFirstInteraction] = useState(true);
@@ -839,15 +794,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
         const newSessionId = await chatService.createSession();
         setSessionId(newSessionId);
 
-        // Save initial AI message
-        await chatService.saveMessage({
-          content: INITIAL_MESSAGES[0].content,
-          isAi: true,
-          sessionId: newSessionId,
-        });
-
-        // No need to load messages for a new session as we just created it
-        // The initial message will be displayed from the INITIAL_MESSAGES constant
+        // Don't save initial AI messages yet - they will be saved when welcome completes
+        // Just set up the session ID for now
       } catch (error) {
         console.error("Error initializing chat session:", error);
         toast.error("Error creating chat session");
@@ -864,9 +812,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
       
       if (sessionMessages && sessionMessages.length > 0) {
         setMessages(sessionMessages);
+        setShowWelcomeMessages(false);
+        setWelcomeComplete(true);
       } else {
-        // If no messages found, show at least the initial greeting
-        setMessages(INITIAL_MESSAGES);
+        // If no messages found, show welcome messages for new session
+        setMessages([]);
+        setShowWelcomeMessages(true);
+        setWelcomeComplete(false);
       }
       
       setSessionId(newSessionId);
@@ -881,12 +833,75 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
 
   const handleNewSession = () => {
     setSessionId(""); // This will trigger the useEffect to create a new session
+    setMessages([]);
+    setShowWelcomeMessages(true);
+    setWelcomeComplete(false);
+  };
+
+  // Funções para lidar com as mensagens de boas-vindas
+  const handleWelcomeComplete = async () => {
+    setShowWelcomeMessages(false);
+    setWelcomeComplete(true);
     setMessages(INITIAL_MESSAGES);
+    
+    // Save initial messages to database now that welcome is complete
+    if (sessionId) {
+      try {
+        for (const message of INITIAL_MESSAGES) {
+          await chatService.saveMessage({
+            content: message.content,
+            isAi: message.isAi,
+            sessionId,
+          });
+        }
+      } catch (error) {
+        console.error("Error saving initial messages:", error);
+      }
+    }
+    
+    scrollToBottom();
+  };
+
+  const handleWelcomeSkip = async () => {
+    setShowWelcomeMessages(false);
+    setWelcomeComplete(true);
+    setMessages(INITIAL_MESSAGES);
+    
+    // Save initial messages to database
+    if (sessionId) {
+      try {
+        for (const message of INITIAL_MESSAGES) {
+          await chatService.saveMessage({
+            content: message.content,
+            isAi: message.isAi,
+            sessionId,
+          });
+        }
+      } catch (error) {
+        console.error("Error saving initial messages:", error);
+      }
+    }
+    
+    scrollToBottom();
   };
 
   const handleSendMessage = async (input: string) => {
     if (!input.trim() || !sessionId) return;
     
+    // Se ainda está mostrando boas-vindas, completar primeiro
+    if (showWelcomeMessages) {
+      handleWelcomeComplete();
+      // Aguardar um pouco para a transição
+      setTimeout(() => {
+        processMessage(input);
+      }, 500);
+      return;
+    }
+    
+    processMessage(input);
+  };
+
+  const processMessage = async (input: string) => {
     // Reset idle quando usuário envia mensagem
     handleUserInteraction();
     
@@ -899,12 +914,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
       setEmotionalState('encouraging');
       setShowCodeBotReaction('encouragement');
       
-      // Desbloquear badge de primeiro chat
-      if (!unlockedBadges.includes('first_chat')) {
-        setUnlockedBadges(prev => [...prev, 'first_chat']);
-        setAchievementMessage("🎉 Primeira pergunta desbloqueada!");
-        setShowAchievement(true);
-      }
+      // // Desbloquear badge de primeiro chat
+      // if (!unlockedBadges.includes('first_chat')) {
+      //   setUnlockedBadges(prev => [...prev, 'first_chat']);
+      //   setAchievementMessage("🎉 Primeira pergunta desbloqueada!");
+      //   setShowAchievement(true);
+      // }
       
       setTimeout(() => setShowCodeBotReaction(null), 3000);
     }
@@ -1357,8 +1372,18 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
               <CodeBotReaction type={showCodeBotReaction as any} />
             )}
 
-            {/* Messages */}
-            {messages.map((message) => (
+            {/* Initial Welcome Messages with Animations */}
+            {showWelcomeMessages && (
+              <div className="space-y-4">
+                <InitialWelcomeMessages
+                  onComplete={handleWelcomeComplete}
+                  onSkip={handleWelcomeSkip}
+                />
+              </div>
+            )}
+
+            {/* Regular Chat Messages */}
+            {!showWelcomeMessages && messages.map((message) => (
               <ChatMessage
                 key={message.id}
                 content={message.content}
@@ -1368,7 +1393,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
             ))}
             
             {/* IdleState - Aparecer quando usuário estiver idle (mas não em nível 'none') */}
-            {isUserIdle && !isLoading && idleLevel !== 'none' && (
+            {isUserIdle && !isLoading && idleLevel !== 'none' && !showWelcomeMessages && (
               <IdleState 
                 onSuggestedQuestion={handleSendMessage}
                 idleLevel={idleLevel}

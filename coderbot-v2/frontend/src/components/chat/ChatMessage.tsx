@@ -53,13 +53,17 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
       <div className="flex items-center mb-2">
         <div
           className={cn(
-            "h-8 w-8 rounded-full flex items-center justify-center shadow-md border-2",
+            "icon-container h-8 w-8 rounded-full flex items-center justify-center shadow-md border-2 transition-all duration-300 hover:scale-110 hover:shadow-lg",
             isAi
-              ? "bg-[hsl(var(--education-purple))] border-[hsl(var(--education-purple-dark))]"
-              : "bg-[hsl(var(--education-user))] border-[hsl(var(--education-user-dark))]"
+              ? "bg-[hsl(var(--education-purple))] border-[hsl(var(--education-purple-dark))] hover:bg-[hsl(var(--education-purple-dark))] animate-soft-glow"
+              : "bg-[hsl(var(--education-user))] border-[hsl(var(--education-user-dark))] hover:bg-[hsl(var(--education-user-dark))]"
           )}
         >
-          {isAi ? <Bot className="h-4 w-4 text-white" /> : <User className="h-4 w-4 text-gray-100" />}
+          {isAi ? (
+            <Bot className="icon-bot h-4 w-4 text-white animate-subtle-pulse hover:animate-gentle-float transition-all duration-300" />
+          ) : (
+            <User className="icon-user h-4 w-4 text-gray-100 hover:text-white transition-all duration-300 hover:scale-110 animate-rotate-gently" />
+          )}
         </div>
         <span className={cn("ml-2 font-semibold text-sm", isAi ? "text-white" : "text-gray-100")}>{isAi ? "Assistente IA" : "Você"}</span>
         <span className="ml-auto text-xs text-muted-foreground">
