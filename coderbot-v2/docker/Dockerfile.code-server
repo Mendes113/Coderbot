@@ -1,0 +1,6 @@
+FROM codercom/code-server:latest
+
+# Install Continue extension
+RUN code-server --install-extension Continue.continue
+
+# Use the default entrypoint and command from the base image

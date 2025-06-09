@@ -76,13 +76,16 @@ services:
 
   # Code Server IDE (opcional)
   code-server:
-    image: codercom/code-server:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.code-server
     container_name: coderbot-code-server
     ports:
       - "8787:8787"
     volumes:
       - ./:/home/coder/project
       - code_server_data:/home/coder/.local/share/code-server
+      - ./docker/code-server-config.yaml:/home/coder/.config/code-server/config.yaml:ro
     networks:
       - coderbot-network
     restart: unless-stopped

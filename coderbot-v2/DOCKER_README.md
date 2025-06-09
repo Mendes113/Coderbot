@@ -124,9 +124,16 @@ docker-compose exec frontend sh
                     ┌─────────────────┐
                     │  Code Server    │
                     │     (IDE)       │
-                    │   Port: 8080    │
-                    └─────────────────┘
+│   Port: 8080    │
+└─────────────────┘
 ```
+
+### Extensões no Code Server
+
+O container `code-server` é construído com a extensão **Continue** já instalada.
+Isso permite utilizar a IDE com o assistente de IA assim que o serviço é iniciado.
+Caso queira adicionar outras extensões, edite `docker/Dockerfile.code-server` e
+reconstrua o serviço.
 
 ## 📁 Estrutura de Volumes
 
