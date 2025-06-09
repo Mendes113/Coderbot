@@ -2,19 +2,19 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.models.chat_models import Chat, ChatMessage
-from sqlalchemy.orm import selectinload, Session
+from sqlalchemy.orm import selectinload
 from uuid import UUID
 
 class ChatService:
-    def __init__(self, db_session: Session):
+    def __init__(self, db_session: AsyncSession):
         self.session = db_session
 
     async def create_chat(self, user_id: UUID):
         """Cria um novo chat para um usuário"""
         chat = Chat(user_id=user_id)
         self.session.add(chat)
-        self.session.commit()
-        self.session.refresh(chat)
+        await self.session.commit()
+        await self.session.refresh(chat)
         return chat
 
     async def get_chats_by_user(self, user_id: str) -> list:
