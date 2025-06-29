@@ -184,6 +184,10 @@ class EducationalMethodologyService:
             result["metadata"]["cognitive_load_management"] = True
             result["metadata"]["step_by_step_demo"] = additional_params.get("step_by_step_demo", True)
             result["metadata"]["error_examples"] = additional_params.get("error_examples", True)
+            result["metadata"]["use_json_structure"] = False  # Usa estrutura de seções amigáveis
+            result["metadata"]["required_keys"] = [
+                "description", "result", "extra", "problemWECorrect", "problemWEIncorrect"
+            ]
         
         return result
     

@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState } from "react";
 import { Excalidraw, serializeAsJSON } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
-import { Save, Plus, UploadCloud, Loader2, MessageCircle } from "lucide-react";
+import { Save, Plus, UploadCloud, Loader2, MessageCircle, Star, Trophy, Zap, Heart, Sparkles, ArrowLeft } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
 import {
@@ -39,6 +39,8 @@ const Whiteboard: React.FC = () => {
   // const [dailyBonusGiven, setDailyBonusGiven] = useState(false);
   // const [createdBoards, setCreatedBoards] = useState<number>(0);
   const [isChatOpen, setIsChatOpen] = useState(false); // novo estado para controlar abertura do chat
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [motivationalMessage, setMotivationalMessage] = useState("");
 
   // // Bônus diário ao acessar pela primeira vez no dia
   // React.useEffect(() => {
@@ -146,21 +148,46 @@ const Whiteboard: React.FC = () => {
   };
 
   // Função para obter o JSON atual do quadro
-  const getCurrentSceneJSON = () => {
+  const getCurrentSceneJSON = (): Record<string, any> | null => {
     const api = apiRef.current;
     if (!api) return null;
-    return serializeAsJSON(
+    const jsonStr = serializeAsJSON(
       api.getSceneElements(),
       api.getAppState(),
       api.getFiles(),
       "local",
     );
+    try {
+      return JSON.parse(jsonStr);
+    } catch {
+      return null;
+    }
   };
 
   /* ===================== RENDER ===================== */
   return (
-    <div className="flex flex-col w-full h-screen bg-background text-foreground">
+    <div className="flex flex-col w-full min-h-screen bg-background text-foreground relative">
       <Toaster position="bottom-center" />
+      
+      {/* Celebration Overlay */}
+      {showCelebration && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 text-white px-8 py-6 rounded-2xl shadow-2xl animate-bounce text-center max-w-md">
+            <div className="flex items-center justify-center gap-2 text-2xl font-bold mb-2">
+              <Sparkles className="w-8 h-8 animate-spin" />
+              {motivationalMessage}
+              <Star className="w-8 h-8 animate-pulse" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-10 w-32 h-32 bg-purple-200/20 rounded-full blur-xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-10 w-24 h-24 bg-blue-200/20 rounded-full blur-lg animate-bounce" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute top-1/2 left-1/4 w-16 h-16 bg-pink-200/20 rounded-full blur-md animate-pulse" style={{ animationDelay: '2s' }}></div>
+      </div>
 
       {/* ---------- Tela Inicial ---------- */}
       {!editorVisible ? (
@@ -183,10 +210,16 @@ const Whiteboard: React.FC = () => {
                 <div className="flex gap-2 mt-2">
                   <span className="inline-block bg-yellow-200 text-yellow-800 rounded px-2 py-1 text-xs">Primeiro Quadro</span>
                   {createdBoards >= 10 && (
-                    <span className="inline-block bg-green-200 text-green-800 rounded px-2 py-1 text-xs">10 Quadros!</span>
+                    <div className="inline-flex items-center gap-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-full px-3 py-1 text-xs font-bold shadow-md animate-in zoom-in-50 duration-500">
+                      <Trophy className="w-3 h-3" />
+                      10 Quadros!
+                    </div>
                   )}
                   {dailyBonusGiven && (
-                    <span className="inline-block bg-blue-200 text-blue-800 rounded px-2 py-1 text-xs">Bônus Diário</span>
+                    <div className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full px-3 py-1 text-xs font-bold shadow-md animate-in zoom-in-50 duration-500">
+                      <Star className="w-3 h-3" />
+                      Bônus Diário
+                    </div>
                   )}
                 </div>
               </div>
@@ -225,35 +258,90 @@ const Whiteboard: React.FC = () => {
             <Plus size={20} /> Novo quadro
           </button>
 
-          {/* lista do usuário */}
-          {user && (
-            <div className="w-full mt-2">
-              <h2 className="text-lg font-semibold mb-2">Seus quadros</h2>
-              {loading ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <DrawingList items={drawings} onOpen={openFromDB} onRefresh={refresh} />
-              )}
+              {/* Lista de quadros com design emocional */}
+              {user && (
+                <div className="w-full animate-in slide-in-from-bottom-2 duration-700 delay-900">
+              <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-indigo-950/50 dark:via-purple-950/50 dark:to-pink-950/50 rounded-2xl p-6 border border-indigo-200/50 dark:border-indigo-800/50 shadow-lg">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="relative">
+                    <Heart className="w-5 h-5 text-pink-500 animate-pulse" />
+                    <div className="absolute inset-0 bg-pink-400/30 rounded-full blur-sm animate-ping"></div>
+                  </div>
+                  <h2 className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    💖 Seus Quadros
+                  </h2>
+                </div>
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="animate-spin w-5 h-5 text-primary" />
+                      <span className="text-sm text-muted-foreground">Carregando seus quadros...</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <DrawingList items={drawings} onOpen={openFromDB} onRefresh={refresh} />
+                    {drawings.length === 0 && (
+                      <div className="text-center py-8">
+                        <div className="text-4xl mb-2">🎨</div>
+                        <p className="text-muted-foreground text-sm">
+                          Seus quadros aparecerão aqui
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Comece criando seu primeiro quadro!
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
+            </div>
+          </div>
         </div>
       ) : (
         /* ---------- Editor ---------- */
         <>
-          <div className="flex-1">
+          <div 
+            className="fixed inset-0 top-0 left-0 w-full h-full z-10 bg-background"
+            style={{ 
+              height: '100vh', 
+              width: '100vw',
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0
+            }}
+          >
             <Excalidraw
               initialData={scene || undefined}
               excalidrawAPI={(api) => (apiRef.current = api)}
+              theme="dark"
+              UIOptions={{
+                canvasActions: {
+                  loadScene: false,
+                  export: {
+                    saveFileToDisk: true
+                  }
+                }
+              }}
             />
           </div>
 
-          {/* FAB salvar manual */}
+          {/* Botão de voltar - canto superior esquerdo */}
           <button
-            onClick={saveScene}
-            title="Salvar quadro"
-            className="fixed bottom-5 right-5 z-50 p-4 rounded-full shadow-xl bg-blue-600 text-white hover:bg-blue-700 hover:scale-105 transition"
+            onClick={() => setEditorVisible(false)}
+            title="Voltar para a lista"
+            className="group fixed top-5 left-5 z-50 p-3 rounded-full shadow-2xl bg-gradient-to-r from-gray-600 to-gray-700 text-white hover:from-gray-700 hover:to-gray-800 hover:scale-110 transition-all duration-300 border-2 border-white/20"
           >
-            <Save size={24} />
+            <div className="relative">
+              <ArrowLeft size={20} className="group-hover:scale-110 transition-transform duration-300" />
+              <div className="absolute inset-0 bg-white/20 rounded-full blur-md group-hover:scale-150 transition-transform duration-300"></div>
+            </div>
+            {/* Efeito de pulso sutil */}
+            <div className="absolute inset-0 bg-gray-400/20 rounded-full animate-ping opacity-50"></div>
           </button>
 
           {/* ---------- Chat Popup ---------- */}

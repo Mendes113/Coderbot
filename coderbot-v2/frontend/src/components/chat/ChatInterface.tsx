@@ -752,6 +752,88 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
 
   // On mount, try to restore session from sessionStorage
   useEffect(() => {
+    const loadMethodologies = async () => {
+      try {
+        setIsLoading(true);
+        const methodologies = await fetchMethodologies();
+        
+        if (methodologies && methodologies.length > 0) {
+          setAvailableMethodologies(methodologies);
+          console.log("Available methodologies loaded:", methodologies);
+          
+          // Set default methodology to Worked Example if available
+          const workedExample = methodologies.find(m => 
+            m.name.toLowerCase().includes("worked") || 
+            m.id === "worked_example"
+          );
+          
+          if (workedExample) {
+            setMethodology(workedExample.id);
+          }
+        } else {
+          console.warn("No teaching methodologies found");
+        }
+      } catch (error) {
+        console.error("Error loading methodologies:", error);
+        toast.error("Não foi possível carregar as metodologias de ensino");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadMethodologies();
+    
+    // Inicializar timer idle
+    resetIdleTimer();
+    
+    // Event listeners para detectar atividade do usuário
+    const handleUserActivity = () => {
+      handleUserInteraction();
+    };
+    
+    // Detectar movimento do mouse, cliques, rolagem e digitação
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    activityEvents.forEach(event => {
+      document.addEventListener(event, handleUserActivity, true);
+    });
+    
+    // Cleanup
+    return () => {
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+      }
+      
+      // Remover event listeners
+      activityEvents.forEach(event => {
+        document.removeEventListener(event, handleUserActivity, true);
+      });
+    };
+  }, []);
+
+  useEffect(() => {
+    const initSession = async () => {
+      try {
+        // Create new session
+        const newSessionId = await chatService.createSession();
+        setSessionId(newSessionId);
+
+        // Save initial AI message
+        await chatService.saveMessage({
+          content: INITIAL_MESSAGES[0].content,
+          isAi: true,
+          sessionId: newSessionId,
+        });
+
+        // No need to load messages for a new session as we just created it
+        // The initial message will be displayed from the INITIAL_MESSAGES constant
+      } catch (error) {
+        console.error("Error initializing chat session:", error);
+        toast.error("Error creating chat session");
+      }
+    };
+
+    initSession();
     const lastSessionId = sessionStorage.getItem("coderbot_last_chat_session");
     if (lastSessionId) {
       // Try to load the last session

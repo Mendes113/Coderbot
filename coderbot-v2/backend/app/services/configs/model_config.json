@@ -7,9 +7,9 @@
       "provider": "openai",
       "model_name": "gpt-4"
     },
-    "gpt-4o-mini": {
+    "gpt-o4-mini": {
       "provider": "openai",
-      "model_name": "gpt-4o-mini"
+      "model_name": "gpt-o4-mini"
     },
     "claude-3-opus": {
       "provider": "claude",
@@ -18,5 +18,14 @@
     "deepseek-chat": {
       "provider": "deepseek",
       "model_name": "deepseek-chat"
+    },
+    "o3-mini": {
+      "provider": "openai",
+      "model_name": "o3-mini"
+    },
+    "gpt-4o": {
+      "provider": "openai",
+      "model_name": "gpt-4o"
     }
+
 }

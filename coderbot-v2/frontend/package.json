@@ -98,8 +98,8 @@
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^11.1.0",
     "vaul": "^0.9.3",
-    "vite_react_shadcn_ts": "file:",
     "vite-plugin-tauri": "^4.0.0",
+    "vite_react_shadcn_ts": "file:",
     "xterm": "^5.3.0",
     "xterm-addon-fit": "^0.8.0",
     "zod": "^3.24.3"

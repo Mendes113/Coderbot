@@ -22,7 +22,7 @@ class ChatCompletionRequest(BaseModel):
     
     model: str = "deepseek-chat"  # Ou o modelo específico que você quer usar
     messages: List[Union[ChatMessageInput, Dict[str, Any]]]
-    max_tokens: Optional[int] = 350
+    max_tokens: Optional[int] = 12048  # Aumentado para permitir respostas mais longas
     temperature: Optional[float] = 0.7
     difficulty_level: Optional[str] = "medium"  # Ex: "easy", "medium", "hard"
     subject_area: Optional[str] = "programing"  # Ex: "math", "programming", "history"

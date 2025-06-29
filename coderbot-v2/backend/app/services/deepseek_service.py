@@ -189,7 +189,7 @@ async def get_chat_completion_with_retrieval(
                     logger.warning("Stream não suportado com Claude API assíncrona, desabilitando.")
                     
                 # Ajustes específicos para o Claude
-                max_tokens = payload.get("max_tokens", 1024)
+                max_tokens = payload.get("max_tokens", 2048)
                 temperature = payload.get("temperature", 0.7)
                 
                 # Chamada à API do Claude

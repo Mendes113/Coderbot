@@ -51,7 +51,7 @@ export const fetchChatResponse = async (
   useAnalogies: boolean = false,
   useSequential: boolean = false,
   knowledge: string = "",
-  model: string = "gpt-3.5-turbo",
+  model: string = "gpt-4o-mini",
   methodology: string = "default",
   userProfile?: UserProfile,
   whiteboardContext?: Record<string, any> | null
@@ -120,7 +120,7 @@ export const fetchChatResponse = async (
       body = {
         model: model,
         messages: messages,
-        max_tokens: 350,
+        max_tokens: 12048,
         temperature: 0.7,
         methodology: methodology,
         user_profile: userProfile || {
