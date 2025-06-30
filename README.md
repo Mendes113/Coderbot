@@ -40,8 +40,9 @@
   <a href="https://github.com/Chatbot-educacional/Chatbot-educacional/commits/main" target="_blank">
     <img src="https://img.shields.io/github/last-commit/Chatbot-educacional/Chatbot-educacional" alt="Last Commit"/>
   </a>
-</p>
+  <a href="https://deepwiki.com/Chatbot-educacional/Chatbot-educacional"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 
+</p>
 <p align="center">
   Um chatbot educacional moderno para o ensino de programação.<br/>
   A modern educational chatbot for teaching programming.
