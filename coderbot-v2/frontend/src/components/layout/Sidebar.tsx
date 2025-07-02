@@ -60,11 +60,11 @@ export const Sidebar = ({ onNavChange, currentNav }: SidebarProps) => {
   const navItems = [
     { id: "chat", label: "Chat", icon: MessageSquare, accessKey: "c" , to: "/chat"},
     { id: "playground", label: "Playground", icon: Code, accessKey: "p" , to: "/playground" },
-    { id: "exercises", label: "Exercícios", icon: FileText, accessKey: "e" , to: "/exercises" },
-    { id: "metrics", label: "Métricas", icon: BarChart3, accessKey: "m" , to: "/metrics" },
-    { id: "teacher", label: "Professor", icon: GraduationCap, accessKey: "t", to: "/teacher" },
-    { id: "whiteboard", label: "Quadro", icon: LayoutDashboard, accessKey: "q", to: "/whiteboard" },
-    { id: "mermaid", label: "Diagramas", icon: GitBranch, accessKey: "d", to: "/mermaid" },
+    // { id: "exercises", label: "Exercícios", icon: FileText, accessKey: "e" , to: "/exercises" },
+    // { id: "metrics", label: "Métricas", icon: BarChart3, accessKey: "m" , to: "/metrics" },
+    // { id: "teacher", label: "Professor", icon: GraduationCap, accessKey: "t", to: "/teacher" },
+    // { id: "whiteboard", label: "Quadro", icon: LayoutDashboard, accessKey: "q", to: "/whiteboard" },
+    // { id: "mermaid", label: "Diagramas", icon: GitBranch, accessKey: "d", to: "/mermaid" },
   ];
 
   return (
