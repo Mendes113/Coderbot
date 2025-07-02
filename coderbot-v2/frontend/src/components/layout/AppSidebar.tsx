@@ -56,24 +56,26 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
     // { id: "exercises", label: "Exercícios", icon: FileText, accessKey: "e", path: "/dashboard/exercises" },
     // { id: "metrics", label: "Métricas", icon: BarChart3, accessKey: "m", path: "/dashboard/metrics" },
     // Only show teacher dashboard for teachers and admins
-    // {
-    //   id: "teacher",
-    //   label: "Professor",
-    //   icon: GraduationCap,
-    //   accessKey: "t",
-    //   path: "/dashboard/teacher",
-    //   roles: ["teacher", "admin"],
-    // },
-    // // Show student dashboard for students (can also be visible to teachers/admins)
-    // {
-    //   id: "student",
-    //   label: "Aluno",
-    //   icon: GraduationCap,
-    //   accessKey: "s",
-    //   path: "/dashboard/student",
-    //   roles: ["student", "teacher", "admin"],
-    // },
-    // { id: "whiteboard", label: "Quadro", icon: Presentation, accessKey: "w", path: "/dashboard/whiteboard" },
+    {
+      id: "teacher",
+      label: "Professor",
+      icon: GraduationCap,
+      accessKey: "t",
+      path: "/dashboard/teacher",
+      roles: ["teacher", "admin"],
+    },
+    // Show student dashboard for students (can also be visible to teachers/admins)
+    {
+      id: "student",
+      label: "Aluno",
+      icon: GraduationCap,
+      accessKey: "s",
+      path: "/dashboard/student",
+      roles: ["student", "teacher", "admin"],
+    },
+
+    
+    { id: "whiteboard", label: "Quadro", icon: Presentation, accessKey: "w", path: "/dashboard/whiteboard" },
     // { id: "mermaid", label: "Diagramas", icon: GitBranch, accessKey: "d", path: "/dashboard/mermaid" },
     // { id: "flashcard", label: "Flashcards", icon: ClipboardEdit, accessKey: "f", path: "/dashboard/flashcard" },
   ];

@@ -35,9 +35,9 @@ const UserProfile = () => {
   const [showAdaptiveSetup, setShowAdaptiveSetup] = useState(false);
   
   // Learning data states
-  const [learningProfile, setLearningProfile] = useState<LearningProfile | null>(null);
-  const [learningPaths, setLearningPaths] = useState<LearningPath[]>([]);
-  const [recommendations, setRecommendations] = useState<AdaptiveRecommendation[]>([]);
+  // const [learningProfile, setLearningProfile] = useState<LearningProfile | null>(null);
+  // const [learningPaths, setLearningPaths] = useState<LearningPath[]>([]);
+  // const [recommendations, setRecommendations] = useState<AdaptiveRecommendation[]>([]);
   const [analytics, setAnalytics] = useState<UserAnalytics | null>(null);
   const [streaks, setStreaks] = useState<any>(null);
   const [loadingLearningData, setLoadingLearningData] = useState(true);
@@ -67,9 +67,9 @@ const UserProfile = () => {
           getLearningStreaks(userId)
         ]);
         
-        setLearningProfile(userProfile);
-        setLearningPaths(paths);
-        setRecommendations(recs);
+        // setLearningProfile(userProfile);
+        // setLearningPaths(paths);
+        // setRecommendations(recs);
         setStreaks(streakData);
 
         // Load analytics
@@ -106,12 +106,12 @@ const UserProfile = () => {
     startGithubOAuth();
   };
 
-  const handleAdaptiveSetupComplete = (newProfile: LearningProfile, pathId: string) => {
-    setLearningProfile(newProfile);
-    setShowAdaptiveSetup(false);
-    loadLearningData(); // Reload all data
-    toast.success('Learning profile setup completed!');
-  };
+  // const handleAdaptiveSetupComplete = (newProfile: LearningProfile, pathId: string) => {
+  //   // setLearningProfile(newProfile);
+  //   setShowAdaptiveSetup(false);
+  //   loadLearningData(); // Reload all data
+  //   toast.success('Learning profile setup completed!');
+  // };
 
   const calculateUserLevel = (studyHours: number) => {
     // Simple level calculation: 10 hours per level
@@ -148,31 +148,31 @@ const UserProfile = () => {
     );
   }
 
-  if (showAdaptiveSetup || (!learningProfile && !loadingLearningData)) {
-    return (
-      <div className="container mx-auto py-6">
-        <div className="flex items-center gap-2 mb-6">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/dashboard/chat")}
-            className="flex-shrink-0"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-2xl font-bold">Complete Your Learning Profile</h1>
-        </div>
-        <AdaptiveLearningSetup 
-          onComplete={handleAdaptiveSetupComplete}
-          className="min-h-screen"
-        />
-      </div>
-    );
-  }
+  // if (showAdaptiveSetup || ( !loadingLearningData)) {
+  //   return (
+  //     <div className="container mx-auto py-6">
+  //       <div className="flex items-center gap-2 mb-6">
+  //         <Button
+  //           variant="ghost"
+  //           size="icon"
+  //           onClick={() => navigate("/dashboard/chat")}
+  //           className="flex-shrink-0"
+  //         >
+  //           <ArrowLeft className="h-4 w-4" />
+  //         </Button>
+  //         <h1 className="text-2xl font-bold">Complete Your Learning Profile</h1>
+  //       </div>
+  //       <AdaptiveLearningSetup 
+  //         onComplete={handleAdaptiveSetupComplete}
+  //         className="min-h-screen"
+  //       />
+  //     </div>
+  //   );
+  // }
 
-  const userLevel = learningProfile ? calculateUserLevel(learningProfile.total_study_time_hours) : 1;
-  const levelProgress = learningProfile ? calculateLevelProgress(learningProfile.total_study_time_hours) : 0;
-  const badges = learningProfile ? getAchievementBadges(learningProfile, analytics) : [];
+  // const userLevel = learningProfile ? calculateUserLevel(learningProfile.total_study_time_hours) : 1;
+  // const levelProgress = learningProfile ? calculateLevelProgress(learningProfile.total_study_time_hours) : 0;
+  // const badges = learningProfile ? getAchievementBadges(learningProfile, analytics) : [];
 
   return (
     <div className="container mx-auto py-8 space-y-8 max-w-6xl">
@@ -236,13 +236,13 @@ const UserProfile = () => {
                 <CardTitle className="text-sm font-medium">Current Level</CardTitle>
                 <Trophy className="h-4 w-4 text-yellow-500" />
               </CardHeader>
-              <CardContent>
+              {/* <CardContent>
                 <div className="text-2xl font-bold">Level {userLevel}</div>
                 <Progress value={levelProgress} className="mt-2" />
                 <p className="text-xs text-muted-foreground mt-1">
                   {(10 - (learningProfile?.total_study_time_hours || 0) % 10).toFixed(1)}h to next level
                 </p>
-              </CardContent>
+              </CardContent> */}
             </Card>
 
             <Card>
@@ -250,10 +250,10 @@ const UserProfile = () => {
                 <CardTitle className="text-sm font-medium">Current Streak</CardTitle>
                 <Flame className="h-4 w-4 text-orange-500" />
               </CardHeader>
-              <CardContent>
+              {/* <CardContent>
                 <div className="text-2xl font-bold">{learningProfile?.current_streak || 0}</div>
                 <p className="text-xs text-muted-foreground">days</p>
-              </CardContent>
+              </CardContent> */}
             </Card>
 
             <Card>
@@ -261,12 +261,12 @@ const UserProfile = () => {
                 <CardTitle className="text-sm font-medium">Study Time</CardTitle>
                 <Clock className="h-4 w-4 text-blue-500" />
               </CardHeader>
-              <CardContent>
+              {/* <CardContent>
                 <div className="text-2xl font-bold">
                   {learningProfile?.total_study_time_hours.toFixed(1) || 0}h
                 </div>
                 <p className="text-xs text-muted-foreground">total</p>
-              </CardContent>
+              </CardContent> */}
             </Card>
 
             <Card>
@@ -274,10 +274,10 @@ const UserProfile = () => {
                 <CardTitle className="text-sm font-medium">Learning Paths</CardTitle>
                 <BookOpen className="h-4 w-4 text-green-500" />
               </CardHeader>
-              <CardContent>
+              {/* <CardContent>
                 <div className="text-2xl font-bold">{learningPaths.length}</div>
                 <p className="text-xs text-muted-foreground">active</p>
-              </CardContent>
+              </CardContent> */}
             </Card>
           </div>
 
@@ -293,21 +293,21 @@ const UserProfile = () => {
               <CardContent className="space-y-4">
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Learning Style:</span>
-                  <Badge variant="secondary" className="capitalize">
+                  {/* <Badge variant="secondary" className="capitalize">
                     {learningProfile?.learning_style.replace('_', ' ') || 'Not set'}
-                  </Badge>
+                  </Badge> */}
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Difficulty Level:</span>
-                  <Badge variant="outline" className="capitalize">
+                  {/* <Badge variant="outline" className="capitalize">
                     {learningProfile?.preferred_difficulty || 'Not set'}
-                  </Badge>
+                  </Badge> */}
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Pace Preference:</span>
-                  <Badge variant="outline" className="capitalize">
+                  {/* <Badge variant="outline" className="capitalize">
                     {learningProfile?.pace_preference || 'Not set'}
-                  </Badge>
+                  </Badge> */}
                 </div>
                 {analytics && (
                   <div className="flex justify-between">
@@ -324,7 +324,7 @@ const UserProfile = () => {
               <CardHeader>
                 <CardTitle>Achievements & Badges</CardTitle>
               </CardHeader>
-              <CardContent>
+              {/* <CardContent>
                 <div className="flex flex-wrap gap-2">
                   {badges.map((badge, index) => (
                     <Badge key={index} className={badge.color}>
@@ -337,7 +337,7 @@ const UserProfile = () => {
                     </p>
                   )}
                 </div>
-              </CardContent>
+              </CardContent> */}
             </Card>
           </div>
 
@@ -349,7 +349,7 @@ const UserProfile = () => {
                 Learning Goals & Recommendations
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            {/* <CardContent className="space-y-4">
               {learningProfile?.learning_goals && learningProfile.learning_goals.length > 0 ? (
                 <div>
                   <h4 className="font-medium mb-2">Current Goals:</h4>
@@ -383,18 +383,18 @@ const UserProfile = () => {
                   </div>
                 </div>
               )}
-            </CardContent>
+            </CardContent> */}
           </Card>
 
           {/* Motivational Message */}
           <div className="text-center text-blue-700 dark:text-blue-400 font-medium mt-6 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
             <Zap className="h-6 w-6 mx-auto mb-2" />
             Continue assim! Você está avançando no seu aprendizado 🚀
-            {learningProfile?.current_streak && learningProfile.current_streak > 0 && (
+            {/* {learningProfile?.current_streak && learningProfile.current_streak > 0 && (
               <p className="text-sm mt-1">
                 {learningProfile.current_streak} days streak - Keep it up!
               </p>
-            )}
+            )} */}
           </div>
         </TabsContent>
 
@@ -405,7 +405,7 @@ const UserProfile = () => {
               <CardTitle>Learning Paths Progress</CardTitle>
               <CardDescription>Your active learning journeys</CardDescription>
             </CardHeader>
-            <CardContent>
+            {/* <CardContent>
               {learningPaths.length > 0 ? (
                 <div className="space-y-4">
                   {learningPaths.map((path) => (
@@ -432,11 +432,11 @@ const UserProfile = () => {
                   </Button>
                 </div>
               )}
-            </CardContent>
+            </CardContent> */}
           </Card>
 
           {/* Skills Assessment */}
-          {learningProfile && (
+          {/* {learningProfile && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
@@ -478,7 +478,7 @@ const UserProfile = () => {
                 </CardContent>
               </Card>
             </div>
-          )}
+          )} */}
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">
