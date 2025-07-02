@@ -725,104 +725,53 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
 
   const [sessionId, setSessionId] = useState<string>("");
 
-  // Load or create session
-  // Load available methodologies
+  // On mount, try to restore session from sessionStorage
   useEffect(() => {
-    const loadMethodologies = async () => {
-      try {
-        setIsLoading(true);
-        const methodologies = await fetchMethodologies();
-        
-        if (methodologies && methodologies.length > 0) {
-          setAvailableMethodologies(methodologies);
-          console.log("Available methodologies loaded:", methodologies);
-          
-          // Set default methodology to Sequential Thinking if available
-          const sequentialThinking = methodologies.find(m => 
-            m.name.toLowerCase().includes("sequential") || 
-            m.id === "sequential_thinking"
-          );
-          
-          if (sequentialThinking) {
-            setMethodology(sequentialThinking.id);
-          }
-        } else {
-          console.warn("No teaching methodologies found");
+    const lastSessionId = sessionStorage.getItem("coderbot_last_chat_session");
+    if (lastSessionId) {
+      // Try to load the last session
+      handleSessionChange(lastSessionId);
+    } else {
+      // No session found, create a new one
+      const initSession = async () => {
+        try {
+          const newSessionId = await chatService.createSession();
+          setSessionId(newSessionId);
+          sessionStorage.setItem("coderbot_last_chat_session", newSessionId);
+        } catch (error) {
+          console.error("Error initializing chat session:", error);
+          toast.error("Error creating chat session");
         }
-      } catch (error) {
-        console.error("Error loading methodologies:", error);
-        toast.error("Não foi possível carregar as metodologias de ensino");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    loadMethodologies();
-    
-    // Inicializar timer idle
-    resetIdleTimer();
-    
-    // Event listeners para detectar atividade do usuário
-    const handleUserActivity = () => {
-      handleUserInteraction();
-    };
-    
-    // Detectar movimento do mouse, cliques, rolagem e digitação
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-    
-    activityEvents.forEach(event => {
-      document.addEventListener(event, handleUserActivity, true);
-    });
-    
-    // Cleanup
-    return () => {
-      if (idleTimer) {
-        clearTimeout(idleTimer);
-      }
-      
-      // Remover event listeners
-      activityEvents.forEach(event => {
-        document.removeEventListener(event, handleUserActivity, true);
-      });
-    };
+      };
+      initSession();
+    }
+    // eslint-disable-next-line
   }, []);
 
+  // When sessionId changes, update sessionStorage
   useEffect(() => {
-    const initSession = async () => {
-      try {
-        // Create new session
-        const newSessionId = await chatService.createSession();
-        setSessionId(newSessionId);
+    if (sessionId) {
+      sessionStorage.setItem("coderbot_last_chat_session", sessionId);
+    }
+  }, [sessionId]);
 
-        // Don't save initial AI messages yet - they will be saved when welcome completes
-        // Just set up the session ID for now
-      } catch (error) {
-        console.error("Error initializing chat session:", error);
-        toast.error("Error creating chat session");
-      }
-    };
-
-    initSession();
-  }, []);
-
+  // Update handleSessionChange to also update sessionStorage
   const handleSessionChange = async (newSessionId: string) => {
     try {
       setIsLoading(true);
       const sessionMessages = await chatService.loadSessionMessages(newSessionId);
-      
       if (sessionMessages && sessionMessages.length > 0) {
         setMessages(sessionMessages);
         setShowWelcomeMessages(false);
         setWelcomeComplete(true);
       } else {
-        // If no messages found, show welcome messages for new session
         setMessages([]);
         setShowWelcomeMessages(true);
         setWelcomeComplete(false);
       }
-      
       setSessionId(newSessionId);
-      scrollToBottom(); // Scroll to bottom when changing sessions
+      sessionStorage.setItem("coderbot_last_chat_session", newSessionId);
+      scrollToBottom();
     } catch (error) {
       console.error("Error changing session:", error);
       toast.error("Erro ao carregar mensagens da sessão");
@@ -831,11 +780,20 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
     }
   };
 
-  const handleNewSession = () => {
-    setSessionId(""); // This will trigger the useEffect to create a new session
+  // Update handleNewSession to clear sessionStorage and create a new session
+  const handleNewSession = async () => {
+    setSessionId("");
     setMessages([]);
     setShowWelcomeMessages(true);
     setWelcomeComplete(false);
+    try {
+      const newSessionId = await chatService.createSession();
+      setSessionId(newSessionId);
+      sessionStorage.setItem("coderbot_last_chat_session", newSessionId);
+    } catch (error) {
+      console.error("Error creating new chat session:", error);
+      toast.error("Erro ao criar nova sessão de chat");
+    }
   };
 
   // Funções para lidar com as mensagens de boas-vindas
