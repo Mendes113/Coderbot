@@ -431,11 +431,10 @@ interface SettingsProps {
   availableMethodologies: MethodologyInfo[];
 }
 
-// Renamed to avoid conflict and indicate it's a view component
+// DesktopSettingsView: REMOVE methodology dropdown (keep only analogy and model)
 const DesktopSettingsView: React.FC<SettingsProps> = (props) => (
   <div className="mb-3">
     <AnalogySettings {...props} />
-    
     <div className="mt-4">
       <h3 className="text-sm font-medium mb-2">Modelo de IA</h3>
       <Select value={props.aiModel} onValueChange={props.setAiModel}>
@@ -449,37 +448,11 @@ const DesktopSettingsView: React.FC<SettingsProps> = (props) => (
         </SelectContent>
       </Select>
     </div>
-    
-    <div className="mt-4">
-      <h3 className="text-sm font-medium mb-2">Metodologia de Ensino</h3>
-      <Select 
-        value={props.methodology} 
-        onValueChange={props.setMethodology}
-        disabled={props.availableMethodologies.length === 0}
-      >
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder="Selecione a metodologia" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="default">Padrão</SelectItem>
-          <SelectItem value="analogy">Analogias</SelectItem>
-          {props.availableMethodologies.map(m => (
-            <SelectItem key={m.id} value={m.id}>
-              {m.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {props.methodology && props.methodology !== "default" && props.methodology !== "analogy" && (
-        <div className="mt-2 text-xs text-gray-500">
-          {props.availableMethodologies.find(m => m.id === props.methodology)?.description || ""}
-        </div>
-      )}
-    </div>
+    {/* Methodology dropdown removed from settings */}
   </div>
 );
 
-// Renamed to avoid conflict and indicate it's a view component
+// MobileSettingsDrawerView: REMOVE methodology dropdown (keep only analogy and model)
 const MobileSettingsDrawerView: React.FC<SettingsProps> = (props) => (
   <Drawer>
     <DrawerTrigger asChild>
@@ -491,7 +464,6 @@ const MobileSettingsDrawerView: React.FC<SettingsProps> = (props) => (
       <div className="mt-4">
         <h3 className="text-lg font-medium mb-3">Configurações do Chat</h3>
         <AnalogySettings {...props} />
-        
         <div className="mt-4">
           <h3 className="text-sm font-medium mb-2">Modelo de IA</h3>
           <Select value={props.aiModel} onValueChange={props.setAiModel}>
@@ -505,33 +477,7 @@ const MobileSettingsDrawerView: React.FC<SettingsProps> = (props) => (
             </SelectContent>
           </Select>
         </div>
-
-        <div className="mt-4">
-          <h3 className="text-sm font-medium mb-2">Metodologia de Ensino</h3>
-          <Select 
-            value={props.methodology} 
-            onValueChange={props.setMethodology}
-            disabled={props.availableMethodologies.length === 0}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Selecione a metodologia" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="default">Padrão</SelectItem>
-              <SelectItem value="analogy">Analogias</SelectItem>
-              {props.availableMethodologies.map(m => (
-                <SelectItem key={m.id} value={m.id}>
-                  {m.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {props.methodology && props.methodology !== "default" && props.methodology !== "analogy" && (
-            <div className="mt-2 text-xs text-gray-500">
-              {props.availableMethodologies.find(m => m.id === props.methodology)?.description || ""}
-            </div>
-          )}
-        </div>
+        {/* Methodology dropdown removed from settings */}
       </div>
       <div className="flex justify-end mt-4">
         <DrawerClose asChild>
