@@ -110,9 +110,27 @@ class AgnoMethodologyService:
 
     def ask(self, methodology: MethodologyType, user_query: str, context: Optional[str] = None) -> str:
         agent = self.get_agent(methodology)
-        prompt = user_query
-        if context:
-            prompt = f"<context>{context}</context>\n<question>{user_query}</question>"
+        # For worked_examples, wrap the prompt and instruct the LLM to use the XML schema
+        if methodology == MethodologyType.WORKED_EXAMPLES:
+            xml_instruction = (
+                "Responda usando o seguinte esquema XML, preenchendo cada seção de forma detalhada e didática.\n"
+                "<worked_example>\n"
+                "  <problem_analysis>Descreva a análise do problema apresentado pelo aluno.</problem_analysis>\n"
+                "  <step_by_step_example>Mostre a solução completa, passo a passo, com explicações.</step_by_step_example>\n"
+                "  <explanation>Justifique cada decisão tomada durante a resolução.</explanation>\n"
+                "  <patterns>Destaque padrões, técnicas ou armadilhas comuns.</patterns>\n"
+                "  <similar_example>Forneça um exemplo similar, se relevante.</similar_example>\n"
+                "  <next_steps>Sugira próximos passos para o aluno praticar.</next_steps>\n"
+                "</worked_example>\n"
+                "IMPORTANTE: Responda SOMENTE usando o XML acima, sem comentários ou texto fora das tags."
+            )
+            if context:
+                prompt = f"{xml_instruction}\n<context>{context}</context>\n<question>{user_query}</question>"
+            else:
+                prompt = f"{xml_instruction}\n<question>{user_query}</question>"
         else:
-            prompt = f"<question>{user_query}</question>"
+            if context:
+                prompt = f"<context>{context}</context>\n<question>{user_query}</question>"
+            else:
+                prompt = f"<question>{user_query}</question>"
         return agent.response(prompt)

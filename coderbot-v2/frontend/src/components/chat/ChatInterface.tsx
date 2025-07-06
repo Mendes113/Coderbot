@@ -546,6 +546,8 @@ const MobileSettingsDrawerView: React.FC<SettingsProps> = (props) => (
 
 interface ChatInterfaceProps {
   whiteboardContext?: Record<string, any> | null;
+  methodology?: string;
+  userId?: string;
 }
 
 const INITIAL_MESSAGES: Message[] = [
@@ -565,13 +567,13 @@ const INITIAL_MESSAGES: Message[] = [
   },
 ];
 
-export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext }) => {
+export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext, methodology = "default", userId }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [analogiesEnabled, setAnalogiesEnabled] = useState(false);
   const [knowledgeBase, setKnowledgeBase] = useState("");
   const [aiModel, setAiModel] = useState<string>("gpt-3.5-turbo");
-  const [methodology, setMethodology] = useState<string>("default");
+  const [methodologyState, setMethodology] = useState<string>("default");
   const [availableMethodologies, setAvailableMethodologies] = useState<MethodologyInfo[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
@@ -1001,7 +1003,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
         false,
         knowledgeBase,
         aiModel,
-        methodology,
+        methodologyState,
         userProfile,
         whiteboardContext
       );
@@ -1215,7 +1217,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext 
                 </SelectContent>
               </Select>
               <Select 
-                value={methodology} 
+                value={methodologyState} 
                 onValueChange={setMethodology}
                 disabled={availableMethodologies.length === 0}
               >

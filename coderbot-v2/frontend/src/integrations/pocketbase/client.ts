@@ -121,3 +121,36 @@ export const registerUserAction = async (userId: string, actionName: string, con
 export function startGithubOAuth() {
   pb.collection('users').authWithOAuth2({ provider: 'github' });
 }
+
+// --- API Key Management ---
+export interface UserApiKeyRecord extends PBRecord {
+  user: string; // relation to user id
+  provider: string; // e.g., 'openai', 'deepseek'
+  api_key: string;
+}
+
+/**
+ * Fetches the API key for a user and provider. Returns null if not found.
+ */
+export const getUserApiKey = async (userId: string, provider: string): Promise<UserApiKeyRecord | null> => {
+  try {
+    const record = await pb.collection('user_api_keys').getFirstListItem(
+      `user = "${userId}" && provider = "${provider}"`
+    );
+    return record as UserApiKeyRecord;
+  } catch (error) {
+    return null;
+  }
+};
+
+/**
+ * Creates or updates the API key for a user and provider.
+ */
+export const upsertUserApiKey = async (userId: string, provider: string, apiKey: string): Promise<UserApiKeyRecord> => {
+  const existing = await getUserApiKey(userId, provider);
+  if (existing) {
+    return await pb.collection('user_api_keys').update(existing.id, { api_key: apiKey });
+  } else {
+    return await pb.collection('user_api_keys').create({ user: userId, provider, api_key: apiKey });
+  }
+};

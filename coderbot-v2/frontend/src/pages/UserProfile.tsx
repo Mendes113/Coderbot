@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { LogOut, ArrowLeft, Github, Brain, TrendingUp, Target, Clock, Flame, Trophy, BookOpen, Settings, Zap } from "lucide-react";
-import { pb, startGithubOAuth } from "@/integrations/pocketbase/client";
+import { pb, startGithubOAuth, getUserApiKey, upsertUserApiKey } from "@/integrations/pocketbase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
@@ -31,7 +31,7 @@ import {
 
 const UserProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("profile");
   const [showAdaptiveSetup, setShowAdaptiveSetup] = useState(false);
   
   // Learning data states
@@ -41,6 +41,14 @@ const UserProfile = () => {
   const [analytics, setAnalytics] = useState<UserAnalytics | null>(null);
   const [streaks, setStreaks] = useState<any>(null);
   const [loadingLearningData, setLoadingLearningData] = useState(true);
+  const [apiKeys, setApiKeys] = useState({
+    chatgpt: "",
+    deepseek: "",
+    openrouter: ""
+  });
+  const [apiKeyLoading, setApiKeyLoading] = useState(false);
+  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
+  const [apiKeySaved, setApiKeySaved] = useState(false);
 
   const { profile, loading } = useUserData();
   const navigate = useNavigate();
@@ -50,6 +58,25 @@ const UserProfile = () => {
     if (userId) {
       loadLearningData();
     }
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    setApiKeyLoading(true);
+    setApiKeyError(null);
+    Promise.all([
+      getUserApiKey(userId, "chatgpt"),
+      getUserApiKey(userId, "deepseek"),
+      getUserApiKey(userId, "openrouter")
+    ]).then(([chatgpt, deepseek, openrouter]) => {
+      setApiKeys({
+        chatgpt: chatgpt?.api_key || "",
+        deepseek: deepseek?.api_key || "",
+        openrouter: openrouter?.api_key || ""
+      });
+    }).catch(() => {
+      setApiKeyError("Erro ao carregar suas API Keys.");
+    }).finally(() => setApiKeyLoading(false));
   }, [userId]);
 
   const loadLearningData = async () => {
@@ -104,6 +131,27 @@ const UserProfile = () => {
 
   const handleGithubConnect = () => {
     startGithubOAuth();
+  };
+
+  const handleSaveApiKeys = async () => {
+    if (!userId) return;
+    setApiKeyLoading(true);
+    setApiKeyError(null);
+    setApiKeySaved(false);
+    try {
+      await Promise.all([
+        upsertUserApiKey(userId, "chatgpt", apiKeys.chatgpt),
+        upsertUserApiKey(userId, "deepseek", apiKeys.deepseek),
+        upsertUserApiKey(userId, "openrouter", apiKeys.openrouter)
+      ]);
+      setApiKeySaved(true);
+      toast.success("API Keys salvas com sucesso!");
+    } catch (err) {
+      setApiKeyError("Erro ao salvar suas API Keys.");
+      toast.error("Erro ao salvar suas API Keys.");
+    } finally {
+      setApiKeyLoading(false);
+    }
   };
 
   // const handleAdaptiveSetupComplete = (newProfile: LearningProfile, pathId: string) => {
@@ -190,7 +238,7 @@ const UserProfile = () => {
           <h1 className="text-2xl font-bold">Perfil & Learning Analytics</h1>
         </div>
         <div className="flex gap-2">
-          <Button
+          {/* <Button
             variant="outline"
             onClick={() => setShowAdaptiveSetup(true)}
             className="flex items-center gap-2"
@@ -198,7 +246,7 @@ const UserProfile = () => {
           >
             <Settings className="h-4 w-4" />
             Setup Learning
-          </Button>
+          </Button> */}
           <Button
             variant="outline"
             onClick={handleGithubConnect}
@@ -221,11 +269,12 @@ const UserProfile = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5">
+          {/* <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="learning">Learning Progress</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger> */}
           <TabsTrigger value="profile">Profile Settings</TabsTrigger>
+          <TabsTrigger value="api-keys">API Keys</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -511,11 +560,71 @@ const UserProfile = () => {
             isEditing={isEditing}
             onEditToggle={() => setIsEditing(!isEditing)}
           />
-          
           <ProfileForm 
             isEditing={isEditing} 
             onSaved={() => setIsEditing(false)} 
           />
+        </TabsContent>
+
+        <TabsContent value="api-keys" className="space-y-6">
+          <div className="max-w-md mx-auto">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-8 mt-6 shadow-lg flex flex-col gap-6 items-center">
+              <div className="flex flex-col items-center mb-2">
+                <span className="text-2xl text-neutral-100 mb-1">🔑</span>
+                <h2 className="text-xl font-bold mb-1 text-neutral-100">Gerencie suas API Keys</h2>
+                <p className="text-sm text-neutral-400 text-center max-w-xs">Salve suas chaves de API para integrações avançadas. Só você pode ver e editar suas chaves.<br/><span className='text-blue-400'>Segurança e privacidade garantidas.</span></p>
+              </div>
+              <form className="w-full flex flex-col gap-4" onSubmit={e => { e.preventDefault(); handleSaveApiKeys(); }}>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold text-neutral-200" htmlFor="chatgpt-key">ChatGPT</label>
+                  <input
+                    id="chatgpt-key"
+                    type="text"
+                    autoComplete="off"
+                    className="w-full border border-neutral-700 rounded px-3 py-2 bg-neutral-800 text-neutral-100 focus:ring-2 focus:ring-blue-600 transition placeholder:text-neutral-500"
+                    placeholder="Cole sua chave ChatGPT..."
+                    value={apiKeys.chatgpt}
+                    onChange={e => { setApiKeys(a => ({ ...a, chatgpt: e.target.value })); setApiKeySaved(false); }}
+                    disabled={apiKeyLoading}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold text-neutral-200" htmlFor="deepseek-key">DeepSeek</label>
+                  <input
+                    id="deepseek-key"
+                    type="text"
+                    autoComplete="off"
+                    className="w-full border border-neutral-700 rounded px-3 py-2 bg-neutral-800 text-neutral-100 focus:ring-2 focus:ring-purple-600 transition placeholder:text-neutral-500"
+                    placeholder="Cole sua chave DeepSeek..."
+                    value={apiKeys.deepseek}
+                    onChange={e => { setApiKeys(a => ({ ...a, deepseek: e.target.value })); setApiKeySaved(false); }}
+                    disabled={apiKeyLoading}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold text-neutral-200" htmlFor="openrouter-key">OpenRouter</label>
+                  <input
+                    id="openrouter-key"
+                    type="text"
+                    autoComplete="off"
+                    className="w-full border border-neutral-700 rounded px-3 py-2 bg-neutral-800 text-neutral-100 focus:ring-2 focus:ring-green-600 transition placeholder:text-neutral-500"
+                    placeholder="Cole sua chave OpenRouter..."
+                    value={apiKeys.openrouter}
+                    onChange={e => { setApiKeys(a => ({ ...a, openrouter: e.target.value })); setApiKeySaved(false); }}
+                    disabled={apiKeyLoading}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full mt-2 py-2 rounded-lg text-lg font-semibold shadow bg-neutral-800 text-neutral-100 border border-neutral-700 hover:bg-neutral-700 hover:text-white transition focus:ring-2 focus:ring-blue-600"
+                  disabled={apiKeyLoading}
+                >{apiKeyLoading ? 'Salvando...' : 'Salvar Todas as API Keys'}</button>
+              </form>
+              {apiKeyError && <div className="text-red-400 text-sm mt-2">{apiKeyError}</div>}
+              {apiKeySaved && <div className="text-green-400 text-sm mt-2">API Keys salvas! 🎉</div>}
+              <div className="text-xs text-neutral-500 mt-2 text-center">Dica: Use chaves diferentes para cada serviço para maior segurança.<br/>Você pode atualizar suas chaves a qualquer momento.</div>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

@@ -34,24 +34,24 @@ const Whiteboard: React.FC = () => {
   const [editorVisible, setEditorVisible] = useState(false);
   const [scene, setScene] = useState<SceneJSON | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null); // controla update vs create
-  const [excalidrawAccessed, setExcalidrawAccessed] = useState(false); // novo estado
-  const [lastSaveTime, setLastSaveTime] = useState<number>(0);
-  const [dailyBonusGiven, setDailyBonusGiven] = useState(false);
-  const [createdBoards, setCreatedBoards] = useState<number>(0);
+  // const [excalidrawAccessed, setExcalidrawAccessed] = useState(false); // novo estado
+  // const [lastSaveTime, setLastSaveTime] = useState<number>(0);
+  // const [dailyBonusGiven, setDailyBonusGiven] = useState(false);
+  // const [createdBoards, setCreatedBoards] = useState<number>(0);
   const [isChatOpen, setIsChatOpen] = useState(false); // novo estado para controlar abertura do chat
 
-  // Bônus diário ao acessar pela primeira vez no dia
-  React.useEffect(() => {
-    if (user && !dailyBonusGiven) {
-      const lastBonus = localStorage.getItem('whiteboard_daily_bonus');
-      const today = getToday();
-      if (lastBonus !== today) {
-        registerUserAction(user.id, 'whiteboard_daily_bonus'); // 200 pontos
-        localStorage.setItem('whiteboard_daily_bonus', today);
-        setDailyBonusGiven(true);
-      }
-    }
-  }, [user, dailyBonusGiven]);
+  // // Bônus diário ao acessar pela primeira vez no dia
+  // React.useEffect(() => {
+  //   if (user && !dailyBonusGiven) {
+  //     const lastBonus = localStorage.getItem('whiteboard_daily_bonus');
+  //     const today = getToday();
+  //     if (lastBonus !== today) {
+  //       registerUserAction(user.id, 'whiteboard_daily_bonus'); // 200 pontos
+  //       localStorage.setItem('whiteboard_daily_bonus', today);
+  //       setDailyBonusGiven(true);
+  //     }
+  //   }
+  // }, [user, dailyBonusGiven]);
 
   /* ===================== FUNÇÃO DE SALVAR ===================== */
   const saveScene = useCallback(async () => {
@@ -79,22 +79,22 @@ const Whiteboard: React.FC = () => {
           user: user.id,
         });
         setActiveId(record.id);
-        setCreatedBoards((prev) => {
-          const newCount = prev + 1;
-          // Bônus a cada 10 quadros criados
-          if (newCount % 10 === 0) {
-            registerUserAction(user.id, 'whiteboard_10_boards'); // 500 pontos
-          }
-          return newCount;
-        });
-        registerUserAction(user.id, 'whiteboard_create_board'); // 50 pontos
+        // setCreatedBoards((prev) => {
+        //   const newCount = prev + 1;
+        //   // Bônus a cada 10 quadros criados
+        //   if (newCount % 10 === 0) {
+        //     registerUserAction(user.id, 'whiteboard_10_boards'); // 500 pontos
+        //   }
+        //   return newCount;
+        // });
+        // registerUserAction(user.id, 'whiteboard_create_board'); // 50 pontos
       }
-      // Salvar quadro: 10 pontos, limitado a 1x por minuto
-      const now = Date.now();
-      if (now - lastSaveTime > 60000) {
-        registerUserAction(user.id, 'whiteboard_save_board');
-        setLastSaveTime(now);
-      }
+      // // Salvar quadro: 10 pontos, limitado a 1x por minuto
+      // const now = Date.now();
+      // if (now - lastSaveTime > 60000) {
+      //   registerUserAction(user.id, 'whiteboard_save_board');
+      //   setLastSaveTime(now);
+      // }
       toast.success("Quadro salvo");
       refresh();
     } catch (err) {
@@ -103,16 +103,16 @@ const Whiteboard: React.FC = () => {
     } finally {
       inflightRef.current = false;
     }
-  }, [activeId, user, refresh, lastSaveTime]);
+  }, [activeId, user, refresh/*, lastSaveTime*/]);
 
   /* ===================== AÇÕES DO MENU INICIAL ===================== */
   const handleOpenEditor = useCallback(() => {
     setEditorVisible(true);
-    if (!excalidrawAccessed && user) {
-      registerUserAction(user.id, "access_excalidraw");
-      setExcalidrawAccessed(true);
-    }
-  }, [excalidrawAccessed, user]);
+    // if (!excalidrawAccessed && user) {
+    //   registerUserAction(user.id, "access_excalidraw");
+    //   setExcalidrawAccessed(true);
+    // }
+  }, [/*excalidrawAccessed,*/ user]);
 
   const openLocalFile = async (file: File) => {
     try {
@@ -169,20 +169,18 @@ const Whiteboard: React.FC = () => {
           <p className="text-gray-600 text-center mb-4">Crie, salve e compartilhe quadros visuais para potencializar seu aprendizado!</p>
 
           {/* Card de progresso do usuário */}
+          {/*
           {user && (
             <div className="w-full">
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-semibold">Progresso</span>
-                  {/* Exemplo: Nível do usuário */}
                   <span className="text-xs bg-blue-100 text-blue-700 rounded px-2 py-1">Nível 2</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
-                  {/* Exemplo de barra de XP */}
                   <div className="bg-blue-500 h-3 rounded-full" style={{ width: `${Math.min(createdBoards * 10, 100)}%` }} />
                 </div>
                 <div className="flex gap-2 mt-2">
-                  {/* Badges/conquistas - exemplo visual */}
                   <span className="inline-block bg-yellow-200 text-yellow-800 rounded px-2 py-1 text-xs">Primeiro Quadro</span>
                   {createdBoards >= 10 && (
                     <span className="inline-block bg-green-200 text-green-800 rounded px-2 py-1 text-xs">10 Quadros!</span>
@@ -194,8 +192,10 @@ const Whiteboard: React.FC = () => {
               </div>
             </div>
           )}
+          */}
 
           {/* Seção de desafios/missões */}
+          {/*
           {user && (
             <div className="w-full mb-4">
               <div className="font-semibold mb-1">Desafios</div>
@@ -206,11 +206,12 @@ const Whiteboard: React.FC = () => {
               </ul>
             </div>
           )}
+          */}
 
           {/* upload */}
-          <label className="flex flex-col items-center gap-2 cursor-pointer w-full p-4 border rounded-lg bg-gray-50 hover:bg-gray-100 transition mb-2">
-            <UploadCloud size={24} />
-            <span className="text-sm">Carregar arquivo (.json / .excalidraw)</span>
+          <label className="flex flex-col items-center gap-2 cursor-pointer w-full p-4 border rounded-lg bg-gray-50 hover:bg-gray-100 transition mb-2 text-black">
+            <UploadCloud size={24}  />
+            <span className="text-sm text-black">Carregar arquivo (.json / .excalidraw)</span>
             <input
               type="file"
               accept=".json,.excalidraw"
@@ -267,7 +268,7 @@ const Whiteboard: React.FC = () => {
             </SheetTrigger>
             <SheetContent side="bottom" className="h-[70vh] p-0">
               {/* Passar o contexto do quadro para o chat */}
-              <ChatInterface whiteboardContext={getCurrentSceneJSON()} />
+              <ChatInterface whiteboardContext={scene || undefined} />
             </SheetContent>
           </Sheet>
         </>
