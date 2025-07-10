@@ -492,5 +492,53 @@ class PocketBaseService:
             logger.error(f"Error getting platform analytics: {e}")
             return {}
 
+    def get_user_api_keys(self, user_id: str) -> Dict[str, str]:
+        """
+        Fetches all API keys for a user from the user_api_keys collection in PocketBase.
+        Returns a dict: {provider: api_key}
+        """
+        try:
+            response = requests.get(
+                f"{self.base_url}/api/collections/user_api_keys/records",
+                params={"filter": f"user = '{user_id}'"},
+                headers=self._get_headers()
+            )
+            if response.status_code == 200:
+                data = response.json()
+                result = {}
+                for item in data.get("items", []):
+                    provider = item.get("provider")
+                    api_key = item.get("api_key")
+                    if provider and api_key:
+                        result[provider] = api_key
+                return result
+            else:
+                logger.warning(f"Failed to fetch API keys for user {user_id}: {response.status_code} - {response.text}")
+                return {}
+        except Exception as e:
+            logger.error(f"Error fetching API keys for user {user_id}: {e}")
+            return {}
+
+    def get_user_api_key(self, user_id: str, provider: str) -> Optional[str]:
+        """
+        Fetches a specific API key for a user and provider from the user_api_keys collection in PocketBase.
+        Returns the api_key string or None if not found.
+        """
+        try:
+            response = requests.get(
+                f"{self.base_url}/api/collections/user_api_keys/records",
+                params={"filter": f"user = '{user_id}' && provider = '{provider}'"},
+                headers=self._get_headers()
+            )
+            if response.status_code == 200:
+                data = response.json()
+                items = data.get("items", [])
+                if items:
+                    return items[0].get("api_key")
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching API key for user {user_id}, provider {provider}: {e}")
+            return None
+
 # Global instance
 pb_service = PocketBaseService()
