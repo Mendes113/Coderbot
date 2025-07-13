@@ -1,0 +1,38 @@
+# Backend Development Dockerfile with PDM and Hot Reload
+FROM python:3.12-slim
+
+# Instalar dependências do sistema
+RUN apt-get update && apt-get install -y \
+    curl \
+    gcc \
+    g++ \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instalar PDM
+RUN pip install --no-cache-dir pdm
+
+# Definir diretório de trabalho
+WORKDIR /app
+
+# Copiar arquivos de configuração do PDM
+COPY backend/pyproject.toml backend/pdm.lock* ./
+
+# Instalar dependências usando PDM (incluindo dev dependencies)
+RUN pdm install --no-editable
+
+# Criar um script de entrada para desenvolvimento
+RUN echo '#!/bin/bash' > /app/start-dev.sh && \
+    echo 'set -e' >> /app/start-dev.sh && \
+    echo 'echo "🔧 Modo de desenvolvimento ativado..."' >> /app/start-dev.sh && \
+    echo 'echo "📦 Verificando dependências..."' >> /app/start-dev.sh && \
+    echo 'pdm info' >> /app/start-dev.sh && \
+    echo 'echo "🚀 Iniciando aplicação com hot reload..."' >> /app/start-dev.sh && \
+    echo 'pdm run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app' >> /app/start-dev.sh && \
+    chmod +x /app/start-dev.sh
+
+# Expor a porta
+EXPOSE 8000
+
+# Comando para iniciar a aplicação em modo desenvolvimento
+CMD ["/app/start-dev.sh"] 

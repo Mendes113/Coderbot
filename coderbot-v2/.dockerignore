@@ -1,41 +1,69 @@
-# ==============================================
-# DOCKERIGNORE - CODERBOT V2
-# ==============================================
-
 # Git
 .git
 .gitignore
-.github
+.gitattributes
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
 
 # Documentation
 *.md
 README*
-CHANGELOG*
-LICENSE*
 docs/
 
-# Environment files (serão copiados específicamente quando necessário)
-.env.local
-.env.development
-.env.test
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Logs
 *.log
 logs/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
 
-# Dependencies (serão instaladas no container)
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
 node_modules/
-npm-cache/
-.npm
-.yarn
-yarn.lock
-package-lock.json
+jspm_packages/
 
-# Python cache
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -57,129 +85,96 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
-.pytest_cache/
-.coverage
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
 htmlcov/
 .tox/
-.nox/
+.coverage
 .coverage.*
 .cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
 .mypy_cache/
 .dmypy.json
 dmypy.json
 
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
 # Temporary files
-*.tmp
-*.temp
-.temp/
-.tmp/
+tmp/
+temp/
 
-# Build outputs (exceto o necessário)
+# Build artifacts
 dist/
 build/
-out/
-.next/
-.nuxt/
-.output/
 
-# Test files 
-test/
-tests/
-__tests__/
-*.test.js
-*.test.ts
-*.spec.js
-*.spec.ts
+# PocketBase data (will be copied in Dockerfile)
+# pocketbase_0.27.2_linux_amd64/pb_data/
 
-# Development only
-.eslintcache
-.stylelintcache
-
-# Docker
-docker-compose.override.yml
-docker-compose.*.yml
-Dockerfile*
-.dockerignore
-
-# Backups
-*.backup
-*.bak
-backups/
-
-# Local development
-.local/
-.cache/
-
-# Pocketbase (dados locais - permitir para Docker build do PocketBase)
-# pb_data/
-*.db-journal
-
-# Permitir arquivos específicos do PocketBase que precisamos
-!pocketbase_0.27.2_linux_amd64/pb_data/
-!pocketbase_0.27.2_linux_amd64/pb_data/*.db
-!pocketbase_0.27.2_linux_amd64/pb_migrations/
-
-# Scripts de desenvolvimento
-setup_*.sh
-validate-*.sh
-test-*.sh
-
-# ARQUIVOS PESADOS - Excluir do contexto Docker
-# Tauri (adiciona muito peso e não é necessário no Docker)
-frontend/src-tauri/
-src-tauri/
-temp-tauri/
-**/src-tauri/
-**/src-tauri/**
-**/target/
-**/.cargo/
-**/Cargo.lock
-**/Cargo.toml
-Cargo.lock
-Cargo.toml
-
-# Supabase (arquivos de configuração local)
-frontend/supabase/
-supabase/
-
-# Arquivos específicos grandes
-e2e.log
-coolify.yml
-COOLIFY_DEPLOYMENT.md
-
-# PocketBase binário (será baixado no container)
-pocketbase_*/pocketbase
-# **/pocketbase
-# !pb_migrations/
-
-# # Arquivos de dados de desenvolvimento
-# **/pb_data/
-# **/*.sqlite
-# **/*.sqlite3
-
-# Rust/Cargo (Tauri)
-**/target/
-**/.cargo/
-Cargo.lock
-Cargo.toml
-
-# Excluir node_modules de subpastas
-**/node_modules/
-frontend/node_modules/
-backend/node_modules/
+# Development scripts
+dev.sh
+README.dev.md
