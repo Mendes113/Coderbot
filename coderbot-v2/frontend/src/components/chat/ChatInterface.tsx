@@ -20,6 +20,7 @@ import { chatService } from "@/services/chat-service";
 import { SessionSidebar } from "@/components/chat/SessionSidebar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { soundEffects } from "@/utils/sounds";
+// import { ProfileHeader } from "@/components/profile/ProfileHeader";
 
 // --- Componentes de Design Emocional ---
 
@@ -522,6 +523,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const [methodologyState, setMethodology] = useState<string>("default");
   const [availableMethodologies, setAvailableMethodologies] = useState<MethodologyInfo[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [showSidebar, setShowSidebar] = useState(!isMobile);
   const [showAnalogyDropdown, setShowAnalogyDropdown] = useState(false);
@@ -625,8 +627,83 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    } else if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
   };
+
+  // Auto-scroll when messages change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      scrollToBottom();
+    }, 100); // Pequeno delay para garantir que o DOM seja atualizado
+    
+    return () => clearTimeout(timer);
+  }, [messages, isLoading]);
+
+  // Garantir que o scroll container seja focalizável
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      
+      // Definir propriedades para garantir que o scroll funcione
+      container.style.scrollBehavior = 'smooth';
+      container.style.overflowY = 'auto';
+      container.style.overscrollBehavior = 'contain';
+      
+      // Garantir que o container possa receber eventos
+      container.addEventListener('wheel', (e) => {
+        e.stopPropagation();
+      });
+      
+      // Focar no container para permitir scroll com teclado
+      container.focus();
+    }
+  }, []);
+
+  // Detectar scroll manual do usuário
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return;
+
+    let userScrolling = false;
+
+    const handleScroll = () => {
+      userScrolling = true;
+      
+      // Detectar se o usuário está fazendo scroll manual
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
+      
+      // Se o usuário fez scroll para cima, alterar o comportamento do scroll
+      if (!isAtBottom) {
+        scrollContainer.style.scrollBehavior = 'auto';
+      } else {
+        scrollContainer.style.scrollBehavior = 'smooth';
+      }
+      
+      // Reset da flag após um período
+      setTimeout(() => {
+        userScrolling = false;
+      }, 150);
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      // Garantir que o evento de scroll seja processado normalmente
+      e.stopPropagation();
+      userScrolling = true;
+    };
+
+    scrollContainer.addEventListener('scroll', handleScroll);
+    scrollContainer.addEventListener('wheel', handleWheel);
+    
+    return () => {
+      scrollContainer.removeEventListener('scroll', handleScroll);
+      scrollContainer.removeEventListener('wheel', handleWheel);
+    };
+  }, []);
 
   // Função para gerenciar idle state
   const resetIdleTimer = () => {
@@ -985,364 +1062,250 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   };
 
   return (
-    <div className="relative flex h-full overflow-hidden">
-      <style>{`
-        @keyframes spin-slow {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        
-        @keyframes fade-in-out {
-          0%, 100% { opacity: 0.6; }
-          50% { opacity: 1; }
-        }
-        
-        @keyframes floatSmoothly {
-          0%, 100% {
-            transform: translateY(0px) translateX(0px);
-            opacity: 0.3;
-          }
-          25% {
-            transform: translateY(-10px) translateX(5px);
-            opacity: 0.6;
-          }
-          50% {
-            transform: translateY(-5px) translateX(-3px);
-            opacity: 0.8;
-          }
-          75% {
-            transform: translateY(-15px) translateX(2px);
-            opacity: 0.4;
-          }
-        }
-        
-        @keyframes gentleBounce {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-3px); }
-        }
-        
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .animate-spin-slow {
-          animation: spin-slow 3s linear infinite;
-        }
-        
-        .animate-fade-in-out {
-          animation: fade-in-out 2s ease-in-out infinite;
-        }
-        
-        .animate-float-smoothly {
-          animation: floatSmoothly ease-in-out infinite;
-        }
-        
-        .animate-gentle-bounce {
-          animation: gentleBounce 2s ease-in-out infinite;
-        }
-        
-        .animate-fade-in {
-          animation: fadeIn 0.3s ease-out forwards;
-        }
-        
-        @keyframes auroraMove1 {
-          0% { transform: scale(1) translate(0, 0); opacity: 0.7; }
-          50% { transform: scale(1.08) translate(30px, 20px); opacity: 1; }
-          100% { transform: scale(1) translate(0, 0); opacity: 0.7; }
-        }
-        @keyframes auroraMove2 {
-          0% { transform: scale(1) translate(0, 0); opacity: 0.5; }
-          50% { transform: scale(1.12) translate(-40px, 10px); opacity: 0.7; }
-          100% { transform: scale(1) translate(0, 0); opacity: 0.5; }
-        }
-        @keyframes auroraMove3 {
-          0% { transform: scale(1) translate(0, 0); opacity: 0.3; }
-          50% { transform: scale(1.06) translate(20px, -20px); opacity: 0.5; }
-          100% { transform: scale(1) translate(0, 0); opacity: 0.3; }
-        }
-      `}</style>
-      {/* Aurora/Bolhas de fundo */}
-      <div className="pointer-events-none absolute inset-0 z-0">
-        {/* Bolha roxa superior esquerda */}
-        <div className="absolute -top-32 -left-32 w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle,rgba(108,58,209,0.35)_0%,rgba(108,58,209,0)_70%)] blur-2xl"
-          style={{ animation: 'auroraMove1 16s ease-in-out infinite alternate' }}
-        />
-        {/* Bolha roxa inferior direita */}
-        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(108,58,209,0.25)_0%,rgba(108,58,209,0)_80%)] blur-3xl"
-          style={{ animation: 'auroraMove2 22s ease-in-out infinite alternate' }}
-        />
-        {/* Aurora suave centro-direita */}
-        <div className="absolute top-1/3 right-1/4 w-[350px] h-[250px] rounded-full bg-[radial-gradient(ellipse,rgba(180,120,255,0.18)_0%,rgba(108,58,209,0)_80%)] blur-2xl"
-          style={{ animation: 'auroraMove3 18s ease-in-out infinite alternate' }}
-        />
-      </div>
-
-
-      {/* Session Sidebar - hidden on mobile by default */}
-      {showSidebar && (
-        <div className={`${isMobile ? 'absolute z-10 h-full' : 'w-72'}`}>
-          <SessionSidebar
-            currentSessionId={sessionId}
-            onSessionChange={handleSessionChange}
-            onNewSession={handleNewSession}
-          />
-        </div>
-      )}
-      {/* Conteúdo do chat */}
-      <div className="flex-1 flex flex-col h-full relative z-10 bg-[#0a0a0a]/95">
-
-      <div className="pointer-events-none absolute inset-0 z-0">
-        {/* Bolha roxa superior esquerda */}
-        <div className="absolute -top-32 -left-32 w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle,rgba(108,58,209,0.35)_0%,rgba(108,58,209,0)_70%)] blur-2xl"
-          style={{ animation: 'auroraMove1 16s ease-in-out infinite alternate' }}
-        />
-        {/* Bolha roxa inferior direita */}
-        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(108,58,209,0.25)_0%,rgba(108,58,209,0)_80%)] blur-3xl"
-          style={{ animation: 'auroraMove2 22s ease-in-out infinite alternate' }}
-        />
-        {/* Aurora suave centro-direita */}
-        <div className="absolute top-1/3 right-1/4 w-[350px] h-[250px] rounded-full bg-[radial-gradient(ellipse,rgba(180,120,255,0.18)_0%,rgba(108,58,209,0)_80%)] blur-2xl"
-          style={{ animation: 'auroraMove3 18s ease-in-out infinite alternate' }}
-        />
-      </div>
-      
-        <div className="p-4 border-b">
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
-            <div className="flex items-center gap-2">
-              {/* Toggle sidebar button on mobile */}
-              {isMobile && (
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="h-8 w-8 mr-2"
-                  onClick={() => setShowSidebar(!showSidebar)}
-                >
-                  <MessageSquarePlus className="h-4 w-4" />
-                </Button>
-              )}
-              <div className="flex items-center gap-3">
-                {/* Avatar emocional do assistente */}
-                <div className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300",
-                  emotionalState === 'celebrating' ? "bg-gradient-to-br from-yellow-400 to-orange-400 animate-bounce" :
-                  emotionalState === 'encouraging' ? "bg-gradient-to-br from-green-400 to-blue-400 animate-pulse" :
-                  emotionalState === 'supportive' ? "bg-gradient-to-br from-purple-400 to-pink-400" :
-                  "bg-gradient-to-br from-purple-500 to-pink-500"
-                )}>
-                  <Brain className={cn(
-                    "w-6 h-6 text-white transition-transform duration-300",
-                    isLoading ? "animate-bounce" : ""
-                  )} />
-                </div>
-                <div>
-                  <h1 className="text-xl font-semibold text-primary">
-                    {emotionalState === 'celebrating' ? "Parabéns! 🎉" :
-                     emotionalState === 'encouraging' ? "Você está indo bem! ✨" :
-                     "Assistente de Aprendizado"}
-                  </h1>
-                  <p className="text-sm text-muted-foreground">
-                    {isLoading ? "Pensando em como ajudar você... 🤔" : 
-                     celebrationCount > 10 ? "Que aprendiz dedicado! Continue assim! 🌟" :
-                     celebrationCount > 5 ? "Ótimas perguntas! Vamos continuar! 💪" :
-                     "Tire suas dúvidas sobre programação"}
-                  </p>
-                </div>
-              </div>
-            </div>
-            {/* Modern header controls: modelo, metodologia, analogia dropdown */}
-            <div className="flex items-center gap-2 mt-2 sm:mt-0 relative">
-              <Select value={aiModel} onValueChange={setAiModel}>
-                <SelectTrigger className="w-[120px] h-8 text-xs">
-                  <SelectValue placeholder="Modelo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="gpt-3.5-turbo">GPT-3.5</SelectItem>
-                  <SelectItem value="gpt-4">GPT-4</SelectItem>
-                  <SelectItem value="claude-3-opus">Claude 3</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select 
-                value={methodologyState} 
-                onValueChange={setMethodology}
-                disabled={availableMethodologies.length === 0}
+    <div className="relative flex h-full w-full flex-col">
+      {/* Header sempre visível */}
+      <div className="p-4 border-b shrink-0 sticky top-0 z-40 bg-background/80 backdrop-blur shadow-md">
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
+          <div className="flex items-center gap-2">
+            {isMobile && (
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="h-8 w-8 mr-2"
+                onClick={() => setShowSidebar(!showSidebar)}
               >
-                <SelectTrigger className="w-[120px] h-8 text-xs">
-                  <SelectValue placeholder="Metodologia" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default">Padrão</SelectItem>
-                  <SelectItem value="analogy">Analogias</SelectItem>
-                  {availableMethodologies.map(m => (
-                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {/* Dropdown de analogias */}
-              <div className="relative">
-                <button
-                  type="button"
-                  aria-label={analogiesEnabled ? "Gerenciar analogias" : "Ativar analogias"}
-                  title={analogiesEnabled ? "Gerenciar analogias" : "Ativar analogias"}
-                  onClick={() => {
-                    if (!analogiesEnabled) { // If analogies are currently OFF
-                      setAnalogiesEnabled(true);    // Turn them ON
-                      setShowAnalogyDropdown(true); // And show the dropdown
-                    } else { // If analogies are already ON
-                      setShowAnalogyDropdown((prev) => !prev); // Just toggle dropdown visibility
-                    }
-                  }}
-                  className={cn(
-                    "flex items-center gap-1 px-2 py-1 rounded-full border border-gray-200 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-                    analogiesEnabled
-                      ? "bg-[hsl(var(--education-purple)/0.12)] text-[hsl(var(--education-purple))] border-[hsl(var(--education-purple))]"
-                      : "bg-white text-gray-500 hover:text-[hsl(var(--education-purple))] hover:border-[hsl(var(--education-purple))]"
-                  )}
-                  tabIndex={0}
-                  style={{ minHeight: 28 }}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                  <span>Analogias</span>
-                  <svg className={cn("h-3 w-3 ml-1 transition-transform", showAnalogyDropdown ? "rotate-180" : "rotate-0")}
-                    fill="none" viewBox="0 0 20 20" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 8l4 4 4-4" />
-                  </svg>
-                </button>
-                {/* Dropdown/colapsável */}
-                {showAnalogyDropdown && (
-                  <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-3 animate-fade-in">
-                    <label htmlFor="knowledge-base" className="block text-xs font-medium text-gray-700 mb-1">O que você já sabe ou quer usar como analogia?</label>
-                    <textarea
-                      id="knowledge-base"
-                      value={knowledgeBase}
-                      onChange={e => setKnowledgeBase(e.target.value)}
-                      rows={3}
-                      placeholder="Ex: Já sei variáveis, quero analogias com futebol..."
-                      className="w-full rounded-lg border border-gray-200 bg-white text-gray-900 px-3 py-2 text-sm focus:border-[hsl(var(--education-purple))] focus:ring-2 focus:ring-[hsl(var(--education-purple))] transition-all outline-none resize-none"
-                      style={{ minHeight: 36, maxHeight: 100 }}
-                      autoFocus
-                    />
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="text-xs text-red-600 hover:text-red-700 mt-2 p-0 h-auto font-medium"
-                      onClick={() => {
-                        setAnalogiesEnabled(false);    // Turn OFF analogies feature
-                        setShowAnalogyDropdown(false); // And hide the dropdown
-                        // setKnowledgeBase(""); // Optionally clear the knowledge base
-                      }}
-                    >
-                      Desativar Analogias
-                    </Button>
-                  </div>
-                )}
+                <MessageSquarePlus className="h-4 w-4" />
+              </Button>
+            )}
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300",
+                emotionalState === 'celebrating' ? "bg-gradient-to-br from-yellow-400 to-orange-400 animate-bounce" :
+                emotionalState === 'encouraging' ? "bg-gradient-to-br from-green-400 to-blue-400 animate-pulse" :
+                emotionalState === 'supportive' ? "bg-gradient-to-br from-purple-400 to-pink-400" :
+                "bg-gradient-to-br from-purple-500 to-pink-500"
+              )}>
+                <Brain className={cn(
+                  "w-6 h-6 text-white transition-transform duration-300",
+                  isLoading ? "animate-bounce" : ""
+                )} />
+              </div>
+              <div>
+                <h1 className="text-xl font-semibold text-primary">
+                  {emotionalState === 'celebrating' ? "Parabéns! 🎉" :
+                   emotionalState === 'encouraging' ? "Você está indo bem! ✨" :
+                   "Assistente de Aprendizado"}
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  {isLoading ? "Pensando em como ajudar você... 🤔" : 
+                   celebrationCount > 10 ? "Que aprendiz dedicado! Continue assim! 🌟" :
+                   celebrationCount > 5 ? "Ótimas perguntas! Vamos continuar! 💪" :
+                   "Tire suas dúvidas sobre programação"}
+                </p>
               </div>
             </div>
           </div>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="space-y-4 max-w-3xl mx-auto">
-            {/* Header com progresso e streak - inspirado no Duolingo */}
-            {messages.length > 1 && (
-              <div className="flex items-center justify-between mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
-                <div className="flex items-center gap-4">
-                  <CodeBotMascot emotion="happy" size="medium" />
-                  <div>
-                    <h3 className="font-bold text-gray-800">Sessão de Aprendizado</h3>
-                    <p className="text-sm text-gray-600">{sessionMessagesCount} perguntas nesta sessão</p>
-                  </div>
+          <div className="flex items-center gap-2 mt-2 sm:mt-0 relative">
+            <Select value={aiModel} onValueChange={setAiModel}>
+              <SelectTrigger className="w-[120px] h-8 text-xs">
+                <SelectValue placeholder="Modelo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gpt-3.5-turbo">GPT-3.5</SelectItem>
+                <SelectItem value="gpt-4">GPT-4</SelectItem>
+                <SelectItem value="claude-3-opus">Claude 3</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select 
+              value={methodologyState} 
+              onValueChange={setMethodology}
+              disabled={availableMethodologies.length === 0}
+            >
+              <SelectTrigger className="w-[120px] h-8 text-xs">
+                <SelectValue placeholder="Metodologia" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Padrão</SelectItem>
+                <SelectItem value="analogy">Analogias</SelectItem>
+                {availableMethodologies.map(m => (
+                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* Dropdown de analogias */}
+            <div className="relative">
+              <button
+                type="button"
+                aria-label={analogiesEnabled ? "Gerenciar analogias" : "Ativar analogias"}
+                title={analogiesEnabled ? "Gerenciar analogias" : "Ativar analogias"}
+                onClick={() => {
+                  if (!analogiesEnabled) { // If analogies are currently OFF
+                    setAnalogiesEnabled(true);    // Turn them ON
+                    setShowAnalogyDropdown(true); // And show the dropdown
+                  } else { // If analogies are already ON
+                    setShowAnalogyDropdown((prev) => !prev); // Just toggle dropdown visibility
+                  }
+                }}
+                className={cn(
+                  "flex items-center gap-1 px-2 py-1 rounded-full border border-gray-200 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+                  analogiesEnabled
+                    ? "bg-[hsl(var(--education-purple)/0.12)] text-[hsl(var(--education-purple))] border-[hsl(var(--education-purple))]"
+                    : "bg-white text-gray-500 hover:text-[hsl(var(--education-purple))] hover:border-[hsl(var(--education-purple))]"
+                )}
+                tabIndex={0}
+                style={{ minHeight: 28 }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                <span>Analogias</span>
+                <svg className={cn("h-3 w-3 ml-1 transition-transform", showAnalogyDropdown ? "rotate-180" : "rotate-0")}
+                  fill="none" viewBox="0 0 20 20" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 8l4 4 4-4" />
+                </svg>
+              </button>
+              {/* Dropdown/colapsável */}
+              {showAnalogyDropdown && (
+                <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-3 animate-fade-in">
+                  <label htmlFor="knowledge-base" className="block text-xs font-medium text-gray-700 mb-1">O que você já sabe ou quer usar como analogia?</label>
+                  <textarea
+                    id="knowledge-base"
+                    value={knowledgeBase}
+                    onChange={e => setKnowledgeBase(e.target.value)}
+                    rows={3}
+                    placeholder="Ex: Já sei variáveis, quero analogias com futebol..."
+                    className="w-full rounded-lg border border-gray-200 bg-white text-gray-900 px-3 py-2 text-sm focus:border-[hsl(var(--education-purple))] focus:ring-2 focus:ring-[hsl(var(--education-purple))] transition-all outline-none resize-none"
+                    style={{ minHeight: 36, maxHeight: 100 }}
+                    autoFocus
+                  />
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="text-xs text-red-600 hover:text-red-700 mt-2 p-0 h-auto font-medium"
+                    onClick={() => {
+                      setAnalogiesEnabled(false);    // Turn OFF analogies feature
+                      setShowAnalogyDropdown(false); // And hide the dropdown
+                      // setKnowledgeBase(""); // Optionally clear the knowledge base
+                    }}
+                  >
+                    Desativar Analogias
+                  </Button>
                 </div>
-                
-                <div className="flex items-center gap-3">
-                  {streakCount > 0 && (
-                    <StreakTracker streak={streakCount} target={5} />
-                  )}
-                  
-                  {/* Mini badges earned */}
-                  <div className="flex gap-1">
-                    {unlockedBadges.map(badge => (
-                      <AchievementBadge 
-                        key={badge} 
-                        type={badge as any} 
-                        unlocked={true} 
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Reação do CodeBot */}
-            {showCodeBotReaction && (
-              <CodeBotReaction type={showCodeBotReaction as any} />
-            )}
-
-            {/* Initial Welcome Messages with Animations */}
-            {showWelcomeMessages && (
-              <div className="space-y-4">
-                <InitialWelcomeMessages
-                  onComplete={handleWelcomeComplete}
-                  onSkip={handleWelcomeSkip}
-                />
-              </div>
-            )}
-
-            {/* Regular Chat Messages */}
-            {!showWelcomeMessages && messages.map((message) => (
-              <ChatMessage
-                key={message.id}
-                content={message.content}
-                isAi={message.isAi}
-                timestamp={message.timestamp}
-              />
-            ))}
-            
-            {/* IdleState - Aparecer quando usuário estiver idle (mas não em nível 'none') */}
-            {isUserIdle && !isLoading && idleLevel !== 'none' && !showWelcomeMessages && (
-              <IdleState 
-                onSuggestedQuestion={handleSendMessage}
-                idleLevel={idleLevel}
-              />
-            )}
-            
-            {isLoading && (
-              <div className="flex flex-col items-center justify-center py-8 px-4">
-                {/* CodeBot pensando */}
-                <div className="mb-4">
-                  <CodeBotMascot emotion="thinking" size="large" />
-                </div>
-                
-                {/* Enhanced typing indicator */}
-                <div className="bg-white/90 backdrop-blur-sm border border-purple-100 rounded-2xl p-4 shadow-lg max-w-md w-full">
-                  <div className="flex items-center space-x-2">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                    </div>
-                    <span className="text-sm text-gray-600 ml-2">
-                      {loadingMessages[Math.floor(Date.now() / 2000) % loadingMessages.length]}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
+              )}
+            </div>
           </div>
         </div>
+      </div>
+      {/* Área de mensagens com scroll */}
+      <div 
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto px-4" 
+        style={{ 
+          height: 0,
+          scrollBehavior: 'smooth',
+          overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch'
+        }}
+        tabIndex={0}
+      >
+        <div className="flex flex-col space-y-4 max-w-3xl mx-auto py-4">
+          {/* Header com progresso e streak - inspirado no Duolingo */}
+          {messages.length > 1 && (
+            <div className="flex items-center justify-between mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
+              <div className="flex items-center gap-4">
+                <CodeBotMascot emotion="happy" size="medium" />
+                <div>
+                  <h3 className="font-bold text-gray-800">Sessão de Aprendizado</h3>
+                  <p className="text-sm text-gray-600">{sessionMessagesCount} perguntas nesta sessão</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                {streakCount > 0 && (
+                  <StreakTracker streak={streakCount} target={5} />
+                )}
+                
+                {/* Mini badges earned */}
+                <div className="flex gap-1">
+                  {unlockedBadges.map(badge => (
+                    <AchievementBadge 
+                      key={badge} 
+                      type={badge as any} 
+                      unlocked={true} 
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
-        <div className={cn(
-          "border-t p-4 bg-background/80 backdrop-blur-sm",
-          isMobile ? "pb-6" : ""
-        )}>
-          <div className="max-w-3xl mx-auto">
-            <ChatInput
-              onSendMessage={handleSendMessage}
-              isLoading={isLoading}
-              analogiesEnabled={analogiesEnabled}
+          {/* Reação do CodeBot */}
+          {showCodeBotReaction && (
+            <CodeBotReaction type={showCodeBotReaction as any} />
+          )}
+
+          {/* Initial Welcome Messages with Animations */}
+          {showWelcomeMessages && (
+            <div className="space-y-4">
+              <InitialWelcomeMessages
+                onComplete={handleWelcomeComplete}
+                onSkip={handleWelcomeSkip}
+              />
+            </div>
+          )}
+
+          {/* Regular Chat Messages */}
+          {!showWelcomeMessages && messages.map((message) => (
+            <ChatMessage
+              key={message.id}
+              content={message.content}
+              isAi={message.isAi}
+              timestamp={message.timestamp}
             />
-          </div>
+          ))}
+          
+          {/* IdleState - Aparecer quando usuário estiver idle (mas não em nível 'none') */}
+          {isUserIdle && !isLoading && idleLevel !== 'none' && !showWelcomeMessages && (
+            <IdleState 
+              onSuggestedQuestion={handleSendMessage}
+              idleLevel={idleLevel}
+            />
+          )}
+          
+          {isLoading && (
+            <div className="flex flex-col items-center justify-center py-8 px-4">
+              {/* CodeBot pensando */}
+              <div className="mb-4">
+                <CodeBotMascot emotion="thinking" size="large" />
+              </div>
+              
+              {/* Enhanced typing indicator */}
+              <div className="bg-white/90 backdrop-blur-sm border border-purple-100 rounded-2xl p-4 shadow-lg max-w-md w-full">
+                <div className="flex items-center space-x-2">
+                  <div className="flex space-x-1">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  </div>
+                  <span className="text-sm text-gray-600 ml-2">
+                    {loadingMessages[Math.floor(Date.now() / 2000) % loadingMessages.length]}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
+      {/* Input fixo no rodapé */}
+      <div className={cn(
+        "border-t p-4 bg-background/80 backdrop-blur-sm shrink-0",
+        isMobile ? "pb-6" : ""
+      )}>
+        <div className="max-w-3xl mx-auto">
+          <ChatInput
+            onSendMessage={handleSendMessage}
+            isLoading={isLoading}
+            analogiesEnabled={analogiesEnabled}
+          />
         </div>
       </div>
       
