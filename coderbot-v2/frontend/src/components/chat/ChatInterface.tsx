@@ -637,7 +637,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   // Auto-scroll when messages change
   useEffect(() => {
     const timer = setTimeout(() => {
-      scrollToBottom();
+    scrollToBottom();
     }, 100); // Pequeno delay para garantir que o DOM seja atualizado
     
     return () => clearTimeout(timer);

@@ -6,10 +6,10 @@ const ChatInterface = ({ whiteboardContext }: { whiteboardContext?: any }) => {
 	if (!userId) return null;
 	return (
 		<div className="h-screen flex flex-col">
-			<ChatComponent
-				userId={userId}
-				whiteboardContext={whiteboardContext}
-			/>
+				<ChatComponent
+					userId={userId}
+					whiteboardContext={whiteboardContext}
+				/>
 		</div>
 	);
 };
