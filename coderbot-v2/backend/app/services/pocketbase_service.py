@@ -541,4 +541,5 @@ class PocketBaseService:
             return None
 
 # Global instance
-pb_service = PocketBaseService()
+from app.config import settings
+pb_service = PocketBaseService(base_url=settings.pocketbase_url)

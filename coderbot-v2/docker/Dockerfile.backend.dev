@@ -21,18 +21,13 @@ COPY backend/pyproject.toml backend/pdm.lock* ./
 # Instalar dependências usando PDM (incluindo dev dependencies)
 RUN pdm install --no-editable
 
-# Criar um script de entrada para desenvolvimento
-RUN echo '#!/bin/bash' > /app/start-dev.sh && \
-    echo 'set -e' >> /app/start-dev.sh && \
-    echo 'echo "🔧 Modo de desenvolvimento ativado..."' >> /app/start-dev.sh && \
-    echo 'echo "📦 Verificando dependências..."' >> /app/start-dev.sh && \
-    echo 'pdm info' >> /app/start-dev.sh && \
-    echo 'echo "🚀 Iniciando aplicação com hot reload..."' >> /app/start-dev.sh && \
-    echo 'pdm run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app' >> /app/start-dev.sh && \
-    chmod +x /app/start-dev.sh
-
 # Expor a porta
 EXPOSE 8000
 
+# Definir variáveis de ambiente para desenvolvimento
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+ENV UVICORN_RELOAD=1
+
 # Comando para iniciar a aplicação em modo desenvolvimento
-CMD ["/app/start-dev.sh"] 
+CMD ["pdm", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app"] 

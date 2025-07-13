@@ -2,15 +2,15 @@
 
 Este documento descreve como configurar e usar o ambiente de desenvolvimento do CodeBot com **hot reload** ativado.
 
-## 🚀 Início Rápido
+## 🚀 Início Rápido (Recomendado)
 
 ### Pré-requisitos
 
 - Docker e Docker Compose instalados
 - Git
-- Arquivo `.env` configurado (será criado automaticamente se não existir)
+- curl (para testes de API)
 
-### Configuração
+### Configuração Automática
 
 1. **Clone o repositório:**
 ```bash
@@ -18,12 +18,61 @@ git clone <repository-url>
 cd coderbot-v2
 ```
 
-2. **Inicie o ambiente de desenvolvimento:**
+2. **Execute o script de setup automático:**
+```bash
+./setup-dev.sh
+```
+
+**⚡ Este é o método recomendado!** O script irá:
+- ✅ Verificar pré-requisitos (Docker, Docker Compose)
+- ✅ Criar arquivos `.env` necessários
+- ✅ Iniciar todos os serviços Docker
+- ✅ Configurar PocketBase (admin e usuário regular)
+- ✅ Corrigir problemas comuns de configuração
+- ✅ Testar a configuração
+- ✅ Exibir informações importantes
+
+**Tempo estimado:** 2-3 minutos
+
+### Configuração Manual (Alternativa)
+
+Se preferir configurar manualmente:
+
+1. **Crie os arquivos `.env`:**
+```bash
+# Arquivo .env principal
+cp .env.example .env
+
+# Arquivo .env do backend
+cp backend/.env.example backend/.env
+
+# Arquivo .env do frontend
+cp frontend/.env.example frontend/.env
+```
+
+2. **Inicie o ambiente:**
 ```bash
 ./dev.sh up
 ```
 
-O script criará automaticamente um arquivo `.env` de exemplo se não existir.
+3. **Configure o PocketBase:**
+```bash
+# Criar usuário admin
+docker exec -it coderbot-pocketbase-dev /pb/pocketbase superuser upsert andremendes0113@gmail.com coderbotdagalera
+
+# Criar usuário regular
+curl -X POST http://localhost:8090/api/collections/users/records \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "andremendes0113@gmail.com",
+    "password": "coderbotdagalera",
+    "passwordConfirm": "coderbotdagalera",
+    "name": "Andre Mendes"
+  }'
+
+# Reiniciar backend
+docker restart coderbot-backend-dev
+```
 
 ### Serviços Disponíveis
 
@@ -212,6 +261,75 @@ docker-compose -f docker-compose.dev.yml exec [service-name] /bin/bash
 4. **Monitore os logs** com `./dev.sh logs-f`
 5. **Teste** as funcionalidades
 6. **Pare o ambiente** com `./dev.sh down` quando terminar
+
+## 🔧 Troubleshooting
+
+### Problemas Comuns
+
+1. **Erro de porta ocupada**
+   - Verifique se as portas 3000, 8000, 8090 e 8787 estão livres
+   - Use `netstat -tulpn | grep :3000` para verificar
+
+2. **Erro de permissão do Docker**
+   - Adicione seu usuário ao grupo docker: `sudo usermod -aG docker $USER`
+   - Faça logout e login novamente
+
+3. **Erro de memória insuficiente**
+   - Aumente a memória disponível para o Docker
+   - Feche outros aplicativos que consomem muita memória
+
+4. **Hot reload não funciona**
+   - Verifique se os volumes estão montados corretamente
+   - Reinicie o container específico: `docker restart coderbot-frontend-dev`
+
+5. **Erro de autenticação no PocketBase**
+   - Execute o script de setup novamente: `./setup-dev.sh`
+   - Ou configure manualmente os usuários conforme documentado acima
+
+6. **Backend não consegue conectar ao PocketBase**
+   - Verifique se o arquivo `backend/.env` tem `POCKETBASE_URL=http://pocketbase:8090`
+   - Reinicie o backend: `docker restart coderbot-backend-dev`
+
+### Logs e Depuração
+
+```bash
+# Ver logs de todos os serviços
+./dev.sh logs-f
+
+# Ver logs de um serviço específico
+./dev.sh logs frontend
+./dev.sh logs backend
+./dev.sh logs pocketbase
+
+# Acessar shell de um container
+docker exec -it coderbot-frontend-dev sh
+docker exec -it coderbot-backend-dev bash
+docker exec -it coderbot-pocketbase-dev sh
+```
+
+### Comandos de Recuperação
+
+Se algo der errado, use estes comandos para resetar:
+
+```bash
+# Parar todos os serviços
+./dev.sh down
+
+# Limpar containers, volumes e imagens
+./dev.sh clean
+
+# Recriar tudo do zero
+./setup-dev.sh
+```
+
+### Credenciais Padrão
+
+Para desenvolvimento, use estas credenciais:
+
+```
+Email: andremendes0113@gmail.com
+Senha: coderbotdagalera
+```
 
 ## 🚀 Próximos Passos
 
