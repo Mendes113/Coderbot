@@ -1209,8 +1209,24 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   };
 
   return (
-    <div className="relative flex h-full w-full flex-col">
-      {/* Header sempre visível */}
+    <div className="relative flex h-full w-full">
+      {/* Sidebar */}
+      {showSidebar && (
+        <div className={cn(
+          "border-r bg-background/50 backdrop-blur-sm transition-all duration-300",
+          isMobile ? "absolute left-0 top-0 z-50 h-full w-80 shadow-lg" : "w-80 flex-shrink-0"
+        )}>
+          <SessionSidebar
+            currentSessionId={sessionId}
+            onSessionChange={handleSessionChange}
+            onNewSession={handleNewSession}
+          />
+        </div>
+      )}
+      
+      {/* Conteúdo principal */}
+      <div className="flex-1 flex flex-col">
+        {/* Header sempre visível */}
       <div className="p-4 border-b shrink-0 sticky top-0 z-40 bg-background/80 backdrop-blur shadow-md">
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
           <div className="flex items-center gap-2">
@@ -1393,34 +1409,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
       >
         <div className="flex flex-col space-y-4 max-w-3xl mx-auto py-4">
           {/* Header com progresso e streak - inspirado no Duolingo */}
-          {messages.length > 1 && (
-            <div className="flex items-center justify-between mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
-              <div className="flex items-center gap-4">
-                <CodeBotMascot emotion="happy" size="medium" />
-                <div>
-                  <h3 className="font-bold text-gray-800">Sessão de Aprendizado</h3>
-                  <p className="text-sm text-gray-600">{sessionMessagesCount} perguntas nesta sessão</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                {streakCount > 0 && (
-                  <StreakTracker streak={streakCount} target={5} />
-                )}
-                
-                {/* Mini badges earned */}
-                <div className="flex gap-1">
-                  {unlockedBadges.map(badge => (
-                    <AchievementBadge 
-                      key={badge} 
-                      type={badge as any} 
-                      unlocked={true} 
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+         
 
           {/* Reação do CodeBot */}
           {showCodeBotReaction && (
@@ -1482,7 +1471,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
       </div>
       {/* Input fixo no rodapé */}
       <div className={cn(
-        "border-t p-4 bg-background/80 backdrop-blur-sm shrink-0",
+        "border-t p-4 backdrop-blur-sm shrink-0",
         isMobile ? "pb-6" : ""
       )}>
         <div className="max-w-3xl mx-auto">
@@ -1495,17 +1484,18 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
       </div>
       
       {/* Confetti celebration - inspirado no Duolingo */}
-      {showConfetti && (
+      {/* {showConfetti && (
         <ConfettiExplosion onComplete={() => setShowConfetti(false)} />
-      )}
+      )} */}
       
       {/* Feedback de conquista */}
-      {showAchievement && (
+      {/* {showAchievement && (
         <AchievementFeedback 
           message={achievementMessage}
           onClose={() => setShowAchievement(false)} 
         />
-      )}
+      )} */}
+      </div>
     </div>
   );
 };

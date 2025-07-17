@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus, vs } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useState } from "react";
+import { XMLRenderer } from "./XMLRenderer";
 
 type ChatMessageProps = {
   content: string;
@@ -11,8 +12,22 @@ type ChatMessageProps = {
   timestamp: Date;
 };
 
+// Função para detectar se o conteúdo é XML estruturado do AGNO
+const isXMLContent = (content: string): boolean => {
+  const xmlPatterns = [
+    /<WorkedExampleTemplate/,
+    /<socratic_response>/,
+    /<GeneralData>/,
+    /<ExampleContext>/,
+    /<WorkedExamples>/
+  ];
+  
+  return xmlPatterns.some(pattern => pattern.test(content));
+};
+
 export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const shouldRenderXML = isAi && isXMLContent(content);
 
   const copyToClipboard = async (code: string) => {
     try {
@@ -72,9 +87,14 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
       </div>
       <div className="ml-10">
         {isAi ? (
-          <div className="markdown-content prose prose-invert max-w-none">
-            <ReactMarkdown
-              components={{
+          shouldRenderXML ? (
+            <div className="xml-content">
+              <XMLRenderer xmlContent={content} />
+            </div>
+          ) : (
+            <div className="markdown-content prose prose-invert max-w-none">
+              <ReactMarkdown
+                components={{
                 code({ node, className, children, ...props }: any) {
                   const match = /language-(\w+)/.exec(className || "");
                   const code = String(children).replace(/\n$/, "");
@@ -237,6 +257,7 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
               {content}
             </ReactMarkdown>
           </div>
+          )
         ) : (
           <div className={cn("text-base whitespace-pre-wrap leading-relaxed", "text-white")}>{content}</div>
         )}
