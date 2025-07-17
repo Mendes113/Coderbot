@@ -215,57 +215,122 @@ class AgnoMethodologyService:
     
     def _build_worked_examples_prompt(self, user_query: str, context: Optional[str] = None) -> str:
         """
-        Constrói prompt especializado para worked examples com template XML robusto.
+        Constrói prompt especializado para worked examples com template XML robusto estruturado.
         """
         xml_instruction = """
-Responda usando EXATAMENTE o seguinte esquema XML, preenchendo cada seção de forma detalhada e didática.
+Responda usando EXATAMENTE o seguinte esquema XML estruturado, preenchendo cada seção de forma detalhada e didática.
 
-<worked_example>
-  <problem_analysis>
-    Analise o problema apresentado pelo aluno:
-    - Identifique o tipo de problema
-    - Determine os conceitos necessários
-    - Avalie a complexidade
-  </problem_analysis>
-  
-  <step_by_step_example>
-    Demonstre a solução completa, passo a passo:
-    - Passo 1: [Descrição detalhada]
-    - Passo 2: [Descrição detalhada]
-    - Passo N: [Descrição detalhada]
-    - Resultado final: [Resultado com explicação]
-  </step_by_step_example>
-  
-  <explanation>
-    Justifique cada decisão tomada durante a resolução:
-    - Por que escolheu essa abordagem?
-    - Quais são os princípios por trás de cada passo?
-    - Como cada passo contribui para a solução?
-  </explanation>
-  
-  <patterns>
-    Destaque padrões, técnicas ou armadilhas comuns:
-    - Padrões de resolução similares
-    - Técnicas aplicáveis a problemas relacionados
-    - Erros comuns e como evitá-los
-  </patterns>
-  
-  <similar_example>
-    Forneça um exemplo similar com pequenas variações:
-    - Problema similar: [Descrição]
-    - Solução adaptada: [Passos principais]
-    - Diferenças chave: [O que muda]
-  </similar_example>
-  
-  <next_steps>
-    Sugira próximos passos para o aluno praticar:
-    - Exercícios de fixação
-    - Variações do problema
-    - Conceitos relacionados para estudar
-  </next_steps>
-</worked_example>
+<WorkedExampleTemplate version="1.0" xmlns="https://example.org/worked-example"
+                       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                       xsi:schemaLocation="https://example.org/worked-example worked_example.xsd">
 
-CRÍTICO: Responda SOMENTE usando o XML acima. Não adicione texto fora das tags XML.
+  <!-- =========================
+       PARTE 01 – Dados Gerais
+       ========================= -->
+  <GeneralData>
+    <CourseInfo>
+      <DisciplineTitle>Informe a disciplina relacionada ao problema</DisciplineTitle>
+      <Topic>Tópico principal do problema</Topic>
+      <Subtopics>
+        <Subtopic>Subtópico 1 relevante</Subtopic>
+        <Subtopic>Subtópico 2 relevante</Subtopic>
+      </Subtopics>
+      <Prerequisites>
+        <Prerequisite>Conhecimento prévio necessário 1</Prerequisite>
+        <Prerequisite>Conhecimento prévio necessário 2</Prerequisite>
+      </Prerequisites>
+    </CourseInfo>
+
+    <SourceInfo>
+      <OriginType>Consulta educacional</OriginType>
+      <OriginReference>Sistema AGNO - CoderBot</OriginReference>
+    </SourceInfo>
+  </GeneralData>
+
+  <!-- ==============================
+       PARTE 02 – Contexto do Exemplo
+       ============================== -->
+  <ExampleContext>
+    <ProblemDescription>Descrição detalhada do problema apresentado pelo aluno</ProblemDescription>
+    <ExpectedOutcome>Resultado esperado após a resolução</ExpectedOutcome>
+
+    <SupplementaryMaterial>
+      <Resource type="documentation" url="">Material complementar se relevante</Resource>
+    </SupplementaryMaterial>
+  </ExampleContext>
+
+  <!-- ================================================
+       PARTE 03 – Aplicação dos Worked Examples
+       ================================================ -->
+  <WorkedExamples>
+
+    <!-- 3.1 Exemplo Correto -->
+    <CorrectExample>
+      <Reflection difficulty="medium">
+        Reflexão sobre a abordagem correta: explique o raciocínio por trás da solução
+      </Reflection>
+
+      <CorrectSteps>
+        <Step number="1">
+          <Description>Descrição detalhada do primeiro passo</Description>
+        </Step>
+        <Step number="2">
+          <Description>Descrição detalhada do segundo passo</Description>
+        </Step>
+        <!-- Continue adicionando passos conforme necessário -->
+      </CorrectSteps>
+
+      <Tests>
+        <TestCase id="1">
+          <Input>Entrada de exemplo</Input>
+          <ExpectedOutput>Saída esperada</ExpectedOutput>
+        </TestCase>
+      </Tests>
+    </CorrectExample>
+
+    <!-- 3.2 Exemplo Errôneo -->
+    <ErroneousExample>
+      <Reflection difficulty="medium">
+        Reflexão sobre erros comuns: explique por que este erro é frequente
+      </Reflection>
+
+      <ErroneousSteps>
+        <Step number="1">
+          <Description>Passo incorreto comum</Description>
+        </Step>
+        <Step number="2">
+          <Description>Consequência do erro</Description>
+        </Step>
+      </ErroneousSteps>
+
+      <ErrorIdentification prompt="Você consegue identificar o erro?">
+        <ErrorLine>Linha ou conceito onde ocorre o erro</ErrorLine>
+        <ErrorExplanation>Explicação detalhada do erro</ErrorExplanation>
+        <ProposedFix>Solução proposta para corrigir o erro</ProposedFix>
+      </ErrorIdentification>
+
+      <Tests>
+        <TestCase id="1">
+          <Input>Entrada que demonstra o erro</Input>
+          <ExpectedOutput>Saída incorreta obtida</ExpectedOutput>
+        </TestCase>
+      </Tests>
+    </ErroneousExample>
+
+  </WorkedExamples>
+
+  <!-- ==========================
+       Metadados Metodológicos
+       ========================== -->
+  <PedagogicalMeta>
+    <Methodology>Design Science Research</Methodology>
+    <LearningTheory>Cognitive Load Theory</LearningTheory>
+    <Agent>CoderBot</Agent>
+  </PedagogicalMeta>
+
+</WorkedExampleTemplate>
+
+CRÍTICO: Responda SOMENTE usando o XML acima. Preencha todas as seções com conteúdo relevante. Seções opcionais podem ser omitidas se não aplicáveis.
 """
         
         if context:
@@ -404,8 +469,19 @@ Responda SOMENTE usando o XML acima.
         
         # Restaura tags XML válidas
         xml_tags = [
+            # Tags do template estruturado de worked examples
+            "WorkedExampleTemplate", "GeneralData", "CourseInfo", "DisciplineTitle", 
+            "Topic", "Subtopics", "Subtopic", "Prerequisites", "Prerequisite",
+            "SourceInfo", "OriginType", "OriginReference", "ExampleContext", 
+            "ProblemDescription", "ExpectedOutcome", "SupplementaryMaterial", "Resource",
+            "WorkedExamples", "CorrectExample", "ErroneousExample", "Reflection", 
+            "CorrectSteps", "ErroneousSteps", "Step", "Description", "Tests", "TestCase",
+            "Input", "ExpectedOutput", "ErrorIdentification", "ErrorLine", "ErrorExplanation",
+            "ProposedFix", "PedagogicalMeta", "Methodology", "LearningTheory", "Agent",
+            # Tags do template simples (backward compatibility)
             "worked_example", "problem_analysis", "step_by_step_example", 
             "explanation", "patterns", "similar_example", "next_steps",
+            # Tags de outras metodologias
             "socratic_response", "initial_question", "guiding_questions", "reflection_prompts",
             "scaffolding_response", "initial_support", "guided_practice", "independent_practice"
         ]
@@ -537,6 +613,9 @@ Responda SOMENTE usando o XML acima.
             # Seções esperadas para cada metodologia
             expected_sections = {
                 MethodologyType.WORKED_EXAMPLES: [
+                    # Template estruturado - seções principais
+                    "GeneralData", "ExampleContext", "WorkedExamples", "PedagogicalMeta",
+                    # Template simples - backward compatibility  
                     "problem_analysis", "step_by_step_example", "explanation",
                     "patterns", "similar_example", "next_steps"
                 ],
