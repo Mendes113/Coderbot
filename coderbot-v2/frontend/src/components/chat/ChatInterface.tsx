@@ -521,12 +521,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const [analogiesEnabled, setAnalogiesEnabled] = useState(false);
   const [knowledgeBase, setKnowledgeBase] = useState("");
   const [aiModel, setAiModel] = useState<string>("gpt-3.5-turbo");
+  // Estados para compatibilidade com sistema antigo (fallback)
   const [methodologyState, setMethodology] = useState<string>("default");
   const [availableMethodologies, setAvailableMethodologies] = useState<MethodologyInfo[]>([]);
   
-  // Estados para o sistema AGNO
+  // Estados para o sistema AGNO (sempre ativado)
   const [agnoMethodology, setAgnoMethodology] = useState<MethodologyType>(MethodologyType.WORKED_EXAMPLES);
-  const [useAgnoSystem, setUseAgnoSystem] = useState<boolean>(true);
   const [agnoAvailable, setAgnoAvailable] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -1122,9 +1122,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
         baseKnowledge: knowledgeBase || "basic"
       };
 
-      // Usar AGNO se habilitado, senão usar o sistema padrão
+      // Usar AGNO se disponível, senão usar o sistema padrão
       let response;
-      if (useAgnoSystem && agnoAvailable) {
+      if (agnoAvailable) {
         try {
           const userIdStr = typeof userId === 'string' ? userId : (userId ? JSON.stringify(userId) : "anonymous");
           const userContext = {
@@ -1263,6 +1263,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
                   {isLoading ? "Pensando em como ajudar você... 🤔" : 
                    celebrationCount > 10 ? "Que aprendiz dedicado! Continue assim! 🌟" :
                    celebrationCount > 5 ? "Ótimas perguntas! Vamos continuar! 💪" :
+                   agnoAvailable ? "Sistema educacional adaptativo ativo ✨" :
                    "Tire suas dúvidas sobre programação"}
                 </p>
               </div>
@@ -1280,26 +1281,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
               </SelectContent>
             </Select>
             
-            {/* Toggle para sistema AGNO */}
-            {agnoAvailable && (
-              <div className="flex items-center gap-1">
-                <label className="flex items-center gap-1 text-xs">
-                  <input
-                    type="checkbox"
-                    checked={useAgnoSystem}
-                    onChange={(e) => setUseAgnoSystem(e.target.checked)}
-                    className="w-3 h-3 rounded border-gray-300"
-                  />
-                  <span className="text-gray-700">AGNO</span>
-                </label>
-              </div>
-            )}
-            
-            {/* Seletor de metodologia condicional */}
-            {useAgnoSystem && agnoAvailable ? (
+            {/* Seletor de metodologia educacional (AGNO quando disponível) */}
+            {agnoAvailable ? (
               <Select value={agnoMethodology} onValueChange={(value) => setAgnoMethodology(value as MethodologyType)}>
                 <SelectTrigger className="w-[140px] h-8 text-xs">
-                  <SelectValue placeholder="Metodologia AGNO" />
+                  <SelectValue placeholder="Metodologia" />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.values(MethodologyType).map((methodology) => {

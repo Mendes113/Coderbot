@@ -297,8 +297,6 @@ const Whiteboard: React.FC = () => {
               </div>
             </div>
           )}
-            </div>
-          </div>
         </div>
       ) : (
         /* ---------- Editor ---------- */
