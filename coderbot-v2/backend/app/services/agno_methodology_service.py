@@ -3,12 +3,23 @@ Agno Methodology Service
 
 Este serviço utiliza a biblioteca Agno para criar agentes de IA adaptados a diferentes metodologias educacionais.
 Cada agente pode ser configurado com prompts/instruções específicas para a metodologia desejada.
+
+Melhorias implementadas:
+- Templates XML mais robustos para worked examples
+- Validação de entrada e formatação de saída
+- Tratamento de erros aprimorado
+- Templates XML para outras metodologias
+- Validação de XML de saída
+- Logs detalhados
 """
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
 from enum import Enum
+import logging
+import xml.etree.ElementTree as ET
+import re
 
 class MethodologyType(Enum):
     SEQUENTIAL_THINKING = "sequential_thinking"
@@ -18,9 +29,15 @@ class MethodologyType(Enum):
     WORKED_EXAMPLES = "worked_examples"
     DEFAULT = "default"
 
+# Configuração de logging
+logger = logging.getLogger(__name__)
+
 class AgnoMethodologyService:
     def __init__(self, model_id: str = "gpt-4o"):
         self.model_id = model_id
+        self.logger = logger
+        self.xml_validation_enabled = True
+        self.logger.info(f"AgnoMethodologyService inicializado com modelo: {model_id}")
         self.agent_configs = {
             MethodologyType.SEQUENTIAL_THINKING: {
                 "description": "Você é um tutor que ensina passo a passo (pensamento sequencial).",
@@ -109,28 +126,500 @@ class AgnoMethodologyService:
 """
 
     def ask(self, methodology: MethodologyType, user_query: str, context: Optional[str] = None) -> str:
+        """
+        Processa uma pergunta usando uma metodologia específica.
+        
+        Args:
+            methodology: Metodologia educacional a ser utilizada
+            user_query: Pergunta do usuário
+            context: Contexto adicional (opcional)
+            
+        Returns:
+            str: Resposta formatada segundo a metodologia escolhida
+            
+        Raises:
+            ValueError: Se a entrada for inválida
+            RuntimeError: Se houver erro na geração da resposta
+        """
+        # Validação de entrada
+        if not self._validate_input(user_query, context):
+            raise ValueError("Entrada inválida: pergunta não pode estar vazia")
+        
+        self.logger.info(f"Processando pergunta com metodologia: {methodology.value}")
+        
+        try:
         agent = self.get_agent(methodology)
-        # For worked_examples, wrap the prompt and instruct the LLM to use the XML schema
+            prompt = self._build_methodology_prompt(methodology, user_query, context)
+            
+            self.logger.debug(f"Prompt gerado: {prompt[:200]}...")
+            
+            # Gera resposta
+            response = agent.response(prompt)
+            
+            # Valida e formata resposta
+            formatted_response = self._format_response(methodology, response)
+            
+            self.logger.info(f"Resposta gerada com sucesso para metodologia: {methodology.value}")
+            return formatted_response
+            
+        except Exception as e:
+            self.logger.error(f"Erro ao processar pergunta: {str(e)}")
+            raise RuntimeError(f"Erro na geração da resposta: {str(e)}")
+    
+    def _validate_input(self, user_query: str, context: Optional[str] = None) -> bool:
+        """
+        Valida a entrada do usuário.
+        
+        Args:
+            user_query: Pergunta do usuário
+            context: Contexto adicional
+            
+        Returns:
+            bool: True se a entrada é válida, False caso contrário
+        """
+        if not user_query or not user_query.strip():
+            return False
+            
+        if len(user_query.strip()) < 3:
+            return False
+            
+        if context and len(context) > 2000:  # Limita o contexto
+            return False
+            
+        return True
+    
+    def _build_methodology_prompt(self, methodology: MethodologyType, user_query: str, context: Optional[str] = None) -> str:
+        """
+        Constrói o prompt específico para cada metodologia.
+        
+        Args:
+            methodology: Metodologia escolhida
+            user_query: Pergunta do usuário
+            context: Contexto adicional
+            
+        Returns:
+            str: Prompt formatado para a metodologia
+        """
         if methodology == MethodologyType.WORKED_EXAMPLES:
-            xml_instruction = (
-                "Responda usando o seguinte esquema XML, preenchendo cada seção de forma detalhada e didática.\n"
-                "<worked_example>\n"
-                "  <problem_analysis>Descreva a análise do problema apresentado pelo aluno.</problem_analysis>\n"
-                "  <step_by_step_example>Mostre a solução completa, passo a passo, com explicações.</step_by_step_example>\n"
-                "  <explanation>Justifique cada decisão tomada durante a resolução.</explanation>\n"
-                "  <patterns>Destaque padrões, técnicas ou armadilhas comuns.</patterns>\n"
-                "  <similar_example>Forneça um exemplo similar, se relevante.</similar_example>\n"
-                "  <next_steps>Sugira próximos passos para o aluno praticar.</next_steps>\n"
-                "</worked_example>\n"
-                "IMPORTANTE: Responda SOMENTE usando o XML acima, sem comentários ou texto fora das tags."
-            )
-            if context:
-                prompt = f"{xml_instruction}\n<context>{context}</context>\n<question>{user_query}</question>"
-            else:
-                prompt = f"{xml_instruction}\n<question>{user_query}</question>"
+            return self._build_worked_examples_prompt(user_query, context)
+        elif methodology == MethodologyType.SOCRATIC:
+            return self._build_socratic_prompt(user_query, context)
+        elif methodology == MethodologyType.SCAFFOLDING:
+            return self._build_scaffolding_prompt(user_query, context)
         else:
+            # Prompt padrão para outras metodologias
             if context:
-                prompt = f"<context>{context}</context>\n<question>{user_query}</question>"
+                return f"<context>{context}</context>\n<question>{user_query}</question>"
             else:
-                prompt = f"<question>{user_query}</question>"
-        return agent.response(prompt)
+                return f"<question>{user_query}</question>"
+    
+    def _build_worked_examples_prompt(self, user_query: str, context: Optional[str] = None) -> str:
+        """
+        Constrói prompt especializado para worked examples com template XML robusto.
+        """
+        xml_instruction = """
+Responda usando EXATAMENTE o seguinte esquema XML, preenchendo cada seção de forma detalhada e didática.
+
+<worked_example>
+  <problem_analysis>
+    Analise o problema apresentado pelo aluno:
+    - Identifique o tipo de problema
+    - Determine os conceitos necessários
+    - Avalie a complexidade
+  </problem_analysis>
+  
+  <step_by_step_example>
+    Demonstre a solução completa, passo a passo:
+    - Passo 1: [Descrição detalhada]
+    - Passo 2: [Descrição detalhada]
+    - Passo N: [Descrição detalhada]
+    - Resultado final: [Resultado com explicação]
+  </step_by_step_example>
+  
+  <explanation>
+    Justifique cada decisão tomada durante a resolução:
+    - Por que escolheu essa abordagem?
+    - Quais são os princípios por trás de cada passo?
+    - Como cada passo contribui para a solução?
+  </explanation>
+  
+  <patterns>
+    Destaque padrões, técnicas ou armadilhas comuns:
+    - Padrões de resolução similares
+    - Técnicas aplicáveis a problemas relacionados
+    - Erros comuns e como evitá-los
+  </patterns>
+  
+  <similar_example>
+    Forneça um exemplo similar com pequenas variações:
+    - Problema similar: [Descrição]
+    - Solução adaptada: [Passos principais]
+    - Diferenças chave: [O que muda]
+  </similar_example>
+  
+  <next_steps>
+    Sugira próximos passos para o aluno praticar:
+    - Exercícios de fixação
+    - Variações do problema
+    - Conceitos relacionados para estudar
+  </next_steps>
+</worked_example>
+
+CRÍTICO: Responda SOMENTE usando o XML acima. Não adicione texto fora das tags XML.
+"""
+        
+        if context:
+            return f"{xml_instruction}\n<context>{context}</context>\n<question>{user_query}</question>"
+        else:
+            return f"{xml_instruction}\n<question>{user_query}</question>"
+    
+    def _build_socratic_prompt(self, user_query: str, context: Optional[str] = None) -> str:
+        """
+        Constrói prompt para metodologia socrática com template XML.
+        """
+        xml_instruction = """
+Responda usando o método socrático com o seguinte esquema XML:
+
+<socratic_response>
+  <initial_question>
+    Faça uma pergunta que estimule o pensamento crítico sobre o problema
+  </initial_question>
+  
+  <guiding_questions>
+    Sequência de 3-5 perguntas que orientem o raciocínio:
+    - Pergunta 1: [Pergunta exploratória]
+    - Pergunta 2: [Pergunta de análise]
+    - Pergunta 3: [Pergunta de síntese]
+  </guiding_questions>
+  
+  <reflection_prompts>
+    Prompts para reflexão do estudante:
+    - "O que você acha que aconteceria se..."
+    - "Como você justificaria..."
+    - "Que evidências apoiam..."
+  </reflection_prompts>
+</socratic_response>
+
+Responda SOMENTE usando o XML acima.
+"""
+        
+        if context:
+            return f"{xml_instruction}\n<context>{context}</context>\n<question>{user_query}</question>"
+        else:
+            return f"{xml_instruction}\n<question>{user_query}</question>"
+    
+    def _build_scaffolding_prompt(self, user_query: str, context: Optional[str] = None) -> str:
+        """
+        Constrói prompt para metodologia scaffolding com template XML.
+        """
+        xml_instruction = """
+Responda usando scaffolding com o seguinte esquema XML:
+
+<scaffolding_response>
+  <initial_support>
+    Forneça o máximo de suporte inicial:
+    - Explicação completa do conceito
+    - Exemplo detalhado
+    - Dicas específicas
+  </initial_support>
+  
+  <guided_practice>
+    Exercício com suporte gradual:
+    - Problema similar com dicas
+    - Perguntas orientadoras
+    - Verificação de compreensão
+  </guided_practice>
+  
+  <independent_practice>
+    Desafio para prática independente:
+    - Problema sem dicas
+    - Critérios de avaliação
+    - Próximos passos
+  </independent_practice>
+</scaffolding_response>
+
+Responda SOMENTE usando o XML acima.
+"""
+        
+            if context:
+            return f"{xml_instruction}\n<context>{context}</context>\n<question>{user_query}</question>"
+            else:
+            return f"{xml_instruction}\n<question>{user_query}</question>"
+    
+    def _format_response(self, methodology: MethodologyType, response: str) -> str:
+        """
+        Formata e valida a resposta da IA.
+        
+        Args:
+            methodology: Metodologia utilizada
+            response: Resposta bruta da IA
+            
+        Returns:
+            str: Resposta formatada e validada
+        """
+        # Remove espaços extras
+        formatted_response = response.strip()
+        
+        # Validação específica para metodologias XML
+        if methodology in [MethodologyType.WORKED_EXAMPLES, MethodologyType.SOCRATIC, MethodologyType.SCAFFOLDING]:
+            if self.xml_validation_enabled:
+                is_valid, error_msg = self._validate_xml_response(formatted_response)
+                if not is_valid:
+                    self.logger.warning(f"XML inválido: {error_msg}")
+                    # Tenta corrigir problemas simples de XML
+                    formatted_response = self._fix_common_xml_issues(formatted_response)
+        
+        return formatted_response
+    
+    def _validate_xml_response(self, response: str) -> tuple[bool, str]:
+        """
+        Valida se a resposta está em formato XML válido.
+        
+        Args:
+            response: Resposta a ser validada
+            
+        Returns:
+            tuple[bool, str]: (is_valid, error_message)
+        """
+        try:
+            # Tenta parsear o XML
+            ET.fromstring(response)
+            return True, ""
+        except ET.ParseError as e:
+            return False, str(e)
+    
+    def _fix_common_xml_issues(self, response: str) -> str:
+        """
+        Corrige problemas comuns de XML na resposta.
+        
+        Args:
+            response: Resposta com possíveis problemas de XML
+            
+        Returns:
+            str: Resposta com correções aplicadas
+        """
+        # Escapa caracteres especiais comuns
+        fixed_response = response.replace("&", "&amp;")
+        fixed_response = fixed_response.replace("<", "&lt;").replace(">", "&gt;")
+        
+        # Restaura tags XML válidas
+        xml_tags = [
+            "worked_example", "problem_analysis", "step_by_step_example", 
+            "explanation", "patterns", "similar_example", "next_steps",
+            "socratic_response", "initial_question", "guiding_questions", "reflection_prompts",
+            "scaffolding_response", "initial_support", "guided_practice", "independent_practice"
+        ]
+        
+        for tag in xml_tags:
+            fixed_response = fixed_response.replace(f"&lt;{tag}&gt;", f"<{tag}>")
+            fixed_response = fixed_response.replace(f"&lt;/{tag}&gt;", f"</{tag}>")
+        
+                 return fixed_response
+    
+    def get_methodology_capabilities(self, methodology: MethodologyType) -> Dict[str, Any]:
+        """
+        Retorna as capacidades e características de uma metodologia.
+        
+        Args:
+            methodology: Metodologia a ser analisada
+            
+        Returns:
+            Dict[str, Any]: Informações sobre as capacidades da metodologia
+        """
+        capabilities = {
+            MethodologyType.WORKED_EXAMPLES: {
+                "xml_output": True,
+                "structured_response": True,
+                "step_by_step": True,
+                "examples": True,
+                "patterns": True,
+                "best_for": ["resolução de problemas", "algoritmos", "matemática"],
+                "learning_style": "visual e sequencial"
+            },
+            MethodologyType.SOCRATIC: {
+                "xml_output": True,
+                "structured_response": True,
+                "step_by_step": False,
+                "examples": False,
+                "patterns": False,
+                "best_for": ["pensamento crítico", "análise", "filosofia"],
+                "learning_style": "questionamento e reflexão"
+            },
+            MethodologyType.SCAFFOLDING: {
+                "xml_output": True,
+                "structured_response": True,
+                "step_by_step": True,
+                "examples": True,
+                "patterns": False,
+                "best_for": ["iniciantes", "conceitos progressivos", "habilidades"],
+                "learning_style": "suporte gradual"
+            },
+            MethodologyType.ANALOGY: {
+                "xml_output": False,
+                "structured_response": False,
+                "step_by_step": False,
+                "examples": True,
+                "patterns": True,
+                "best_for": ["conceitos abstratos", "visualização", "compreensão"],
+                "learning_style": "comparação e associação"
+            },
+            MethodologyType.SEQUENTIAL_THINKING: {
+                "xml_output": False,
+                "structured_response": True,
+                "step_by_step": True,
+                "examples": True,
+                "patterns": True,
+                "best_for": ["lógica", "processos", "algoritmos"],
+                "learning_style": "sequencial e estruturado"
+            },
+            MethodologyType.DEFAULT: {
+                "xml_output": False,
+                "structured_response": False,
+                "step_by_step": False,
+                "examples": True,
+                "patterns": False,
+                "best_for": ["uso geral", "primeira interação"],
+                "learning_style": "explicação direta"
+            }
+        }
+        
+        return capabilities.get(methodology, {})
+    
+    def analyze_response_quality(self, methodology: MethodologyType, response: str) -> Dict[str, Any]:
+        """
+        Analisa a qualidade da resposta gerada.
+        
+        Args:
+            methodology: Metodologia utilizada
+            response: Resposta a ser analisada
+            
+        Returns:
+            Dict[str, Any]: Análise da qualidade da resposta
+        """
+        analysis = {
+            "length": len(response),
+            "has_xml": self._contains_xml(response),
+            "xml_valid": False,
+            "completeness": 0.0,
+            "sections_present": [],
+            "missing_sections": [],
+            "quality_score": 0.0
+        }
+        
+        # Verifica se contém XML válido
+        if analysis["has_xml"]:
+            is_valid, _ = self._validate_xml_response(response)
+            analysis["xml_valid"] = is_valid
+            
+            if is_valid:
+                analysis.update(self._analyze_xml_sections(methodology, response))
+        
+        # Calcula score de qualidade
+        analysis["quality_score"] = self._calculate_quality_score(analysis)
+        
+        return analysis
+    
+    def _contains_xml(self, response: str) -> bool:
+        """Verifica se a resposta contém XML."""
+        return bool(re.search(r'<\w+>', response))
+    
+    def _analyze_xml_sections(self, methodology: MethodologyType, response: str) -> Dict[str, Any]:
+        """Analisa as seções XML da resposta."""
+        sections_analysis = {
+            "sections_present": [],
+            "missing_sections": [],
+            "completeness": 0.0
+        }
+        
+        try:
+            root = ET.fromstring(response)
+            
+            # Seções esperadas para cada metodologia
+            expected_sections = {
+                MethodologyType.WORKED_EXAMPLES: [
+                    "problem_analysis", "step_by_step_example", "explanation",
+                    "patterns", "similar_example", "next_steps"
+                ],
+                MethodologyType.SOCRATIC: [
+                    "initial_question", "guiding_questions", "reflection_prompts"
+                ],
+                MethodologyType.SCAFFOLDING: [
+                    "initial_support", "guided_practice", "independent_practice"
+                ]
+            }
+            
+            if methodology in expected_sections:
+                expected = expected_sections[methodology]
+                present = [elem.tag for elem in root]
+                
+                sections_analysis["sections_present"] = present
+                sections_analysis["missing_sections"] = [
+                    section for section in expected if section not in present
+                ]
+                sections_analysis["completeness"] = len(present) / len(expected)
+        
+        except ET.ParseError:
+            pass
+        
+        return sections_analysis
+    
+    def _calculate_quality_score(self, analysis: Dict[str, Any]) -> float:
+        """Calcula um score de qualidade baseado na análise."""
+        score = 0.0
+        
+        # Pontuação por completude
+        if analysis["completeness"] > 0:
+            score += analysis["completeness"] * 0.4
+        
+        # Pontuação por XML válido
+        if analysis["xml_valid"]:
+            score += 0.3
+        
+        # Pontuação por tamanho apropriado
+        if 100 <= analysis["length"] <= 2000:
+            score += 0.2
+        elif analysis["length"] > 50:
+            score += 0.1
+        
+        # Penalização por seções ausentes
+        if analysis["missing_sections"]:
+            score -= len(analysis["missing_sections"]) * 0.05
+        
+        # Pontuação por presença de XML quando esperado
+        if analysis["has_xml"]:
+            score += 0.1
+        
+        return min(1.0, max(0.0, score))
+    
+    def configure_xml_validation(self, enabled: bool) -> None:
+        """
+        Configura se a validação XML está habilitada.
+        
+        Args:
+            enabled: True para habilitar, False para desabilitar
+        """
+        self.xml_validation_enabled = enabled
+        self.logger.info(f"Validação XML {'habilitada' if enabled else 'desabilitada'}")
+    
+    def get_supported_methodologies(self) -> List[str]:
+        """
+        Retorna lista de metodologias suportadas.
+        
+        Returns:
+            List[str]: Lista de metodologias suportadas
+        """
+        return [methodology.value for methodology in MethodologyType]
+    
+    def get_xml_methodologies(self) -> List[str]:
+        """
+        Retorna lista de metodologias que usam XML.
+        
+        Returns:
+            List[str]: Lista de metodologias que retornam XML
+        """
+        xml_methodologies = [
+            MethodologyType.WORKED_EXAMPLES,
+            MethodologyType.SOCRATIC,
+            MethodologyType.SCAFFOLDING
+        ]
+        return [methodology.value for methodology in xml_methodologies]

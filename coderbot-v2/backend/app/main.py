@@ -7,6 +7,7 @@ from app.routers.whiteboard_router import router as whiteboard_router
 from app.routers.educational_chat_router import router as educational_chat_router
 from app.routers.adaptive_learning_router import router as adaptive_learning_router
 from app.routers.analytics_router import router as analytics_router
+from app.routers.agno_router import router as agno_router
 import logging
 
 # Configuração de logging
@@ -68,6 +69,7 @@ app.include_router(whiteboard_router)
 app.include_router(educational_chat_router)  # Chat com metodologias educacionais
 app.include_router(adaptive_learning_router)  # Sistema de aprendizagem adaptativa
 app.include_router(analytics_router)  # Advanced learning analytics with ML
+app.include_router(agno_router)  # Sistema AGNO com worked examples
 
 # Rota raiz para teste simples
 @app.get("/", tags=["Root"])
