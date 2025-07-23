@@ -203,26 +203,21 @@ async def ask_question(
 
 @router.post("/worked-example", response_model=AgnoResponse)
 async def get_worked_example(
-    user_query: str = Field(description="Pergunta ou problema do usuário"),
-    context: Optional[str] = Field(default=None, description="Contexto adicional"),
+    request: AgnoRequest,
     agno_service: AgnoMethodologyService = Depends(get_agno_service)
 ):
     """
     Endpoint de conveniência para obter um worked example.
     
     Args:
-        user_query: Pergunta do usuário
-        context: Contexto adicional
+        request: Requisição AGNO com pergunta e contexto
         agno_service: Instância do serviço AGNO
         
     Returns:
         AgnoResponse: Resposta em formato XML com worked example
     """
-    request = AgnoRequest(
-        methodology=MethodologyType.WORKED_EXAMPLES.value,
-        user_query=user_query,
-        context=context
-    )
+    # Força a metodologia para worked examples
+    request.methodology = MethodologyType.WORKED_EXAMPLES.value
     
     return await ask_question(request, agno_service)
 

@@ -14,3 +14,6 @@ httpx>=0.24.0         # Cliente HTTP async para requests mais eficientes
 aiofiles>=23.0.0      # Para operações de arquivo assíncronas
 python-multipart>=0.0.6  # Para upload de arquivos
 pyjwt>=2.0.0         # Para autenticação JWT se necessário
+agno>=1.5.1          # AI Agent framework for multi-provider support
+anthropic>=0.51.0    # Claude AI API client
+pydantic-settings>=2.9.1  # Pydantic settings management

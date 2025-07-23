@@ -12,8 +12,9 @@ from dataclasses import dataclass
 
 # Imports necessários
 from agno.models.base import Model
-from agno.models.response import ModelResponse, Usage, Delta
-from anthropic import Anthropic, AsyncAnthropic, MessageParam
+from agno.models.response import ModelResponse
+from anthropic import Anthropic, AsyncAnthropic
+from anthropic.types import MessageParam
 from openai import OpenAI, AsyncOpenAI
 
 from ..config import settings
