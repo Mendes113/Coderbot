@@ -11,6 +11,7 @@ Melhorias implementadas:
 - Templates XML para outras metodologias
 - Validação de XML de saída
 - Logs detalhados
+- Suporte para múltiplos provedores (OpenAI e Claude)
 """
 
 from typing import Optional, Dict, Any, List
@@ -20,6 +21,11 @@ from enum import Enum
 import logging
 import xml.etree.ElementTree as ET
 import re
+import json
+from pathlib import Path
+
+# Import do nosso modelo customizado
+from .agno_models import create_model, get_available_models
 
 class MethodologyType(Enum):
     SEQUENTIAL_THINKING = "sequential_thinking"
@@ -33,11 +39,25 @@ class MethodologyType(Enum):
 logger = logging.getLogger(__name__)
 
 class AgnoMethodologyService:
-    def __init__(self, model_id: str = "gpt-4o"):
+    def __init__(self, model_id: str = "gpt-4o", provider: Optional[str] = None):
+        """
+        Inicializa o serviço AGNO com suporte a múltiplos provedores.
+        
+        Args:
+            model_id: ID do modelo a ser usado (padrão: gpt-4o)
+            provider: Provedor do modelo ('openai' ou 'claude'). 
+                     Se não especificado, será auto-detectado baseado no model_id
+        """
         self.model_id = model_id
+        self.provider = provider or self._detect_provider(model_id)
         self.logger = logger
         self.xml_validation_enabled = True
-        self.logger.info(f"AgnoMethodologyService inicializado com modelo: {model_id}")
+        
+        # Carregar configuração de modelos
+        self.model_config = self._load_model_config()
+        
+        self.logger.info(f"AgnoMethodologyService inicializado com modelo: {model_id} (provedor: {self.provider})")
+        
         self.agent_configs = {
             MethodologyType.SEQUENTIAL_THINKING: {
                 "description": "Você é um tutor que ensina passo a passo (pensamento sequencial).",
@@ -100,14 +120,156 @@ class AgnoMethodologyService:
             }
         }
 
+    def _detect_provider(self, model_id: str) -> str:
+        """
+        Detecta automaticamente o provedor baseado no model_id.
+        
+        Args:
+            model_id: ID do modelo
+            
+        Returns:
+            str: Nome do provedor ('openai' ou 'claude')
+        """
+        if model_id.startswith('claude'):
+            return 'claude'
+        elif model_id.startswith(('gpt', 'o1', 'o3')):
+            return 'openai'
+        else:
+            # Verificar na configuração de modelos
+            model_config = self._load_model_config()
+            if model_id in model_config:
+                return model_config[model_id].get('provider', 'openai')
+            
+            # Padrão para OpenAI se não conseguir detectar
+            self.logger.warning(f"Não foi possível detectar provedor para {model_id}, usando OpenAI como padrão")
+            return 'openai'
+    
+    def _load_model_config(self) -> Dict[str, Any]:
+        """
+        Carrega configuração de modelos do arquivo JSON.
+        
+        Returns:
+            Dict com configuração dos modelos
+        """
+        try:
+            config_path = Path(__file__).parent / "configs" / "model_config.json"
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        except Exception as e:
+            self.logger.warning(f"Erro ao carregar configuração de modelos: {e}")
+        
+        return {}
+    
+    def _get_model_name(self, model_id: str) -> str:
+        """
+        Obtém o nome real do modelo baseado na configuração.
+        
+        Args:
+            model_id: ID do modelo
+            
+        Returns:
+            str: Nome real do modelo
+        """
+        if model_id in self.model_config:
+            return self.model_config[model_id].get('model_name', model_id)
+        return model_id
+
     def get_agent(self, methodology: MethodologyType) -> Agent:
+        """
+        Cria um agente AGNO com o modelo apropriado baseado no provedor.
+        
+        Args:
+            methodology: Metodologia educacional a ser utilizada
+            
+        Returns:
+            Agent: Instância do agente AGNO configurado
+        """
         config = self.agent_configs.get(methodology, self.agent_configs[MethodologyType.DEFAULT])
-        return Agent(
-            model=OpenAIChat(id=self.model_id),
-            description=config["description"],
-            instructions=[self._build_xml_prompt(config)],
-            markdown=True
+        
+        # Obter o nome real do modelo
+        real_model_name = self._get_model_name(self.model_id)
+        
+        try:
+            # Criar modelo usando nossa factory function
+            model = create_model(self.provider, real_model_name)
+            
+            return Agent(
+                model=model,
+                description=config["description"],
+                instructions=[self._build_xml_prompt(config)],
+                markdown=True
+            )
+        except Exception as e:
+            self.logger.error(f"Erro ao criar agente com {self.provider}/{real_model_name}: {e}")
+            # Fallback para OpenAI se houver erro
+            if self.provider != 'openai':
+                self.logger.info("Fazendo fallback para OpenAI")
+                fallback_model = OpenAIChat(id="gpt-4o")
+                return Agent(
+                    model=fallback_model,
+                    description=config["description"],
+                    instructions=[self._build_xml_prompt(config)],
+                    markdown=True
+                )
+            else:
+                raise
+    
+    def get_available_providers(self) -> List[str]:
+        """
+        Retorna lista de provedores disponíveis.
+        
+        Returns:
+            List[str]: Lista de provedores suportados
+        """
+        return ['openai', 'claude']
+    
+    def get_available_models_for_provider(self, provider: str) -> List[str]:
+        """
+        Retorna modelos disponíveis para um provedor específico.
+        
+        Args:
+            provider: Nome do provedor
+            
+        Returns:
+            List[str]: Lista de modelos disponíveis
+        """
+        available_models = get_available_models()
+        return list(available_models.get(provider, {}).keys())
+    
+    def switch_model(self, model_id: str, provider: Optional[str] = None):
+        """
+        Troca o modelo sendo usado pelo serviço.
+        
+        Args:
+            model_id: Novo ID do modelo
+            provider: Novo provedor (opcional, será auto-detectado se não fornecido)
+        """
+        old_model = self.model_id
+        old_provider = self.provider
+        
+        self.model_id = model_id
+        self.provider = provider or self._detect_provider(model_id)
+        
+        self.logger.info(
+            f"Modelo alterado: {old_provider}/{old_model} -> {self.provider}/{model_id}"
         )
+        
+    def get_current_model_info(self) -> Dict[str, str]:
+        """
+        Retorna informações sobre o modelo atual.
+        
+        Returns:
+            Dict com informações do modelo atual
+        """
+        real_model_name = self._get_model_name(self.model_id)
+        return {
+            'model_id': self.model_id,
+            'provider': self.provider,
+            'real_model_name': real_model_name,
+            'supports_streaming': True,  # Ambos OpenAI e Claude suportam streaming
+            'max_tokens': 4096 if self.provider == 'claude' else 4096,  # Pode ser configurado
+        }
 
     def _build_xml_prompt(self, config: Dict[str, Any]) -> str:
         """
@@ -145,10 +307,10 @@ class AgnoMethodologyService:
         if not self._validate_input(user_query, context):
             raise ValueError("Entrada inválida: pergunta não pode estar vazia")
         
-        self.logger.info(f"Processando pergunta com metodologia: {methodology.value}")
+        self.logger.info(f"Processando pergunta com metodologia: {methodology.value} usando {self.provider}/{self.model_id}")
         
         try:
-        agent = self.get_agent(methodology)
+            agent = self.get_agent(methodology)
             prompt = self._build_methodology_prompt(methodology, user_query, context)
             
             self.logger.debug(f"Prompt gerado: {prompt[:200]}...")
@@ -406,9 +568,9 @@ Responda usando scaffolding com o seguinte esquema XML:
 Responda SOMENTE usando o XML acima.
 """
         
-            if context:
+        if context:
             return f"{xml_instruction}\n<context>{context}</context>\n<question>{user_query}</question>"
-            else:
+        else:
             return f"{xml_instruction}\n<question>{user_query}</question>"
     
     def _format_response(self, methodology: MethodologyType, response: str) -> str:
@@ -490,7 +652,7 @@ Responda SOMENTE usando o XML acima.
             fixed_response = fixed_response.replace(f"&lt;{tag}&gt;", f"<{tag}>")
             fixed_response = fixed_response.replace(f"&lt;/{tag}&gt;", f"</{tag}>")
         
-                 return fixed_response
+        return fixed_response
     
     def get_methodology_capabilities(self, methodology: MethodologyType) -> Dict[str, Any]:
         """

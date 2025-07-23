@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     
     # Configuração do Claude (Anthropic)
     claude_api_key: str = Field("", env="CLAUDE_API_KEY")
+    claude_api_url: str = Field("https://api.anthropic.com", env="CLAUDE_API_URL")
 
     # Outros
     rapidapi_key: str = Field(..., env="RAPIDAPI_KEY")
