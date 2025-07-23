@@ -1,0 +1,42 @@
+# Frontend Dockerfile with Node.js and pnpm
+FROM node:20-alpine
+
+# Instalar pnpm
+RUN npm install -g pnpm
+
+# Instalar curl para health checks
+RUN apk add --no-cache curl
+
+# Definir diretório de trabalho
+WORKDIR /app
+
+# Copiar arquivos de configuração do projeto
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+
+# Instalar dependências (sempre executa pnpm install, mesmo se node_modules existir)
+RUN rm -rf node_modules && pnpm install --frozen-lockfile
+
+# Copiar o código da aplicação (excluindo Tauri)
+COPY frontend/ ./
+RUN rm -rf src-tauri temp-tauri supabase 2>/dev/null || true
+
+# Definir variáveis de ambiente para build
+ENV NODE_ENV=production
+ENV VITE_API_URL=http://localhost:8000
+ENV VITE_POCKETBASE_URL=http://localhost:8090
+
+# Build da aplicação para produção (falha se build falhar)
+RUN pnpm run build:dev || pnpm run build
+
+# Garante que o diretório dist foi criado
+RUN test -d dist
+
+# Expor a porta
+EXPOSE 3000
+
+# Adicionar health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3000/ || exit 1
+
+# Comando para iniciar a aplicação
+CMD ["pnpm", "run", "preview", "--host", "0.0.0.0", "--port", "3000"]

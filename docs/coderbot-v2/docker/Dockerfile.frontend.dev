@@ -1,0 +1,34 @@
+# Frontend Development Dockerfile with Node.js, pnpm and Hot Reload
+FROM node:20-alpine
+
+# Instalar pnpm
+RUN npm install -g pnpm
+
+# Instalar curl para health checks
+RUN apk add --no-cache curl
+
+# Definir diretório de trabalho
+WORKDIR /app
+
+# Copiar arquivos de configuração do projeto
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+
+# Instalar dependências (incluindo devDependencies para desenvolvimento)
+RUN pnpm install --frozen-lockfile
+
+# Definir variáveis de ambiente para desenvolvimento
+ENV NODE_ENV=development
+ENV VITE_API_URL=http://localhost:8000
+ENV VITE_POCKETBASE_URL=http://localhost:8090
+ENV CHOKIDAR_USEPOLLING=true
+ENV WATCHPACK_POLLING=true
+
+# Expor a porta
+EXPOSE 3000
+
+# Adicionar health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3000/ || exit 1
+
+# Comando para iniciar a aplicação em modo desenvolvimento com hot reload
+CMD ["pnpm", "run", "dev", "--host", "0.0.0.0", "--port", "3000"] 
