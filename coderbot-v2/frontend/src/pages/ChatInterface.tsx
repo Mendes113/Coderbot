@@ -3,7 +3,17 @@ import { pb } from "@/integrations/pocketbase/client";
 
 const ChatInterface = ({ whiteboardContext }: { whiteboardContext?: any }) => {
 	const userId = pb.authStore.model?.id;
-	if (!userId) return null;
+	console.log("ChatInterface - userId:", userId); // Debug log
+	
+	if (!userId) {
+		console.log("No userId found, component will not render"); // Debug log
+		return (
+			<div className="h-screen flex flex-col items-center justify-center">
+				<p className="text-red-500">Usuário não autenticado. Por favor, faça login.</p>
+			</div>
+		);
+	}
+	
 	return (
 		<div className="h-screen flex flex-col">
 				<ChatComponent

@@ -832,46 +832,38 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   }, []);
 
   useEffect(() => {
-    const initSession = async () => {
+    const initializeSession = async () => {
+      const lastSessionId = sessionStorage.getItem("coderbot_last_chat_session");
+      
+      if (lastSessionId) {
+        // Try to load the last session
+        try {
+          await handleSessionChange(lastSessionId);
+        } catch (error) {
+          console.error("Error loading last session:", error);
+          // If loading fails, create a new session
+          await createNewSession();
+        }
+      } else {
+        // No session found, create a new one
+        await createNewSession();
+      }
+    };
+
+    const createNewSession = async () => {
       try {
-        // Create new session
         const newSessionId = await chatService.createSession();
         setSessionId(newSessionId);
-
-        // Save initial AI message
-        await chatService.saveMessage({
-          content: INITIAL_MESSAGES[0].content,
-          isAi: true,
-          sessionId: newSessionId,
-        });
-
-        // No need to load messages for a new session as we just created it
-        // The initial message will be displayed from the INITIAL_MESSAGES constant
+        sessionStorage.setItem("coderbot_last_chat_session", newSessionId);
+        
+        console.log("New session created:", newSessionId); // Debug log
       } catch (error) {
-        console.error("Error initializing chat session:", error);
+        console.error("Error creating new chat session:", error);
         toast.error("Error creating chat session");
       }
     };
 
-    initSession();
-    const lastSessionId = sessionStorage.getItem("coderbot_last_chat_session");
-    if (lastSessionId) {
-      // Try to load the last session
-      handleSessionChange(lastSessionId);
-    } else {
-      // No session found, create a new one
-      const initSession = async () => {
-        try {
-          const newSessionId = await chatService.createSession();
-          setSessionId(newSessionId);
-          sessionStorage.setItem("coderbot_last_chat_session", newSessionId);
-        } catch (error) {
-          console.error("Error initializing chat session:", error);
-          toast.error("Error creating chat session");
-        }
-      };
-      initSession();
-    }
+    initializeSession();
     // eslint-disable-next-line
   }, []);
 
@@ -971,11 +963,21 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   };
 
   const handleSendMessage = async (input: string) => {
-    if (!input.trim() || !sessionId) return;
+    console.log("handleSendMessage called with:", input, "sessionId:", sessionId); // Debug log
+    
+    if (!input.trim()) {
+      console.log("Input is empty, returning");
+      return;
+    }
+    
+    if (!sessionId) {
+      console.log("No sessionId, returning");
+      return;
+    }
     
     // Se ainda está mostrando boas-vindas, completar primeiro
     if (showWelcomeMessages) {
-      handleWelcomeComplete();
+      await handleWelcomeComplete();
       // Aguardar um pouco para a transição
       setTimeout(() => {
         processMessage(input);
@@ -987,6 +989,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   };
 
   const processMessage = async (input: string) => {
+    console.log("Processing message:", input); // Debug log
+    
     // Reset idle quando usuário envia mensagem
     handleUserInteraction();
     
@@ -1202,7 +1206,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
       console.error("Error processing message:", error);
       toast.error("Error processing message. Please try again.");
       
-      setMessages(prev => prev.filter(msg => !msg.content.includes("")));
+      // Remove only the temporary AI message that was added for loading
+      setMessages(prev => prev.filter(msg => msg.id !== tempId));
     } finally {
       setIsLoading(false);
     }
