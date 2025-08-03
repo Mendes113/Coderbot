@@ -59,7 +59,7 @@ logger = logging.getLogger(__name__)
 # 🤖  Clientes de IA (adicionamos conforme necessidade)
 # ---------------------------------------------------------------------------
 openai_client = AsyncOpenAI(api_key=settings.open_ai_api_key)
-claude_client = AsyncAnthropic(api_key=settings.claude_api_key)
+evemoclaude_client = AsyncAnthropic(api_key=settings.claude_api_key)
 deepseek_client = AsyncOpenAI(
     api_key=settings.deep_seek_api_key,
     base_url=settings.deep_seek_api_url
@@ -67,7 +67,7 @@ deepseek_client = AsyncOpenAI(
 
 CLIENTS = {
     "openai": openai_client,
-    "claude": claude_client,
+    "claude": evemoclaude_client,
     "deepseek": deepseek_client,
 }
 
@@ -181,7 +181,17 @@ async def get_chat_completion_with_retrieval(
         if provider == "claude":
             try:
                 # Extrair mensagens para Claude (sem a mensagem do sistema)
-                claude_messages = payload.get("messages", [])[1:]  # Pula a primeira mensagem (system)
+                raw_messages = payload.get("messages", [])[1:]  # Pula a primeira mensagem (system)
+                
+                # Limpar campos extras das mensagens que Claude não aceita
+                claude_messages = []
+                for msg in raw_messages:
+                    # Claude só aceita role e content nas mensagens
+                    cleaned_msg = {
+                        "role": msg.get("role", "user"),
+                        "content": msg.get("content", "")
+                    }
+                    claude_messages.append(cleaned_msg)
                 
                 # Claude não suporta stream com o AsyncAnthropic
                 stream = payload.pop("stream", False) 

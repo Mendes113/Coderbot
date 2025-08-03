@@ -2,9 +2,8 @@ import { cn } from "@/lib/utils";
 import { Bot, User, Copy, CheckCheck } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus, vs } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useState } from "react";
-import { XMLRenderer } from "./XMLRenderer";
 
 type ChatMessageProps = {
   content: string;
@@ -12,22 +11,8 @@ type ChatMessageProps = {
   timestamp: Date;
 };
 
-// Função para detectar se o conteúdo é XML estruturado do AGNO
-const isXMLContent = (content: string): boolean => {
-  const xmlPatterns = [
-    /<WorkedExampleTemplate/,
-    /<socratic_response>/,
-    /<GeneralData>/,
-    /<ExampleContext>/,
-    /<WorkedExamples>/
-  ];
-  
-  return xmlPatterns.some(pattern => pattern.test(content));
-};
-
 export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
-  const shouldRenderXML = isAi && isXMLContent(content);
 
   const copyToClipboard = async (code: string) => {
     try {
@@ -87,33 +72,37 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
       </div>
       <div className="ml-10">
         {isAi ? (
-          shouldRenderXML ? (
-            <div className="xml-content">
-              <XMLRenderer xmlContent={content} />
-            </div>
-          ) : (
-            <div className="markdown-content prose prose-invert max-w-none">
-              <ReactMarkdown
-                components={{
+          <div className="markdown-content prose prose-invert max-w-none">
+            <ReactMarkdown
+              components={{
                 code({ node, className, children, ...props }: any) {
                   const match = /language-(\w+)/.exec(className || "");
                   const code = String(children).replace(/\n$/, "");
-                  const isInline = (props as any)?.inline !== false;
+                  const isInline = !match;
                   
-                  if (!isInline && match) {
+                  if (!isInline) {
                     return (
-                      <div className="relative group my-4 rounded-lg overflow-hidden bg-gray-900 border border-gray-700">
-                        <div className="flex items-center justify-between bg-gray-800 px-4 py-2 border-b border-gray-700">
-                          <span className="text-sm text-gray-300 font-mono">{match[1]}</span>
+                      <div className="relative group my-4 rounded-lg overflow-hidden bg-[#0d1117] border border-[#30363d]">
+                        <div className="flex items-center justify-between bg-[#161b22] px-4 py-2.5 border-b border-[#30363d]">
+                          <div className="flex items-center gap-2">
+                            <div className="flex gap-1.5">
+                              <div className="w-3 h-3 rounded-full bg-[#ff605c]"></div>
+                              <div className="w-3 h-3 rounded-full bg-[#ffbd2e]"></div>
+                              <div className="w-3 h-3 rounded-full bg-[#28ca42]"></div>
+                            </div>
+                            <span className="text-sm text-[#7d8590] font-mono ml-2">
+                              {match ? match[1] : 'code'}
+                            </span>
+                          </div>
                           <button 
                             onClick={() => copyToClipboard(code)}
-                            className="bg-gray-700 hover:bg-gray-600 rounded px-2 py-1 text-gray-300 hover:text-white transition-colors text-sm flex items-center gap-1"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#21262d] hover:bg-[#30363d] rounded px-3 py-1.5 text-[#7d8590] hover:text-[#c9d1d9] text-sm flex items-center gap-1.5"
                             aria-label="Copy code"
                           >
                             {copiedCode === code ? (
                               <>
-                                <CheckCheck size={14} className="text-green-400" />
-                                <span className="text-green-400">Copiado!</span>
+                                <CheckCheck size={14} className="text-[#3fb950]" />
+                                <span className="text-[#3fb950]">Copiado!</span>
                               </>
                             ) : (
                               <>
@@ -125,17 +114,23 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
                         </div>
                         <div className="overflow-x-auto">
                           <SyntaxHighlighter
-                            language={match[1]}
-                            style={vscDarkPlus}
+                            language={match ? match[1] : 'text'}
+                            style={oneDark}
                             customStyle={{ 
                               margin: 0,
                               borderRadius: 0,
-                              background: 'transparent',
+                              background: '#0d1117',
                               fontSize: '14px',
-                              lineHeight: '1.5'
+                              lineHeight: '1.6',
+                              padding: '20px'
                             }}
-                            showLineNumbers
-                            wrapLongLines
+                            showLineNumbers={true}
+                            lineNumberStyle={{
+                              color: '#7d8590',
+                              paddingRight: '1em',
+                              userSelect: 'none'
+                            }}
+                            wrapLongLines={false}
                             {...props}
                           >
                             {code}
@@ -145,50 +140,10 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
                     );
                   }
                   
-                  return isInline ? (
-                    <code className="bg-gray-800 text-gray-100 px-2 py-1 rounded text-sm font-mono border border-gray-700" {...props}>
+                  return (
+                    <code className="bg-[#262626] text-[#e6edf3] px-1.5 py-0.5 rounded text-sm font-mono border border-[#30363d]" {...props}>
                       {children}
                     </code>
-                  ) : (
-                    <div className="relative group my-4 rounded-lg overflow-hidden bg-gray-900 border border-gray-700">
-                      <div className="flex items-center justify-between bg-gray-800 px-4 py-2 border-b border-gray-700">
-                        <span className="text-sm text-gray-300 font-mono">text</span>
-                        <button 
-                          onClick={() => copyToClipboard(code)}
-                          className="bg-gray-700 hover:bg-gray-600 rounded px-2 py-1 text-gray-300 hover:text-white transition-colors text-sm flex items-center gap-1"
-                          aria-label="Copy code"
-                        >
-                          {copiedCode === code ? (
-                            <>
-                              <CheckCheck size={14} className="text-green-400" />
-                              <span className="text-green-400">Copiado!</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy size={14} />
-                              <span>Copiar</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <SyntaxHighlighter
-                          language="text"
-                          style={vscDarkPlus}
-                          customStyle={{ 
-                            margin: 0,
-                            borderRadius: 0,
-                            background: 'transparent',
-                            fontSize: '14px',
-                            lineHeight: '1.5'
-                          }}
-                          wrapLongLines
-                          {...props}
-                        >
-                          {code}
-                        </SyntaxHighlighter>
-                      </div>
-                    </div>
                   );
                 },
                 a: ({ node, ...props }) => (
@@ -203,38 +158,38 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
                   <p {...props} className="text-base my-3 leading-relaxed text-white" />
                 ),
                 ul: ({ node, ...props }) => (
-                  <ul {...props} className="list-disc list-inside my-3 space-y-1 text-white" />
+                  <ul {...props} className="list-disc ml-6 my-3 space-y-1 text-white" />
                 ),
                 ol: ({ node, ...props }) => (
-                  <ol {...props} className="list-decimal list-inside my-3 space-y-1 text-white" />
+                  <ol {...props} className="list-decimal ml-6 my-3 space-y-1 text-white" />
                 ),
                 li: ({ node, ...props }) => (
                   <li {...props} className="my-1 text-white" />
                 ),
                 h1: ({ node, ...props }) => (
-                  <h1 {...props} className="text-2xl font-bold my-4 text-white border-b border-gray-600 pb-2" />
+                  <h1 {...props} className="text-2xl font-semibold my-4 text-white border-b border-[#30363d] pb-2" />
                 ),
                 h2: ({ node, ...props }) => (
-                  <h2 {...props} className="text-xl font-bold my-3 text-white" />
+                  <h2 {...props} className="text-xl font-semibold my-3 text-white" />
                 ),
                 h3: ({ node, ...props }) => (
-                  <h3 {...props} className="text-lg font-bold my-2 text-white" />
+                  <h3 {...props} className="text-lg font-semibold my-2 text-white" />
                 ),
                 h4: ({ node, ...props }) => (
-                  <h4 {...props} className="text-base font-bold my-2 text-white" />
+                  <h4 {...props} className="text-base font-semibold my-2 text-white" />
                 ),
                 h5: ({ node, ...props }) => (
-                  <h5 {...props} className="text-sm font-bold my-2 text-white" />
+                  <h5 {...props} className="text-sm font-semibold my-2 text-white" />
                 ),
                 h6: ({ node, ...props }) => (
-                  <h6 {...props} className="text-sm font-bold my-2 text-gray-300" />
+                  <h6 {...props} className="text-sm font-semibold my-2 text-gray-300" />
                 ),
                 blockquote: ({ node, ...props }) => (
-                  <blockquote {...props} className="border-l-4 border-purple-400 pl-4 py-2 my-3 bg-gray-800/50 rounded-r italic text-gray-300" />
+                  <blockquote {...props} className="border-l-4 border-[#6366f1] pl-4 py-2 my-3 bg-[#1f2937]/30 rounded-r italic text-gray-300" />
                 ),
                 table: ({ node, ...props }) => (
                   <div className="overflow-x-auto my-4">
-                    <table {...props} className="min-w-full border-collapse border border-gray-600" />
+                    <table {...props} className="min-w-full border-collapse border border-gray-600 rounded-lg overflow-hidden" />
                   </div>
                 ),
                 th: ({ node, ...props }) => (
@@ -257,7 +212,6 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
               {content}
             </ReactMarkdown>
           </div>
-          )
         ) : (
           <div className={cn("text-base whitespace-pre-wrap leading-relaxed", "text-white")}>{content}</div>
         )}

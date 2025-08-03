@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 # Cliente HTTPX para chamadas à API Claude
 async_client = AsyncClient(
     base_url=settings.claude_api_url,
-    headers={"Authorization": f"Bearer {settings.claude_api_key}"},
+            headers={"Authorization": f"Bearer {settings.claude_api_key}"},
     timeout=30.0,
 )
 

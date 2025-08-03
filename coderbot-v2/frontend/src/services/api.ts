@@ -120,7 +120,7 @@ export const fetchChatResponse = async (
       body = {
         model: model,
         messages: messages,
-        max_tokens: 12048,
+        max_tokens: 4096,
         temperature: 0.7,
         methodology: methodology,
         user_profile: userProfile || {

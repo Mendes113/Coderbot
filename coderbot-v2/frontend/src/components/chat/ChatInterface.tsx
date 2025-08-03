@@ -527,7 +527,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   
   // Estados para o sistema AGNO (sempre ativado)
   const [agnoMethodology, setAgnoMethodology] = useState<MethodologyType>(MethodologyType.WORKED_EXAMPLES);
-  const [agnoAvailable, setAgnoAvailable] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
@@ -789,19 +788,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     
     loadMethodologies();
     
-    // Check AGNO availability
-    const checkAgnoAvailability = async () => {
-      try {
-        const methodologies = await agnoService.getAvailableMethodologies();
-        setAgnoAvailable(methodologies.length > 0);
-        console.log("AGNO methodologies available:", methodologies);
-      } catch (error) {
-        console.error("Error checking AGNO availability:", error);
-        setAgnoAvailable(false);
-      }
-    };
-
-    checkAgnoAvailability();
+    // AGNO está sempre disponível
+    console.log("✅ Sistema AGNO ativado com metodologias educacionais avançadas");
     
     // Inicializar timer idle
     resetIdleTimer();
@@ -1126,60 +1114,71 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
         baseKnowledge: knowledgeBase || "basic"
       };
 
-      // Usar AGNO se disponível, senão usar o sistema padrão
+      // Sempre usar AGNO (que está funcionando perfeitamente)
       let response;
-      if (agnoAvailable) {
-        try {
-          const userIdStr = typeof userId === 'string' ? userId : (userId ? JSON.stringify(userId) : "anonymous");
-          const userContext = {
-            userId: userIdStr,
-            currentTopic: "", // Pode ser extraído do contexto
-            difficultyLevel: userProfile.difficulty_level || "medium",
-            learningProgress: userProfile.learning_progress || {},
-            previousInteractions: messages
-              .filter(msg => !msg.isAi)
-              .map(msg => msg.content)
-              .slice(-5) // Últimas 5 interações
-          };
+      
+      try {
+        const userIdStr = typeof userId === 'string' ? userId : (userId ? JSON.stringify(userId) : "anonymous");
+        const userContext = {
+          userId: userIdStr,
+          currentTopic: "", // Pode ser extraído do contexto
+          difficultyLevel: userProfile.difficulty_level || "medium",
+          learningProgress: userProfile.learning_progress || {},
+          previousInteractions: messages
+            .filter(msg => !msg.isAi)
+            .map(msg => msg.content)
+            .slice(-5) // Últimas 5 interações
+        };
 
-          const agnoResponse = await agnoService.askQuestion({
-            methodology: agnoMethodology,
-            userQuery: input,
-            context: whiteboardContext ? JSON.stringify(whiteboardContext) : undefined,
-            userContext
-          });
-
-          response = {
-            content: agnoResponse.response,
-            analogies: "" // AGNO não usa analogias separadas
-          };
-        } catch (error) {
-          console.error("Erro ao usar AGNO, voltando para sistema padrão:", error);
-          toast.error("Erro no sistema AGNO, usando resposta padrão");
-          
-          // Fallback para sistema padrão
-          response = await fetchChatResponse(
-            input, 
-            analogiesEnabled, 
-            false,
-            knowledgeBase,
-            aiModel,
-            methodologyState,
-            userProfile,
-            whiteboardContext
-          );
+        // Definir provedor baseado no modelo selecionado
+        let provider: 'claude' | 'openai' = 'claude';
+        let modelId = aiModel;
+        
+        if (aiModel.includes('gpt')) {
+          provider = 'openai';
+        } else if (aiModel.includes('claude')) {
+          provider = 'claude';
+          // Mapear modelos do frontend para IDs corretos do backend
+          if (aiModel === 'claude-3-opus') {
+            modelId = 'claude-3-opus-20240229';
+          } else if (aiModel === 'claude-3-sonnet') {
+            modelId = 'claude-3-5-sonnet-20241022';
+          } else if (aiModel === 'claude-3-haiku') {
+            modelId = 'claude-3-haiku-20240307';
+          }
         }
-      } else {
-        response = await fetchChatResponse(
-          input, 
-          analogiesEnabled, 
-          false,
-          knowledgeBase,
-          aiModel,
-          methodologyState,
-          userProfile,
-          whiteboardContext
-        );
+
+        const agnoResponse = await agnoService.askQuestion({
+          methodology: agnoMethodology,
+          userQuery: input,
+          context: whiteboardContext ? JSON.stringify(whiteboardContext) : `Contexto: ${knowledgeBase || 'Aprendizado geral de programação'}`,
+          userContext,
+          provider,
+          modelId
+        });
+
+        response = {
+          content: agnoResponse.response,
+          analogies: "" // AGNO não usa analogias separadas
+        };
+        
+        console.log(`✅ AGNO resposta recebida usando ${provider}/${modelId}: ${agnoResponse.response.length} caracteres`);
+        
+      } catch (error) {
+        console.error("Erro crítico no sistema AGNO:", error);
+        toast.error("Erro no sistema educacional. Verifique a conexão.");
+        
+        // Em caso de erro crítico, mostrar mensagem de erro amigável
+        response = {
+          content: `Desculpe, houve um problema temporário no sistema educacional. 
+          
+Você perguntou: "${input}"
+
+Por favor, tente novamente em alguns instantes. Se o problema persistir, recarregue a página.
+
+Obrigado pela paciência! 🤖✨`,
+          analogies: ""
+        };
       }
       
       // Save AI response
@@ -1268,8 +1267,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
                   {isLoading ? "Pensando em como ajudar você... 🤔" : 
                    celebrationCount > 10 ? "Que aprendiz dedicado! Continue assim! 🌟" :
                    celebrationCount > 5 ? "Ótimas perguntas! Vamos continuar! 💪" :
-                   agnoAvailable ? "Sistema educacional adaptativo ativo ✨" :
-                   "Tire suas dúvidas sobre programação"}
+                   "Sistema educacional adaptativo ativo ✨"}
                 </p>
               </div>
             </div>
@@ -1286,44 +1284,25 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
               </SelectContent>
             </Select>
             
-            {/* Seletor de metodologia educacional (AGNO quando disponível) */}
-            {agnoAvailable ? (
-              <Select value={agnoMethodology} onValueChange={(value) => setAgnoMethodology(value as MethodologyType)}>
-                <SelectTrigger className="w-[140px] h-8 text-xs">
-                  <SelectValue placeholder="Metodologia" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.values(MethodologyType).map((methodology) => {
-                    const config = METHODOLOGY_CONFIG[methodology];
-                    return (
-                      <SelectItem key={methodology} value={methodology}>
-                        <div className="flex items-center gap-2">
-                          <span>{config.icon}</span>
-                          <span>{config.name}</span>
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Select 
-                value={methodologyState} 
-                onValueChange={setMethodology}
-                disabled={availableMethodologies.length === 0}
-              >
-                <SelectTrigger className="w-[120px] h-8 text-xs">
-                  <SelectValue placeholder="Metodologia" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default">Padrão</SelectItem>
-                  <SelectItem value="analogy">Analogias</SelectItem>
-                  {availableMethodologies.map(m => (
-                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+            {/* Seletor de metodologia educacional AGNO */}
+            <Select value={agnoMethodology} onValueChange={(value) => setAgnoMethodology(value as MethodologyType)}>
+              <SelectTrigger className="w-[140px] h-8 text-xs">
+                <SelectValue placeholder="Metodologia" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.values(MethodologyType).map((methodology) => {
+                  const config = METHODOLOGY_CONFIG[methodology];
+                  return (
+                    <SelectItem key={methodology} value={methodology}>
+                      <div className="flex items-center gap-2">
+                        <span>{config.icon}</span>
+                        <span>{config.name}</span>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
             {/* Dropdown de analogias */}
             <div className="relative">
               <button

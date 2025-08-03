@@ -87,9 +87,22 @@ class HealthResponse(BaseModel):
 
 # --- Dependências ---
 
-def get_agno_service() -> AgnoMethodologyService:
+def get_agno_service(
+    provider: Optional[str] = Query(default="claude", description="Provedor de IA (claude ou openai)"),
+    model_id: Optional[str] = Query(default=None, description="ID do modelo específico")
+) -> AgnoMethodologyService:
     """Cria e retorna uma instância do serviço AGNO."""
-    return AgnoMethodologyService()
+    # Mapear modelos padrão por provedor
+    default_models = {
+        "claude": "claude-3-5-sonnet-20241022",
+        "openai": "gpt-4o"
+    }
+    
+    # Se model_id não foi especificado, usar o padrão do provedor
+    if not model_id:
+        model_id = default_models.get(provider, "claude-3-5-sonnet-20241022")
+    
+    return AgnoMethodologyService(model_id=model_id, provider=provider)
 
 # --- Endpoints ---
 
@@ -172,7 +185,8 @@ async def ask_question(
             "processing_time": processing_time,
             "methodology_used": request.methodology,
             "context_provided": request.context is not None,
-            "user_context_provided": request.user_context is not None
+            "user_context_provided": request.user_context is not None,
+            "response_format": "markdown"
         }
         
         # Adiciona sugestões de próximos passos para worked examples
@@ -186,7 +200,7 @@ async def ask_question(
         return AgnoResponse(
             response=response,
             methodology=request.methodology,
-            is_xml_formatted=(methodology_enum == MethodologyType.WORKED_EXAMPLES),
+            is_xml_formatted=False,  # Sempre False - agora geramos markdown diretamente
             metadata=metadata
         )
         

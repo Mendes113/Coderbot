@@ -31,5 +31,5 @@ class WhiteboardAIService:
             f"Conteúdo do quadro (JSON):\n{excalidraw_json}"
         )
         # Chama o agente Agno e retorna a resposta
-        response = self.agent.response(full_prompt)
-        return response 
+        run_response = self.agent.run(full_prompt)
+        return run_response.content 

@@ -26,6 +26,8 @@ export interface AgnoRequest {
   userQuery: string;
   context?: string;
   userContext?: UserContext;
+  provider?: 'claude' | 'openai';
+  modelId?: string;
 }
 
 // Interface para a resposta do AGNO
@@ -118,6 +120,30 @@ export interface StructuredWorkedExampleResponse {
   };
 }
 
+// Configurações dos provedores
+export const PROVIDER_CONFIG = {
+  claude: {
+    name: "Claude (Anthropic)",
+    models: [
+      { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", default: true },
+      { id: "claude-3-opus-20240229", name: "Claude 3 Opus" },
+      { id: "claude-3-haiku-20240307", name: "Claude 3 Haiku" }
+    ],
+    color: "orange",
+    icon: "🤖"
+  },
+  openai: {
+    name: "OpenAI (ChatGPT)",
+    models: [
+      { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo", default: true },
+      { id: "gpt-4", name: "GPT-4" },
+      { id: "gpt-4o", name: "GPT-4o" }
+    ],
+    color: "green",
+    icon: "🧠"
+  }
+};
+
 // Configurações das metodologias
 export const METHODOLOGY_CONFIG = {
   [MethodologyType.SEQUENTIAL_THINKING]: {
@@ -159,24 +185,54 @@ export const METHODOLOGY_CONFIG = {
 };
 
 class AgnoService {
-  private baseURL = "/api/agno";
 
   /**
    * Faz uma requisição ao serviço AGNO
    */
   async askQuestion(request: AgnoRequest): Promise<AgnoResponse> {
     try {
-      const response = await api.post(`${this.baseURL}/ask`, {
+      // Construir URL com query parameters para provedor
+      let url = '/agno/ask';
+      const params = new URLSearchParams();
+      
+      // Sempre enviar um provider, com claude como padrão
+      const provider = request.provider || 'claude';
+      params.append('provider', provider);
+      
+      if (request.modelId) {
+        params.append('model_id', request.modelId);
+      }
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+
+      // Converter userContext de camelCase para snake_case
+      const userContextConverted = request.userContext ? {
+        user_id: request.userContext.userId,
+        current_topic: request.userContext.currentTopic || null,
+        difficulty_level: request.userContext.difficultyLevel || null,
+        learning_progress: request.userContext.learningProgress || null,
+        previous_interactions: request.userContext.previousInteractions || null
+      } : null;
+
+      const requestBody = {
         methodology: request.methodology,
         user_query: request.userQuery,
         context: request.context,
-        user_context: request.userContext
-      });
+        user_context: userContextConverted
+      };
+
+      console.log("AGNO Request URL:", url);
+      console.log("AGNO Request Provider:", provider);
+      console.log("AGNO Request Body:", requestBody);
+
+      const response = await api.post(url, requestBody);
 
       return {
         response: response.data.response,
         methodology: request.methodology,
-        isXmlFormatted: request.methodology === MethodologyType.WORKED_EXAMPLES,
+        isXmlFormatted: response.data.is_xml_formatted || request.methodology === MethodologyType.WORKED_EXAMPLES,
         metadata: response.data.metadata
       };
     } catch (error) {
@@ -191,7 +247,7 @@ class AgnoService {
    */
   async getAvailableMethodologies(): Promise<MethodologyType[]> {
     try {
-      const response = await api.get(`${this.baseURL}/methodologies`);
+      const response = await api.get('/agno/methodologies');
       return response.data.methodologies || Object.values(MethodologyType);
     } catch (error) {
       console.error("Erro ao buscar metodologias:", error);
@@ -438,16 +494,74 @@ class AgnoService {
     methodology: MethodologyType,
     userQuery: string,
     context?: string,
-    userContext?: UserContext
+    userContext?: UserContext,
+    provider?: 'claude' | 'openai',
+    modelId?: string
   ): Promise<string> {
     const response = await this.askQuestion({
       methodology,
       userQuery,
       context,
-      userContext
+      userContext,
+      provider,
+      modelId
     });
 
     return response.response;
+  }
+
+  /**
+   * Método de conveniência para usar Claude
+   */
+  async askQuestionWithClaude(
+    methodology: MethodologyType,
+    userQuery: string,
+    context?: string,
+    userContext?: UserContext,
+    modelId: string = 'claude-3-5-sonnet-20241022'
+  ): Promise<AgnoResponse> {
+    return this.askQuestion({
+      methodology,
+      userQuery,
+      context,
+      userContext,
+      provider: 'claude',
+      modelId
+    });
+  }
+
+  /**
+   * Método de conveniência para usar OpenAI
+   */
+  async askQuestionWithOpenAI(
+    methodology: MethodologyType,
+    userQuery: string,
+    context?: string,
+    userContext?: UserContext,
+    modelId: string = 'gpt-3.5-turbo'
+  ): Promise<AgnoResponse> {
+    return this.askQuestion({
+      methodology,
+      userQuery,
+      context,
+      userContext,
+      provider: 'openai',
+      modelId
+    });
+  }
+
+  /**
+   * Testa a conectividade com a API AGNO
+   */
+  async testConnection(): Promise<boolean> {
+    try {
+      const response = await api.get(`${this.baseURL}/health`);
+      console.log("AGNO Health Check:", response.data);
+      return response.data.status === 'healthy';
+    } catch (error) {
+      console.error("Erro ao testar conexão com AGNO:", error);
+      return false;
+    }
   }
 
   /**

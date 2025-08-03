@@ -3,7 +3,7 @@ import axios from 'axios';
 import { pb } from "@/integrations/pocketbase/client";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
 });
 
 api.interceptors.request.use(async (config) => {

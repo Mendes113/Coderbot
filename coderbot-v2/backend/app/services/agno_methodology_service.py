@@ -187,12 +187,19 @@ class AgnoMethodologyService:
         """
         config = self.agent_configs.get(methodology, self.agent_configs[MethodologyType.DEFAULT])
         
-        # Obter o nome real do modelo
-        real_model_name = self._get_model_name(self.model_id)
+        self.logger.info(f"Criando agente para provedor: {self.provider}, modelo: {self.model_id}")
         
         try:
-            # Criar modelo usando nossa factory function
-            model = create_model(self.provider, real_model_name)
+            if self.provider == "claude":
+                # Usar modelo oficial do Agno para Claude
+                from agno.models.anthropic import Claude
+                model = Claude(id=self.model_id)
+                self.logger.info(f"Modelo Claude oficial {self.model_id} criado com sucesso")
+            else:
+                # Usar OpenAI para modelos OpenAI
+                from agno.models.openai import OpenAIChat
+                model = OpenAIChat(id=self.model_id)
+                self.logger.info(f"Modelo OpenAI {self.model_id} criado com sucesso")
             
             return Agent(
                 model=model,
@@ -201,19 +208,10 @@ class AgnoMethodologyService:
                 markdown=True
             )
         except Exception as e:
-            self.logger.error(f"Erro ao criar agente com {self.provider}/{real_model_name}: {e}")
-            # Fallback para OpenAI se houver erro
-            if self.provider != 'openai':
-                self.logger.info("Fazendo fallback para OpenAI")
-                fallback_model = OpenAIChat(id="gpt-4o")
-                return Agent(
-                    model=fallback_model,
-                    description=config["description"],
-                    instructions=[self._build_xml_prompt(config)],
-                    markdown=True
-                )
-            else:
-                raise
+            self.logger.error(f"Erro ao criar agente {self.provider}: {e}")
+            import traceback
+            self.logger.error(f"Traceback completo: {traceback.format_exc()}")
+            raise RuntimeError(f"Falha ao criar agente {self.provider}: {str(e)}")
     
     def get_available_providers(self) -> List[str]:
         """
@@ -310,13 +308,20 @@ class AgnoMethodologyService:
         self.logger.info(f"Processando pergunta com metodologia: {methodology.value} usando {self.provider}/{self.model_id}")
         
         try:
-            agent = self.get_agent(methodology)
             prompt = self._build_methodology_prompt(methodology, user_query, context)
-            
             self.logger.debug(f"Prompt gerado: {prompt[:200]}...")
             
-            # Gera resposta
-            response = agent.response(prompt)
+            # Usar implementação AGNO padrão para ambos os provedores
+            self.logger.info(f"Usando implementação AGNO com {self.provider}: {self.model_id}")
+            agent = self.get_agent(methodology)
+            run_response = agent.run(prompt)
+            if hasattr(run_response, 'content'):
+                response = run_response.content
+            elif isinstance(run_response, str):
+                response = run_response
+            else:
+                response = str(run_response)
+            self.logger.info(f"{self.provider.upper()} retornou resposta de {len(response)} caracteres")
             
             # Valida e formata resposta
             formatted_response = self._format_response(methodology, response)
@@ -377,201 +382,235 @@ class AgnoMethodologyService:
     
     def _build_worked_examples_prompt(self, user_query: str, context: Optional[str] = None) -> str:
         """
-        Constrói prompt especializado para worked examples com template XML robusto estruturado.
+        Constrói prompt para worked examples que gera respostas em markdown limpo,
+        usando XML apenas como guia de estrutura (não na saída).
         """
-        xml_instruction = """
-Responda usando EXATAMENTE o seguinte esquema XML estruturado, preenchendo cada seção de forma detalhada e didática.
+        markdown_instruction = """
+Você é um especialista em ensino através de exemplos trabalhados.
+Sua missão é demonstrar soluções passo a passo para ajudar o aluno a aprender através de exemplos concretos.
 
-<WorkedExampleTemplate version="1.0" xmlns="https://example.org/worked-example"
-                       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                       xsi:schemaLocation="https://example.org/worked-example worked_example.xsd">
+IMPORTANTE: Responda APENAS em texto natural/markdown limpo. NÃO use tags XML na sua resposta.
 
-  <!-- =========================
-       PARTE 01 – Dados Gerais
-       ========================= -->
-  <GeneralData>
-    <CourseInfo>
-      <DisciplineTitle>Informe a disciplina relacionada ao problema</DisciplineTitle>
-      <Topic>Tópico principal do problema</Topic>
-      <Subtopics>
-        <Subtopic>Subtópico 1 relevante</Subtopic>
-        <Subtopic>Subtópico 2 relevante</Subtopic>
-      </Subtopics>
-      <Prerequisites>
-        <Prerequisite>Conhecimento prévio necessário 1</Prerequisite>
-        <Prerequisite>Conhecimento prévio necessário 2</Prerequisite>
-      </Prerequisites>
-    </CourseInfo>
+Use a seguinte estrutura organizacional (o XML abaixo serve APENAS como guia - não inclua essas tags na resposta):
 
-    <SourceInfo>
-      <OriginType>Consulta educacional</OriginType>
-      <OriginReference>Sistema AGNO - CoderBot</OriginReference>
-    </SourceInfo>
-  </GeneralData>
+<GUIA_ESTRUTURAL (NÃO INCLUIR NA RESPOSTA)>
+<ExampleContext>
+  <ProblemDescription>Descrição do problema</ProblemDescription>
+  <ExpectedOutcome>Resultado esperado</ExpectedOutcome>
+</ExampleContext>
 
-  <!-- ==============================
-       PARTE 02 – Contexto do Exemplo
-       ============================== -->
-  <ExampleContext>
-    <ProblemDescription>Descrição detalhada do problema apresentado pelo aluno</ProblemDescription>
-    <ExpectedOutcome>Resultado esperado após a resolução</ExpectedOutcome>
+<WorkedExamples>
+  <CorrectExample>
+    <Reflection>Explicação do raciocínio</Reflection>
+    <CorrectSteps>
+      <Step number="1">Primeiro passo com código</Step>
+      <Step number="2">Segundo passo com código</Step>
+    </CorrectSteps>
+    <Tests>
+      <TestCase>Exemplo prático</TestCase>
+    </Tests>
+  </CorrectExample>
+  
+  <ErroneousExample>
+    <Reflection>Erro comum</Reflection>
+    <ErrorIdentification>
+      <ErrorExplanation>Por que o erro acontece</ErrorExplanation>
+      <ProposedFix>Como corrigir</ProposedFix>
+    </ErrorIdentification>
+  </ErroneousExample>
+</WorkedExamples>
+</GUIA_ESTRUTURAL>
 
-    <SupplementaryMaterial>
-      <Resource type="documentation" url="">Material complementar se relevante</Resource>
-    </SupplementaryMaterial>
-  </ExampleContext>
+FORMATO DA SUA RESPOSTA (em markdown limpo):
 
-  <!-- ================================================
-       PARTE 03 – Aplicação dos Worked Examples
-       ================================================ -->
-  <WorkedExamples>
+[Descrição clara do problema do aluno em texto natural]
 
-    <!-- 3.1 Exemplo Correto -->
-    <CorrectExample>
-      <Reflection difficulty="medium">
-        Reflexão sobre a abordagem correta: explique o raciocínio por trás da solução
-      </Reflection>
+[Explicação do conceito e raciocínio por trás da solução]
 
-      <CorrectSteps>
-        <Step number="1">
-          <Description>Descrição detalhada do primeiro passo</Description>
-        </Step>
-        <Step number="2">
-          <Description>Descrição detalhada do segundo passo</Description>
-        </Step>
-        <!-- Continue adicionando passos conforme necessário -->
-      </CorrectSteps>
+## Solução passo a passo:
 
-      <Tests>
-        <TestCase id="1">
-          <Input>Entrada de exemplo</Input>
-          <ExpectedOutput>Saída esperada</ExpectedOutput>
-        </TestCase>
-      </Tests>
-    </CorrectExample>
+**1.** [Descrição do primeiro passo em texto natural]
 
-    <!-- 3.2 Exemplo Errôneo -->
-    <ErroneousExample>
-      <Reflection difficulty="medium">
-        Reflexão sobre erros comuns: explique por que este erro é frequente
-      </Reflection>
+```[linguagem]
+[código do primeiro passo]
+```
 
-      <ErroneousSteps>
-        <Step number="1">
-          <Description>Passo incorreto comum</Description>
-        </Step>
-        <Step number="2">
-          <Description>Consequência do erro</Description>
-        </Step>
-      </ErroneousSteps>
+**Resultado:**
+```
+[saída esperada]
+```
 
-      <ErrorIdentification prompt="Você consegue identificar o erro?">
-        <ErrorLine>Linha ou conceito onde ocorre o erro</ErrorLine>
-        <ErrorExplanation>Explicação detalhada do erro</ErrorExplanation>
-        <ProposedFix>Solução proposta para corrigir o erro</ProposedFix>
-      </ErrorIdentification>
+**2.** [Descrição do segundo passo em texto natural]
 
-      <Tests>
-        <TestCase id="1">
-          <Input>Entrada que demonstra o erro</Input>
-          <ExpectedOutput>Saída incorreta obtida</ExpectedOutput>
-        </TestCase>
-      </Tests>
-    </ErroneousExample>
+```[linguagem]
+[código do segundo passo]
+```
 
-  </WorkedExamples>
+**Resultado:**
+```
+[saída esperada]
+```
 
-  <!-- ==========================
-       Metadados Metodológicos
-       ========================== -->
-  <PedagogicalMeta>
-    <Methodology>Design Science Research</Methodology>
-    <LearningTheory>Cognitive Load Theory</LearningTheory>
-    <Agent>CoderBot</Agent>
-  </PedagogicalMeta>
+[Continue com quantos passos forem necessários]
 
-</WorkedExampleTemplate>
+## Exemplo prático:
 
-CRÍTICO: Responda SOMENTE usando o XML acima. Preencha todas as seções com conteúdo relevante. Seções opcionais podem ser omitidas se não aplicáveis.
+```[linguagem]
+[código de exemplo completo]
+```
+
+**Resultado:**
+```
+[saída do exemplo]
+```
+
+## ⚠️ Erro comum:
+
+[Explicação do erro em texto natural]
+
+**Por que isso acontece:** [Explicação clara do motivo]
+
+**Como corrigir:** [Solução em texto natural]
+
+```[linguagem]
+[código correto]
+```
+
+DIRETRIZES IMPORTANTES:
+1. Use APENAS texto natural e markdown - NUNCA tags XML
+2. Seja didático e explique cada passo claramente
+3. Inclua códigos em blocos apropriados com linguagem
+4. Mostre exemplos práticos funcionais
+5. Explique erros comuns e como corrigi-los
+6. Use formatação markdown (##, **, ```, etc.) para estrutura
+7. Mantenha o foco educacional e a linguagem acessível
 """
         
         if context:
-            return f"{xml_instruction}\n<context>{context}</context>\n<question>{user_query}</question>"
+            return f"{markdown_instruction}\n\nContexto adicional: {context}\n\nPergunta do usuário: {user_query}"
         else:
-            return f"{xml_instruction}\n<question>{user_query}</question>"
+            return f"{markdown_instruction}\n\nPergunta do usuário: {user_query}"
     
     def _build_socratic_prompt(self, user_query: str, context: Optional[str] = None) -> str:
         """
-        Constrói prompt para metodologia socrática com template XML.
+        Constrói prompt para metodologia socrática gerando resposta em markdown limpo.
         """
-        xml_instruction = """
-Responda usando o método socrático com o seguinte esquema XML:
+        socratic_instruction = """
+Você é um professor experiente usando o método socrático.
+Sua missão é estimular o pensamento crítico através de perguntas bem formuladas.
 
-<socratic_response>
-  <initial_question>
-    Faça uma pergunta que estimule o pensamento crítico sobre o problema
-  </initial_question>
-  
-  <guiding_questions>
-    Sequência de 3-5 perguntas que orientem o raciocínio:
-    - Pergunta 1: [Pergunta exploratória]
-    - Pergunta 2: [Pergunta de análise]
-    - Pergunta 3: [Pergunta de síntese]
-  </guiding_questions>
-  
-  <reflection_prompts>
-    Prompts para reflexão do estudante:
-    - "O que você acha que aconteceria se..."
-    - "Como você justificaria..."
-    - "Que evidências apoiam..."
-  </reflection_prompts>
-</socratic_response>
+IMPORTANTE: Responda APENAS em texto natural/markdown limpo. NÃO use tags XML na sua resposta.
 
-Responda SOMENTE usando o XML acima.
+FORMATO DA SUA RESPOSTA (em markdown limpo):
+
+## 🤔 Vamos pensar juntos sobre isso...
+
+[Faça uma pergunta inicial que estimule o pensamento crítico sobre o problema]
+
+## 📝 Perguntas para reflexão:
+
+**1.** [Pergunta exploratória que ajude o aluno a entender o problema]
+
+**2.** [Pergunta de análise que aprofunde o raciocínio]
+
+**3.** [Pergunta de síntese que conecte conceitos]
+
+**4.** [Pergunta adicional se necessário]
+
+## 💭 Para você refletir:
+
+- O que você acha que aconteceria se [cenário hipotético]?
+- Como você justificaria [aspecto do problema]?
+- Que evidências apoiam [conclusão ou abordagem]?
+
+## 🎯 Próximo passo:
+
+[Sugira como o aluno pode continuar explorando o tópico]
+
+DIRETRIZES:
+1. Use APENAS texto natural e markdown - NUNCA tags XML
+2. Faça perguntas que estimulem o pensamento, não que tenham respostas óbvias
+3. Guie o aluno a descobrir a resposta por si mesmo
+4. Use linguagem encorajadora e curiosa
+5. Conecte o problema a conceitos mais amplos quando relevante
 """
         
         if context:
-            return f"{xml_instruction}\n<context>{context}</context>\n<question>{user_query}</question>"
+            return f"{socratic_instruction}\n\nContexto adicional: {context}\n\nPergunta do usuário: {user_query}"
         else:
-            return f"{xml_instruction}\n<question>{user_query}</question>"
+            return f"{socratic_instruction}\n\nPergunta do usuário: {user_query}"
     
     def _build_scaffolding_prompt(self, user_query: str, context: Optional[str] = None) -> str:
         """
-        Constrói prompt para metodologia scaffolding com template XML.
+        Constrói prompt para metodologia scaffolding gerando resposta em markdown limpo.
         """
-        xml_instruction = """
-Responda usando scaffolding com o seguinte esquema XML:
+        scaffolding_instruction = """
+Você é um professor experiente usando scaffolding (suporte graduado).
+Sua missão é fornecer suporte inicial máximo e depois reduzir gradualmente para desenvolver autonomia.
 
-<scaffolding_response>
-  <initial_support>
-    Forneça o máximo de suporte inicial:
-    - Explicação completa do conceito
-    - Exemplo detalhado
-    - Dicas específicas
-  </initial_support>
-  
-  <guided_practice>
-    Exercício com suporte gradual:
-    - Problema similar com dicas
-    - Perguntas orientadoras
-    - Verificação de compreensão
-  </guided_practice>
-  
-  <independent_practice>
-    Desafio para prática independente:
-    - Problema sem dicas
-    - Critérios de avaliação
-    - Próximos passos
-  </independent_practice>
-</scaffolding_response>
+IMPORTANTE: Responda APENAS em texto natural/markdown limpo. NÃO use tags XML na sua resposta.
 
-Responda SOMENTE usando o XML acima.
+FORMATO DA SUA RESPOSTA (em markdown limpo):
+
+## 📚 Vamos começar com suporte completo
+
+[Explicação completa e detalhada do conceito]
+
+### Exemplo guiado com todas as dicas:
+
+```[linguagem]
+[código com comentários detalhados]
+```
+
+**Explicação de cada parte:**
+- [Explicação da linha 1]
+- [Explicação da linha 2]
+- [Continue explicando cada parte]
+
+## 🎯 Agora com menos suporte - sua vez!
+
+**Problema similar com dicas:**
+
+[Descrição do problema]
+
+**Dicas para te ajudar:**
+- 💡 **Dica 1:** [primeira dica]
+- 💡 **Dica 2:** [segunda dica]
+- 💡 **Dica 3:** [terceira dica]
+
+**Perguntas para te orientar:**
+1. [Pergunta orientadora 1]
+2. [Pergunta orientadora 2]
+
+## 🚀 Desafio independente
+
+**Agora sem dicas - você consegue!**
+
+[Descrição do problema para resolver sozinho]
+
+**Como avaliar se está correto:**
+- [ ] [Critério 1]
+- [ ] [Critério 2]
+- [ ] [Critério 3]
+
+## 📈 Próximos passos para continuar aprendendo:
+
+1. [Sugestão de próximo tópico]
+2. [Recurso para estudar mais]
+3. [Exercício adicional]
+
+DIRETRIZES:
+1. Use APENAS texto natural e markdown - NUNCA tags XML
+2. Comece com máximo suporte e reduza gradualmente
+3. Inclua dicas específicas na seção intermediária
+4. No desafio final, não dê dicas - apenas critérios de avaliação
+5. Use linguagem encorajadora que desenvolva confiança
 """
         
         if context:
-            return f"{xml_instruction}\n<context>{context}</context>\n<question>{user_query}</question>"
+            return f"{scaffolding_instruction}\n\nContexto adicional: {context}\n\nPergunta do usuário: {user_query}"
         else:
-            return f"{xml_instruction}\n<question>{user_query}</question>"
+            return f"{scaffolding_instruction}\n\nPergunta do usuário: {user_query}"
     
     def _format_response(self, methodology: MethodologyType, response: str) -> str:
         """

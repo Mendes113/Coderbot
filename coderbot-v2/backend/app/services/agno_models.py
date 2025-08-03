@@ -66,6 +66,10 @@ class ClaudeModel(Model):
         if not self.api_key:
             raise ValueError("Claude API key is required but not provided")
         
+        # Log para debug
+        logger.info(f"Inicializando ClaudeModel com chave: {self.api_key[:20]}...{self.api_key[-10:] if self.api_key else None}")
+        logger.info(f"Modelo: {self.model_name}")
+        
         # Inicializar clientes síncronos e assíncronos
         self.client = Anthropic(api_key=self.api_key)
         self.async_client = AsyncAnthropic(api_key=self.api_key)
@@ -83,9 +87,33 @@ class ClaudeModel(Model):
         system_prompt = ""
         claude_messages: List[MessageParam] = []
         
+        # Se messages é uma string simples, converter para formato adequado
+        if isinstance(messages, str):
+            claude_messages.append(MessageParam(role="user", content=messages))
+            return system_prompt, claude_messages
+        
         for message in messages:
-            role = message.get("role", "user")
-            content = message.get("content", "")
+            # Converter Message object para dict se necessário
+            if hasattr(message, 'model_dump'):
+                message_dict = message.model_dump()
+            elif hasattr(message, '__dict__'):
+                message_dict = message.__dict__
+            elif isinstance(message, dict):
+                message_dict = message
+            elif isinstance(message, str):
+                # Se for string simples, tratar como mensagem de usuário
+                claude_messages.append(MessageParam(role="user", content=message))
+                continue
+            else:
+                logger.warning(f"Tipo de mensagem desconhecido: {type(message)}")
+                continue
+                
+            role = message_dict.get("role", "user")
+            content = message_dict.get("content", "")
+            
+            # Garantir que content seja string
+            if not isinstance(content, str):
+                content = str(content)
             
             if role == "system":
                 system_prompt = content
@@ -110,21 +138,18 @@ class ClaudeModel(Model):
         else:
             content = str(claude_response)
         
-        # Criar usage info se disponível
+        # Criar usage info se disponível (simplificado)
         usage = None
         if hasattr(claude_response, 'usage'):
-            usage = Usage(
-                prompt_tokens=getattr(claude_response.usage, 'input_tokens', 0),
-                completion_tokens=getattr(claude_response.usage, 'output_tokens', 0),
-                total_tokens=getattr(claude_response.usage, 'input_tokens', 0) + 
-                           getattr(claude_response.usage, 'output_tokens', 0)
-            )
+            usage = {
+                'input_tokens': getattr(claude_response.usage, 'input_tokens', 0),
+                'output_tokens': getattr(claude_response.usage, 'output_tokens', 0),
+                'total_tokens': getattr(claude_response.usage, 'input_tokens', 0) + 
+                              getattr(claude_response.usage, 'output_tokens', 0)
+            }
         
         return ModelResponse(
-            content=content,
-            model=self.model_name,
-            usage=usage,
-            response=claude_response
+            content=content
         )
     
     def invoke(self, messages: List[Dict[str, Any]], **kwargs) -> ModelResponse:
@@ -142,13 +167,18 @@ class ClaudeModel(Model):
             system_prompt, claude_messages = self._format_messages_for_claude(messages)
             
             # Fazer chamada para Claude
-            response = self.client.messages.create(
-                model=self.model_name,
-                max_tokens=kwargs.get("max_tokens", self.max_tokens),
-                temperature=kwargs.get("temperature", self.temperature),
-                system=system_prompt if system_prompt else None,
-                messages=claude_messages
-            )
+            call_kwargs = {
+                "model": self.model_name,
+                "max_tokens": kwargs.get("max_tokens", self.max_tokens),
+                "temperature": kwargs.get("temperature", self.temperature),
+                "messages": claude_messages
+            }
+            
+            # Só adicionar system se não estiver vazio
+            if system_prompt and system_prompt.strip():
+                call_kwargs["system"] = system_prompt
+            
+            response = self.client.messages.create(**call_kwargs)
             
             return self._create_model_response(response)
             
@@ -171,13 +201,18 @@ class ClaudeModel(Model):
             system_prompt, claude_messages = self._format_messages_for_claude(messages)
             
             # Fazer chamada assíncrona para Claude
-            response = await self.async_client.messages.create(
-                model=self.model_name,
-                max_tokens=kwargs.get("max_tokens", self.max_tokens),
-                temperature=kwargs.get("temperature", self.temperature),
-                system=system_prompt if system_prompt else None,
-                messages=claude_messages
-            )
+            call_kwargs = {
+                "model": self.model_name,
+                "max_tokens": kwargs.get("max_tokens", self.max_tokens),
+                "temperature": kwargs.get("temperature", self.temperature),
+                "messages": claude_messages
+            }
+            
+            # Só adicionar system se não estiver vazio
+            if system_prompt and system_prompt.strip():
+                call_kwargs["system"] = system_prompt
+            
+            response = await self.async_client.messages.create(**call_kwargs)
             
             return self._create_model_response(response)
             
@@ -196,12 +231,16 @@ class ClaudeModel(Model):
         Returns:
             String com o conteúdo da resposta
         """
-        # Converter string para formato de mensagens se necessário
-        if isinstance(messages, str):
-            messages = [{"role": "user", "content": messages}]
-        
-        model_response = self.invoke(messages, **kwargs)
-        return model_response.content
+        try:
+            # Converter string para formato de mensagens se necessário
+            if isinstance(messages, str):
+                messages = [{"role": "user", "content": messages}]
+            
+            model_response = self.invoke(messages, **kwargs)
+            return model_response.content
+        except Exception as e:
+            logger.error(f"Erro no método response: {e}")
+            raise
     
     async def aresponse(self, messages: Union[str, List[Dict[str, Any]]], **kwargs) -> str:
         """
@@ -220,6 +259,70 @@ class ClaudeModel(Model):
         
         model_response = await self.ainvoke(messages, **kwargs)
         return model_response.content
+    
+    # Implementar métodos abstratos necessários
+    def invoke_stream(self, messages: List[Dict[str, Any]], **kwargs):
+        """Streaming síncrono - implementação básica que retorna resposta completa."""
+        try:
+            # Por enquanto, retorna a resposta completa como se fosse streaming
+            response = self.invoke(messages, **kwargs)
+            yield response
+        except Exception as e:
+            logger.error(f"Erro no streaming síncrono: {e}")
+            raise
+    
+    async def ainvoke_stream(self, messages: List[Dict[str, Any]], **kwargs):
+        """Streaming assíncrono - implementação básica que retorna resposta completa."""
+        try:
+            # Por enquanto, retorna a resposta completa como se fosse streaming
+            response = await self.ainvoke(messages, **kwargs)
+            yield response
+        except Exception as e:
+            logger.error(f"Erro no streaming assíncrono: {e}")
+            raise
+    
+    def parse_provider_response(self, response: Any) -> Dict[str, Any]:
+        """Parse response do provedor."""
+        try:
+            if hasattr(response, 'content') and response.content:
+                content = response.content[0].text if response.content else ""
+            else:
+                content = str(response)
+            
+            usage = {}
+            if hasattr(response, 'usage'):
+                usage = {
+                    'input_tokens': getattr(response.usage, 'input_tokens', 0),
+                    'output_tokens': getattr(response.usage, 'output_tokens', 0),
+                    'total_tokens': getattr(response.usage, 'input_tokens', 0) + 
+                                  getattr(response.usage, 'output_tokens', 0)
+                }
+            
+            return {
+                "content": content,
+                "model": getattr(response, 'model', self.model_name)
+            }
+        except Exception as e:
+            logger.error(f"Erro ao fazer parse da resposta: {e}")
+            return {"content": str(response)}
+    
+    def parse_provider_response_delta(self, delta: Any) -> Dict[str, Any]:
+        """Parse response delta do provedor."""
+        try:
+            if hasattr(delta, 'content'):
+                content = delta.content
+            elif hasattr(delta, 'text'):
+                content = delta.text
+            else:
+                content = str(delta)
+            
+            return {
+                "content": content,
+                "delta": True
+            }
+        except Exception as e:
+            logger.error(f"Erro ao fazer parse do delta: {e}")
+            return {"content": str(delta)}
 
 
 def create_model(provider: str, model_name: str, **kwargs) -> Model:
