@@ -1,0 +1,584 @@
+import { toast } from "@/components/ui/sonner";
+import api from "@/lib/axios";
+
+// Tipos para as metodologias educacionais
+export enum MethodologyType {
+  SEQUENTIAL_THINKING = "sequential_thinking",
+  ANALOGY = "analogy",
+  SOCRATIC = "socratic",
+  SCAFFOLDING = "scaffolding", 
+  WORKED_EXAMPLES = "worked_examples",
+  DEFAULT = "default"
+}
+
+// Interface para o contexto do usuário
+export interface UserContext {
+  userId: string;
+  currentTopic?: string;
+  difficultyLevel?: string;
+  learningProgress?: any;
+  previousInteractions?: string[];
+}
+
+// Interface para a requisição ao AGNO
+export interface AgnoRequest {
+  methodology: MethodologyType;
+  userQuery: string;
+  context?: string;
+  userContext?: UserContext;
+  provider?: 'claude' | 'openai';
+  modelId?: string;
+}
+
+// Interface para a resposta do AGNO
+export interface AgnoResponse {
+  response: string;
+  methodology: MethodologyType;
+  isXmlFormatted: boolean;
+  metadata?: {
+    processingTime?: number;
+    confidence?: number;
+    suggestedNextSteps?: string[];
+  };
+}
+
+// Interface para respostas XML estruturadas (worked examples)
+export interface WorkedExampleResponse {
+  problem_analysis: string;
+  step_by_step_example: string;
+  explanation: string;
+  patterns: string;
+  similar_example?: string;
+  next_steps: string;
+}
+
+// Interface para o novo template estruturado
+export interface StructuredWorkedExampleResponse {
+  generalData: {
+    courseInfo: {
+      disciplineTitle: string;
+      topic: string;
+      subtopics: string[];
+      prerequisites: string[];
+    };
+    sourceInfo: {
+      originType: string;
+      originReference: string;
+    };
+  };
+  exampleContext: {
+    problemDescription: string;
+    expectedOutcome: string;
+    supplementaryMaterial?: {
+      type: string;
+      url: string;
+      description: string;
+    }[];
+  };
+  workedExamples: {
+    correctExample: {
+      reflection: {
+        difficulty: string;
+        content: string;
+      };
+      correctSteps: {
+        number: string;
+        description: string;
+      }[];
+      tests: {
+        id: string;
+        input: string;
+        expectedOutput: string;
+      }[];
+    };
+    erroneousExample?: {
+      reflection: {
+        difficulty: string;
+        content: string;
+      };
+      erroneousSteps: {
+        number: string;
+        description: string;
+      }[];
+      errorIdentification: {
+        prompt: string;
+        errorLine: string;
+        errorExplanation: string;
+        proposedFix: string;
+      };
+      tests: {
+        id: string;
+        input: string;
+        expectedOutput: string;
+      }[];
+    };
+  };
+  pedagogicalMeta: {
+    methodology: string;
+    learningTheory: string;
+    agent: string;
+  };
+}
+
+// Configurações dos provedores
+export const PROVIDER_CONFIG = {
+  claude: {
+    name: "Claude (Anthropic)",
+    models: [
+      { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", default: true },
+      { id: "claude-3-opus-20240229", name: "Claude 3 Opus" },
+      { id: "claude-3-haiku-20240307", name: "Claude 3 Haiku" }
+    ],
+    color: "orange",
+    icon: "🤖"
+  },
+  openai: {
+    name: "OpenAI (ChatGPT)",
+    models: [
+      { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo", default: true },
+      { id: "gpt-4", name: "GPT-4" },
+      { id: "gpt-4o", name: "GPT-4o" }
+    ],
+    color: "green",
+    icon: "🧠"
+  }
+};
+
+// Configurações das metodologias
+export const METHODOLOGY_CONFIG = {
+  [MethodologyType.SEQUENTIAL_THINKING]: {
+    name: "Pensamento Sequencial",
+    description: "Explica o raciocínio passo a passo de forma sequencial",
+    icon: "📝",
+    color: "blue"
+  },
+  [MethodologyType.ANALOGY]: {
+    name: "Analogias",
+    description: "Usa analogias do cotidiano para facilitar o entendimento",
+    icon: "🔗",
+    color: "green"
+  },
+  [MethodologyType.SOCRATIC]: {
+    name: "Método Socrático",
+    description: "Estimula o pensamento crítico através de perguntas",
+    icon: "❓",
+    color: "purple"
+  },
+  [MethodologyType.SCAFFOLDING]: {
+    name: "Scaffolding",
+    description: "Oferece dicas graduais removendo o suporte progressivamente",
+    icon: "🏗️",
+    color: "orange"
+  },
+  [MethodologyType.WORKED_EXAMPLES]: {
+    name: "Exemplos Resolvidos",
+    description: "Ensina através de exemplos detalhadamente resolvidos",
+    icon: "📚",
+    color: "indigo"
+  },
+  [MethodologyType.DEFAULT]: {
+    name: "Padrão",
+    description: "Resposta educacional padrão, clara e objetiva",
+    icon: "💬",
+    color: "gray"
+  }
+};
+
+class AgnoService {
+
+  /**
+   * Faz uma requisição ao serviço AGNO
+   */
+  async askQuestion(request: AgnoRequest): Promise<AgnoResponse> {
+    try {
+      // Construir URL com query parameters para provedor
+      let url = '/agno/ask';
+      const params = new URLSearchParams();
+      
+      // Sempre enviar um provider, com claude como padrão
+      const provider = request.provider || 'claude';
+      params.append('provider', provider);
+      
+      if (request.modelId) {
+        params.append('model_id', request.modelId);
+      }
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+
+      // Converter userContext de camelCase para snake_case
+      const userContextConverted = request.userContext ? {
+        user_id: request.userContext.userId,
+        current_topic: request.userContext.currentTopic || null,
+        difficulty_level: request.userContext.difficultyLevel || null,
+        learning_progress: request.userContext.learningProgress || null,
+        previous_interactions: request.userContext.previousInteractions || null
+      } : null;
+
+      const requestBody = {
+        methodology: request.methodology,
+        user_query: request.userQuery,
+        context: request.context,
+        user_context: userContextConverted
+      };
+
+      console.log("AGNO Request URL:", url);
+      console.log("AGNO Request Provider:", provider);
+      console.log("AGNO Request Body:", requestBody);
+
+      const response = await api.post(url, requestBody);
+
+      return {
+        response: response.data.response,
+        methodology: request.methodology,
+        isXmlFormatted: response.data.is_xml_formatted || request.methodology === MethodologyType.WORKED_EXAMPLES,
+        metadata: response.data.metadata
+      };
+    } catch (error) {
+      console.error("Erro ao fazer requisição ao AGNO:", error);
+      toast.error("Erro ao processar sua pergunta. Tente novamente.");
+      throw error;
+    }
+  }
+
+  /**
+   * Busca as metodologias disponíveis
+   */
+  async getAvailableMethodologies(): Promise<MethodologyType[]> {
+    try {
+      const response = await api.get('/agno/methodologies');
+      return response.data.methodologies || Object.values(MethodologyType);
+    } catch (error) {
+      console.error("Erro ao buscar metodologias:", error);
+      return Object.values(MethodologyType);
+    }
+  }
+
+  /**
+   * Processa uma resposta de worked example em XML (template simples)
+   */
+  parseWorkedExampleResponse(xmlResponse: string): WorkedExampleResponse | null {
+    try {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlResponse, "text/xml");
+      
+      if (xmlDoc.querySelector("parsererror")) {
+        console.error("Erro ao parsear XML:", xmlResponse);
+        return null;
+      }
+
+      const workedExample = xmlDoc.querySelector("worked_example");
+      if (!workedExample) {
+        console.error("Tag worked_example não encontrada no XML");
+        return null;
+      }
+
+      return {
+        problem_analysis: this.getTextContent(workedExample, "problem_analysis"),
+        step_by_step_example: this.getTextContent(workedExample, "step_by_step_example"), 
+        explanation: this.getTextContent(workedExample, "explanation"),
+        patterns: this.getTextContent(workedExample, "patterns"),
+        similar_example: this.getTextContent(workedExample, "similar_example"),
+        next_steps: this.getTextContent(workedExample, "next_steps")
+      };
+    } catch (error) {
+      console.error("Erro ao processar resposta XML:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Processa uma resposta de worked example em XML (template estruturado)
+   */
+  parseStructuredWorkedExampleResponse(xmlResponse: string): StructuredWorkedExampleResponse | null {
+    try {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlResponse, "text/xml");
+      
+      if (xmlDoc.querySelector("parsererror")) {
+        console.error("Erro ao parsear XML estruturado:", xmlResponse);
+        return null;
+      }
+
+      const template = xmlDoc.querySelector("WorkedExampleTemplate");
+      if (!template) {
+        console.error("Tag WorkedExampleTemplate não encontrada no XML");
+        return null;
+      }
+
+      // Parse GeneralData
+      const generalData = template.querySelector("GeneralData");
+      const courseInfo = generalData?.querySelector("CourseInfo");
+      const sourceInfo = generalData?.querySelector("SourceInfo");
+
+      // Parse ExampleContext
+      const exampleContext = template.querySelector("ExampleContext");
+      const supplementaryMaterial = Array.from(exampleContext?.querySelectorAll("Resource") || [])
+        .map(resource => ({
+          type: resource.getAttribute("type") || "",
+          url: resource.getAttribute("url") || "",
+          description: resource.textContent?.trim() || ""
+        }));
+
+      // Parse WorkedExamples
+      const workedExamples = template.querySelector("WorkedExamples");
+      const correctExample = workedExamples?.querySelector("CorrectExample");
+      const erroneousExample = workedExamples?.querySelector("ErroneousExample");
+
+      // Parse PedagogicalMeta
+      const pedagogicalMeta = template.querySelector("PedagogicalMeta");
+
+      return {
+        generalData: {
+          courseInfo: {
+            disciplineTitle: this.getTextContent(courseInfo, "DisciplineTitle"),
+            topic: this.getTextContent(courseInfo, "Topic"),
+            subtopics: Array.from(courseInfo?.querySelectorAll("Subtopic") || [])
+              .map(subtopic => subtopic.textContent?.trim() || ""),
+            prerequisites: Array.from(courseInfo?.querySelectorAll("Prerequisite") || [])
+              .map(prerequisite => prerequisite.textContent?.trim() || "")
+          },
+          sourceInfo: {
+            originType: this.getTextContent(sourceInfo, "OriginType"),
+            originReference: this.getTextContent(sourceInfo, "OriginReference")
+          }
+        },
+        exampleContext: {
+          problemDescription: this.getTextContent(exampleContext, "ProblemDescription"),
+          expectedOutcome: this.getTextContent(exampleContext, "ExpectedOutcome"),
+          supplementaryMaterial: supplementaryMaterial.length > 0 ? supplementaryMaterial : undefined
+        },
+        workedExamples: {
+          correctExample: {
+            reflection: {
+              difficulty: correctExample?.querySelector("Reflection")?.getAttribute("difficulty") || "",
+              content: correctExample?.querySelector("Reflection")?.textContent?.trim() || ""
+            },
+            correctSteps: Array.from(correctExample?.querySelectorAll("Step") || [])
+              .map(step => ({
+                number: step.getAttribute("number") || "",
+                description: this.getTextContent(step, "Description")
+              })),
+            tests: Array.from(correctExample?.querySelectorAll("TestCase") || [])
+              .map(testCase => ({
+                id: testCase.getAttribute("id") || "",
+                input: this.getTextContent(testCase, "Input"),
+                expectedOutput: this.getTextContent(testCase, "ExpectedOutput")
+              }))
+          },
+          erroneousExample: erroneousExample ? {
+            reflection: {
+              difficulty: erroneousExample.querySelector("Reflection")?.getAttribute("difficulty") || "",
+              content: erroneousExample.querySelector("Reflection")?.textContent?.trim() || ""
+            },
+            erroneousSteps: Array.from(erroneousExample.querySelectorAll("Step") || [])
+              .map(step => ({
+                number: step.getAttribute("number") || "",
+                description: this.getTextContent(step, "Description")
+              })),
+            errorIdentification: {
+              prompt: erroneousExample.querySelector("ErrorIdentification")?.getAttribute("prompt") || "",
+              errorLine: this.getTextContent(erroneousExample.querySelector("ErrorIdentification"), "ErrorLine"),
+              errorExplanation: this.getTextContent(erroneousExample.querySelector("ErrorIdentification"), "ErrorExplanation"),
+              proposedFix: this.getTextContent(erroneousExample.querySelector("ErrorIdentification"), "ProposedFix")
+            },
+            tests: Array.from(erroneousExample.querySelectorAll("TestCase") || [])
+              .map(testCase => ({
+                id: testCase.getAttribute("id") || "",
+                input: this.getTextContent(testCase, "Input"),
+                expectedOutput: this.getTextContent(testCase, "ExpectedOutput")
+              }))
+          } : undefined
+        },
+        pedagogicalMeta: {
+          methodology: this.getTextContent(pedagogicalMeta, "Methodology"),
+          learningTheory: this.getTextContent(pedagogicalMeta, "LearningTheory"),
+          agent: this.getTextContent(pedagogicalMeta, "Agent")
+        }
+      };
+    } catch (error) {
+      console.error("Erro ao processar resposta XML estruturada:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Extrai o conteúdo de texto de uma tag XML
+   */
+  private getTextContent(parent: Element, tagName: string): string {
+    const element = parent.querySelector(tagName);
+    return element?.textContent?.trim() || "";
+  }
+
+  /**
+   * Método de conveniência para worked examples
+   */
+  async getWorkedExample(
+    userQuery: string, 
+    context?: string, 
+    userContext?: UserContext
+  ): Promise<WorkedExampleResponse | null> {
+    const response = await this.askQuestion({
+      methodology: MethodologyType.WORKED_EXAMPLES,
+      userQuery,
+      context,
+      userContext
+    });
+
+    if (response.isXmlFormatted) {
+      return this.parseWorkedExampleResponse(response.response);
+    }
+
+    return null;
+  }
+
+  /**
+   * Método de conveniência para worked examples estruturados
+   */
+  async getStructuredWorkedExample(
+    userQuery: string, 
+    context?: string, 
+    userContext?: UserContext
+  ): Promise<StructuredWorkedExampleResponse | null> {
+    const response = await this.askQuestion({
+      methodology: MethodologyType.WORKED_EXAMPLES,
+      userQuery,
+      context,
+      userContext
+    });
+
+    if (response.isXmlFormatted) {
+      return this.parseStructuredWorkedExampleResponse(response.response);
+    }
+
+    return null;
+  }
+
+  /**
+   * Método inteligente que tenta parsear qualquer formato de worked example
+   */
+  async getWorkedExampleAny(
+    userQuery: string, 
+    context?: string, 
+    userContext?: UserContext
+  ): Promise<{ structured?: StructuredWorkedExampleResponse; simple?: WorkedExampleResponse } | null> {
+    const response = await this.askQuestion({
+      methodology: MethodologyType.WORKED_EXAMPLES,
+      userQuery,
+      context,
+      userContext
+    });
+
+    if (response.isXmlFormatted) {
+      // Tenta primeiro o template estruturado
+      const structured = this.parseStructuredWorkedExampleResponse(response.response);
+      if (structured) {
+        return { structured };
+      }
+
+      // Se falhar, tenta o template simples
+      const simple = this.parseWorkedExampleResponse(response.response);
+      if (simple) {
+        return { simple };
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Método de conveniência para outras metodologias
+   */
+  async getMethodologyResponse(
+    methodology: MethodologyType,
+    userQuery: string,
+    context?: string,
+    userContext?: UserContext,
+    provider?: 'claude' | 'openai',
+    modelId?: string
+  ): Promise<string> {
+    const response = await this.askQuestion({
+      methodology,
+      userQuery,
+      context,
+      userContext,
+      provider,
+      modelId
+    });
+
+    return response.response;
+  }
+
+  /**
+   * Método de conveniência para usar Claude
+   */
+  async askQuestionWithClaude(
+    methodology: MethodologyType,
+    userQuery: string,
+    context?: string,
+    userContext?: UserContext,
+    modelId: string = 'claude-3-5-sonnet-20241022'
+  ): Promise<AgnoResponse> {
+    return this.askQuestion({
+      methodology,
+      userQuery,
+      context,
+      userContext,
+      provider: 'claude',
+      modelId
+    });
+  }
+
+  /**
+   * Método de conveniência para usar OpenAI
+   */
+  async askQuestionWithOpenAI(
+    methodology: MethodologyType,
+    userQuery: string,
+    context?: string,
+    userContext?: UserContext,
+    modelId: string = 'gpt-3.5-turbo'
+  ): Promise<AgnoResponse> {
+    return this.askQuestion({
+      methodology,
+      userQuery,
+      context,
+      userContext,
+      provider: 'openai',
+      modelId
+    });
+  }
+
+  /**
+   * Testa a conectividade com a API AGNO
+   */
+  async testConnection(): Promise<boolean> {
+    try {
+      const response = await api.get(`${this.baseURL}/health`);
+      console.log("AGNO Health Check:", response.data);
+      return response.data.status === 'healthy';
+    } catch (error) {
+      console.error("Erro ao testar conexão com AGNO:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Valida se uma metodologia é válida
+   */
+  isValidMethodology(methodology: string): methodology is MethodologyType {
+    return Object.values(MethodologyType).includes(methodology as MethodologyType);
+  }
+
+  /**
+   * Obtém a configuração de uma metodologia
+   */
+  getMethodologyConfig(methodology: MethodologyType) {
+    return METHODOLOGY_CONFIG[methodology] || METHODOLOGY_CONFIG[MethodologyType.DEFAULT];
+  }
+}
+
+// Instância singleton do serviço
+export const agnoService = new AgnoService();
+export default agnoService;

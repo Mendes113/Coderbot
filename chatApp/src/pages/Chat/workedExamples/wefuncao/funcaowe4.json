@@ -1,0 +1,34 @@
+{
+    "title": "Contagem de Palavras",
+    "topic": "Trabalhando com Funções em Java",
+    "knowledge": "Conhecimento intermediário em Java e manipulação de strings.",
+    "origin": "Livro de Programação Java Intermediária",
+    "description": "Desenvolver uma função em Java que aceite uma string como parâmetro e retorne o número de palavras presentes na string.",
+    "result": "A função deve imprimir ou retornar a contagem de palavras na string.",
+    "extra": "Vídeo tutorial sobre como trabalhar com funções em Java e manipulação de strings.",
+    "problemWECorrect": {
+      "thinking": "O problema do worked example correto envolve a criação de uma função que conta o número de palavras em uma string.",
+      "solutionProposal": {
+        "steps": "\n[PASSO 1]. Definir a assinatura da função, indicando que ela aceita uma string como parâmetro.\n[PASSO 2]. Dividir a string em palavras usando espaços como delimitadores.\n[PASSO 3]. Contar o número de palavras resultantes da divisão.\n[PASSO 4]. Retornar a contagem de palavras.",
+        "test": "Você pode testar a função com a string 'Olá, como vai?'. O resultado esperado é 4 palavras."
+      },
+      "correctSolutionProposal": "public class ContadorPalavras {\n    public static void main(String[] args) {\n        String texto = \"Olá, como vai?\";\n        int resultado = contarPalavras(texto);\n        System.out.println(\"Número de palavras: \" + resultado);\n    }\n\n    public static int contarPalavras(String texto) {\n        if (texto == null || texto.isEmpty()) {\n            return 0;\n        }\n        String[] palavras = texto.split(\"\\s+\");\n        return palavras.length;\n    }\n}"
+    },
+    "problemWEIncorrect": {
+      "thinking": "O problema com worked example incorreto envolve um erro na solução da função, o que pode ser uma oportunidade de aprendizado para os alunos.",
+      "incorrectSolution": "public class ContadorPalavrasIncorreto {\n    public static void main(String[] args) {\n        String texto = \"Olá, como vai?\";\n        int resultado = contarPalavras(texto);\n        System.out.println(\"Número de palavras: \" + resultado);\n    }\n\n    public static int contarPalavras(String texto) {\n        if (texto == null || texto.isEmpty()) {\n            return 1;\n        }\n        String[] palavras = texto.split(\"\\s+\");\n        return palavras.length;\n    }\n}",
+      "test": "Você pode testar a função com a mesma string: 'Olá, como vai?'. O resultado esperado é 4 palavras, mas a solução proposta incorreta produzirá resultados errados.",
+      "options": {
+        "one": "linha 11",
+        "two": "linha 13",
+        "three": "linha 15",
+        "four": "linha 10",
+        "five": "não sei identificar"
+      },
+      "correctOption": "4",
+      "error": "O erro está na forma como a função trata o caso de uma string vazia. A solução incorreta retorna 1 quando a string está vazia, mas deveria retornar 0.",
+      "response": "O erro ocorre na forma como a função trata o caso de uma string vazia. A solução incorreta retorna 1 quando a string está vazia, mas deveria retornar 0.",
+      "correctSolutionProposal": "\n[PASSO 1]. Definir a assinatura da função, indicando que ela aceita uma string como parâmetro.\n[PASSO 2]. Dividir a string em palavras usando espaços como delimitadores.\n[PASSO 3]. Contar o número de palavras resultantes da divisão.\n[PASSO 4]. Retornar a contagem de palavras."
+    }
+  }
+  

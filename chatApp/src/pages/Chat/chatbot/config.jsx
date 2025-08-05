@@ -1,26 +1,26 @@
 // Config starter code
 import React from "react";
-import { createChatBotMessage } from "react-chatbot-kit";
-
-// QUI
-import Quiz from "../Quiz/Quiz";
+import { createChatBotMessage, createCustomMessage } from "react-chatbot-kit";
 
 // Options
 import Options from "../Options/Options";
-import OptionsVariable from "../Options/OptionsVariable";
-import OptionsConditional from "../Options/OptionsConditional";
-import OptionsRepeatingLoop from "../Options/OptionsRepeatingLoop";
-import OptionsVariableWrong from "../Options/OptionsVariableWrong";
-import OptionsConditionalWrong from "../Options/OptionsConditionalWrong";
-import OptionsRepeatingLoopWrong from "../Options/OptionsRepeatingLoopWrong";
 import OptionsGoToMainMenu from "../Options/OptionsGoToMainMenu";
+import CustomMessage from "./CustomMessage";
+import OptionsAnotherCorrect from "../Options/OptionsAnotherCorrect";
+import OptionsArrayAnotherIncorrect from "../Options/OptionsAnotherIncorrect";
+import OptionsArrayWEs from "../Options/OptionsArrayWEs";
+import OptionsFunctionsWEs from "../Options/OptionsFunctionsWEs";
+import OptionsButtonsLinesWE from "../Options/OptionsButtonsLinesWE";
+import OptionsWE from "../Options/OptionsWE";
+import OptionsListWE from "../Options/OptionsListWE";
 
 const config = {
   botName: "ChatBot de Educação",
   initialMessages: [
-    createChatBotMessage(`Olá ! 👋  Sou o EducaBot 🤖 , e estou aqui para te auxiliar a aprender conceitos de programação 💻. Escolha qual a opção que deseja aprender.`, {
+    createChatBotMessage(`Olá! 👋  Sou o CoderBot 🤖 , e estou aqui para te auxiliar na aprendizagem de programação 💻 por meio de exemplos. Escolha um dos temas abaixo:`, {
       widget: "options",
     }),
+    createCustomMessage(<CustomMessage />)
   ],
   widgets: [
     {
@@ -32,32 +32,33 @@ const config = {
       widgetFunc: (props) => <OptionsGoToMainMenu {...props} />,
     },
     {
-      widgetName: "variavel", // variavel
-      widgetFunc: (props) => <Quiz {...props} />,
-      widgetFunc: (props) => <OptionsVariable {...props} />,
+      widgetName: "optionswe",
+      widgetFunc: (props) => <OptionsWE {...props} />,
     },
     {
-      widgetName: "condicional", // condicional
-      widgetFunc: (props) => <Quiz {...props} />,
-      widgetFunc: (props) => <OptionsConditional {...props} />,
+      widgetName: "anothercorrect",
+      widgetFunc: (props) => <OptionsAnotherCorrect {...props} />,
     },
     {
-      widgetName: "lacoRepeticao", // laco de repeticao
-      widgetFunc: (props) => <Quiz {...props} />,
-      widgetFunc: (props) => <OptionsRepeatingLoop {...props} />,
+      widgetName: "anotherincorrect",
+      widgetFunc: (props) => <OptionsArrayAnotherIncorrect {...props} />,
     },
     {
-      widgetName: "identificarErroVariavel", // identificar erro variavel
-      widgetFunc: (props) => <OptionsVariableWrong {...props} />,
+      widgetName: "vetoreswe",
+      widgetFunc: (props) => <OptionsArrayWEs {...props} />
     },
     {
-      widgetName: "identificarErroCondicional", // identificar erro condicional
-      widgetFunc: (props) => <OptionsConditionalWrong {...props} />,
+      widgetName: "funcoeswe",
+      widgetFunc: (props) => <OptionsFunctionsWEs {...props} />
     },
     {
-      widgetName: "identificarErroLacoRepeticao", // identificar erro laco de repeticao
-      widgetFunc: (props) => <OptionsRepeatingLoopWrong {...props} />,
+      widgetName: "questionswe",
+      widgetFunc: (props) => <OptionsButtonsLinesWE {...props} />
     },
+    {
+      widgetName: "listwe",
+      widgetFunc: (props) => <OptionsListWE {...props} />
+    }
   ],
 };
 

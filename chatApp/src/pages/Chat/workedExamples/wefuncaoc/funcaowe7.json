@@ -1,0 +1,33 @@
+{
+    "title": "Cálculo de Porcentagem",
+    "topic": "Trabalhando com Funções em C",
+    "knowledge": "Conhecimento básico de C e operações matemáticas.",
+    "origin": "Livro de Programação em Linguagem C",
+    "description": "Desenvolver uma função em C que aceite dois números como parâmetros, onde o primeiro representa o valor total e o segundo a porcentagem. A função deve calcular a porcentagem do primeiro valor.",
+    "result": "A função deve imprimir ou retornar o resultado do cálculo da porcentagem.",
+    "extra": "Vídeo tutorial sobre como trabalhar com funções em C e operações matemáticas.",
+    "problemWECorrect": {
+        "thinking": "O problema do worked example correto envolve a criação de uma função que calcula a porcentagem de um valor total.",
+        "solutionProposal": {
+            "steps": "\n[PASSO 1]. Definir a assinatura da função, indicando que ela aceita dois números como parâmetros.\n[PASSO 2]. Calcular a porcentagem do valor total usando a fórmula: (valor_total * porcentagem) / 100.\n[PASSO 3]. Retornar o resultado do cálculo da porcentagem.",
+            "test": "Você pode testar a função com os seguintes números: valor_total = 200 e porcentagem = 15. O resultado esperado é a porcentagem de 15% sobre 200, ou seja, 30."
+        },
+        "correctSolutionProposal": "#include <stdio.h>\n\ndouble calcularPorcentagem(double valor_total, double porcentagem) {\n    return (valor_total * porcentagem) / 100;\n}\n\nint main() {\n    double resultado = calcularPorcentagem(200, 15);\n    printf(\"Resultado do cálculo de porcentagem: %.2f\\n\", resultado);\n\n    return 0;\n}"
+    },
+    "problemWEIncorrect": {
+        "thinking": "O problema com worked example incorreto envolve um erro na solução da função, o que pode ser uma oportunidade de aprendizado para os alunos.",
+        "incorrectSolution": "#include <stdio.h>\n\ndouble calcularPorcentagemIncorreto(double valor_total, double porcentagem) {\n    return valor_total * porcentagem / 100;\n}\n\nint main() {\n    double resultado = calcularPorcentagemIncorreto(200, 15);\n    printf(\"Resultado do cálculo de porcentagem: %.2f\\n\", resultado);\n\n    return 0;\n}",
+        "test": "Você pode testar a função com os mesmos números: valor_total = 200 e porcentagem = 15. O resultado esperado é a porcentagem de 15% sobre 200, ou seja, 30, mas a solução proposta incorreta produzirá resultados errados.",
+        "options": {
+            "one": "linha 4",
+            "two": "linha 9",
+            "three": "linha 11",
+            "four": "linha 7",
+            "five": "não sei identificar"
+        },
+        "correctOption": "1",
+        "error": "O erro está na ordem de precedência dos operadores na solução incorreta. A multiplicação deve ser realizada antes da divisão.",
+        "response": "O erro está na ordem de precedência dos operadores na solução incorreta. A multiplicação deve ser realizada antes da divisão.",
+        "correctSolutionProposal": "\n[PASSO 1]. Definir a assinatura da função, indicando que ela aceita dois números como parâmetros.\n[PASSO 2]. Calcular a porcentagem do valor total usando a fórmula: (valor_total * porcentagem) / 100.\n[PASSO 3]. Retornar o resultado do cálculo da porcentagem."
+    }
+}

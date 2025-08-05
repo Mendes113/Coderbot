@@ -1,0 +1,33 @@
+{
+    "title": "Cálculo do IMC",
+    "topic": "Trabalhando com Funções em C",
+    "knowledge": "Conhecimento básico de C, operações matemáticas e fórmulas do IMC.",
+    "origin": "Livro de Programação em Linguagem C",
+    "description": "Desenvolver uma função em C que receba o valor do peso e altura do usuário como parâmetros e retorne o valor do Índice de Massa Corporal (IMC).",
+    "result": "A função deve imprimir ou retornar o valor do IMC calculado.",
+    "extra": "Vídeo tutorial sobre como trabalhar com funções em C e cálculo do IMC.",
+    "problemWECorrect": {
+        "thinking": "O problema do worked example correto envolve a criação de uma função que calcula o IMC a partir do peso e altura do usuário.",
+        "solutionProposal": {
+            "steps": "\n[PASSO 1]. Definir a assinatura da função, indicando que ela aceita dois números como parâmetros.\n[PASSO 2]. Calcular o IMC usando a fórmula: IMC = peso / (altura * altura).\n[PASSO 3]. Retornar o valor do IMC calculado.",
+            "test": "Você pode testar a função com os seguintes números: peso = 70 e altura = 1.75. O resultado esperado é o IMC calculado."
+        },
+        "correctSolutionProposal": "#include <stdio.h>\n\ndouble calcularIMCIncorreto(double peso, double altura) {\n    return peso / (altura * altura);\n}\n\nint main() {\n    double resultado = calcularIMCIncorreto(70, 1.75);\n    printf(\"IMC calculado: %.2f\\n\", resultado);\n\n    return 0;\n}"
+    },
+    "problemWEIncorrect": {
+        "thinking": "O problema com worked example incorreto envolve um erro na solução da função, o que pode ser uma oportunidade de aprendizado para os alunos.",
+        "incorrectSolution": "#include <stdio.h>\n\ndouble calcularIMCIncorreto(double peso, double altura) {\n    return peso / altura * altura;\n}\n\nint main() {\n    double resultado = calcularIMCIncorreto(70, 1.75);\n    printf(\"IMC calculado: %.2f\\n\", resultado);\n\n    return 0;\n}",
+        "test": "Você pode testar a função com os mesmos números: peso = 70 e altura = 1.75. O resultado esperado é o IMC calculado, mas a solução proposta incorreta produzirá resultados errados.",
+        "options": {
+            "one": "linha 5",
+            "two": "linha 9",
+            "three": "linha 11",
+            "four": "linha 7",
+            "five": "não sei identificar"
+        },
+        "correctOption": "2",
+        "error": "O erro está na ordem de precedência dos operadores na solução incorreta. A multiplicação deve ser realizada antes da divisão.",
+        "response": "O erro está na ordem de precedência dos operadores na solução incorreta. A multiplicação deve ser realizada antes da divisão.",
+        "correctSolutionProposal": "\n[PASSO 1]. Definir a assinatura da função, indicando que ela aceita dois números como parâmetros.\n[PASSO 2]. Calcular o IMC usando a fórmula: IMC = peso / (altura * altura).\n[PASSO 3]. Retornar o valor do IMC calculado."
+    }
+}

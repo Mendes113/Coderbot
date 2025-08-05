@@ -1,0 +1,15 @@
+[project]
+name = "Coderbot"
+version = "0.1.0"
+description = "Default template for PDM package"
+authors = [
+    {name = "Mendes", email = "101375701+Mendes113@users.noreply.github.com"},
+]
+dependencies = []
+requires-python = "==3.12.*"
+readme = "README.md"
+license = {text = "MIT"}
+
+
+[tool.pdm]
+distribution = false

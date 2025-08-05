@@ -1,0 +1,33 @@
+{
+    "title": "Conversão de Valor para Cotação",
+    "topic": "Trabalhando com Funções em C",
+    "knowledge": "Conhecimento básico de C e operações matemáticas.",
+    "origin": "Livro de Programação em Linguagem C",
+    "description": "Desenvolver uma função em C que converta um valor para uma cotação. A função deve receber o valor e a cotação como parâmetros.",
+    "result": "A função deve imprimir ou retornar o resultado da conversão do valor para a cotação.",
+    "extra": "Vídeo tutorial sobre como trabalhar com funções em C e operações matemáticas.",
+    "problemWECorrect": {
+        "thinking": "O problema do worked example correto envolve a criação de uma função que converte um valor para uma cotação.",
+        "solutionProposal": {
+            "steps": "\n[PASSO 1]. Definir a assinatura da função, indicando que ela aceita dois números como parâmetros.\n[PASSO 2]. Multiplicar o valor pela cotação para realizar a conversão.\n[PASSO 3]. Retornar o resultado da conversão.",
+            "test": "Você pode testar a função com os seguintes números: valor = 100 e cotação = 5. O resultado esperado é a conversão de 100 para a cotação de 5, ou seja, 500."
+        },
+        "correctSolutionProposal": "#include <stdio.h>\n\ndouble converterParaCotacao(double valor, double cotacao) {\n    return valor * cotacao;\n}\n\nint main() {\n    double resultado = converterParaCotacao(100, 5);\n    printf(\"Resultado da conversão: %.2f\\n\", resultado);\n\n    return 0;\n}"
+    },
+    "problemWEIncorrect": {
+        "thinking": "O problema com worked example incorreto envolve um erro na solução da função, o que pode ser uma oportunidade de aprendizado para os alunos.",
+        "incorrectSolution": "#include <stdio.h>\n\ndouble converterParaCotacaoIncorreto(double valor, double cotacao) {\n    return valor + cotacao;\n}\n\nint main() {\n    double resultado = converterParaCotacaoIncorreto(100, 5);\n    printf(\"Resultado da conversão: %.2f\\n\", resultado);\n\n    return 0;\n}",
+        "test": "Você pode testar a função com os mesmos números: valor = 100 e cotação = 5. O resultado esperado é a conversão de 100 para a cotação de 5, ou seja, 500, mas a solução proposta incorreta produzirá resultados errados.",
+        "options": {
+            "one": "linha 5",
+            "two": "linha 9",
+            "three": "linha 11",
+            "four": "linha 4",
+            "five": "não sei identificar"
+        },
+        "correctOption": "4 ",
+        "error": "O erro está na forma como a função realiza a conversão na solução incorreta. A conversão deve ser feita multiplicando o valor pela cotação, não somando.",
+        "response": "O erro está na forma como a função realiza a conversão na solução incorreta. A conversão deve ser feita multiplicando o valor pela cotação, não somando.",
+        "correctSolutionProposal": "\n[PASSO 1]. Definir a assinatura da função, indicando que ela aceita dois números como parâmetros.\n[PASSO 2]. Multiplicar o valor pela cotação para realizar a conversão.\n[PASSO 3]. Retornar o resultado da conversão."
+    }
+}
