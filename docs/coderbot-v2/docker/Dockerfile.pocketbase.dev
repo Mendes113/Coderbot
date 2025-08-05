@@ -1,0 +1,66 @@
+# PocketBase Development Dockerfile
+FROM alpine:latest
+
+# Instalar dependências
+RUN apk add --no-cache \
+    ca-certificates \
+    curl \
+    unzip \
+    python3 \
+    py3-pip \
+    sqlite
+
+# Criar diretório de trabalho
+WORKDIR /pb
+
+# Baixar e instalar PocketBase
+RUN curl -L -o pocketbase.zip https://github.com/pocketbase/pocketbase/releases/download/v0.27.2/pocketbase_0.27.2_linux_amd64.zip && \
+    unzip pocketbase.zip && \
+    chmod +x pocketbase && \
+    rm pocketbase.zip
+
+# Criar diretórios necessários
+RUN mkdir -p /pb/pb_data /pb/pb_migrations
+
+# Copiar migrações existentes (se houver)
+COPY pocketbase_0.27.2_linux_amd64/pb_migrations/ /pb/pb_migrations/
+
+# Ajustar permissões
+RUN chmod -R 755 /pb/pb_data && \
+    chmod -R 644 /pb/pb_migrations
+
+# Script para inicializar admin e aplicar migrações
+RUN echo '#!/bin/sh' > /pb/start.sh && \
+    echo '' >> /pb/start.sh && \
+    echo '# Aplicar migrações se necessário' >> /pb/start.sh && \
+    echo 'echo "Aplicando migrações..."' >> /pb/start.sh && \
+    echo './pocketbase migrate' >> /pb/start.sh && \
+    echo '' >> /pb/start.sh && \
+    echo '# Iniciar PocketBase em background' >> /pb/start.sh && \
+    echo './pocketbase serve --http=0.0.0.0:8090 &' >> /pb/start.sh && \
+    echo 'PB_PID=$!' >> /pb/start.sh && \
+    echo '' >> /pb/start.sh && \
+    echo '# Aguardar PocketBase iniciar' >> /pb/start.sh && \
+    echo 'sleep 5' >> /pb/start.sh && \
+    echo '' >> /pb/start.sh && \
+    echo '# Criar admin se não existir' >> /pb/start.sh && \
+    echo 'if [ ! -z "$POCKETBASE_ADMIN_EMAIL" ] && [ ! -z "$POCKETBASE_ADMIN_PASSWORD" ]; then' >> /pb/start.sh && \
+    echo '    ./pocketbase admin create $POCKETBASE_ADMIN_EMAIL $POCKETBASE_ADMIN_PASSWORD || echo "Admin already exists or creation failed"' >> /pb/start.sh && \
+    echo 'fi' >> /pb/start.sh && \
+    echo '' >> /pb/start.sh && \
+    echo '# Aguardar processo principal' >> /pb/start.sh && \
+    echo 'wait $PB_PID' >> /pb/start.sh && \
+    chmod +x /pb/start.sh
+
+# Expor porta
+EXPOSE 8090
+
+# Volume para dados persistentes
+VOLUME ["/pb/pb_data"]
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8090/api/health || exit 1
+
+# Comando para iniciar
+CMD ["/pb/start.sh"] 

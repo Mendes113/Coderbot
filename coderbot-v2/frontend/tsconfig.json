@@ -9,8 +9,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "magicui": ["./src/components/magicui"],
-      "magicui/*": ["./src/components/magicui/*"]
+      "@/components/*": ["./src/Components/*"],
+      "magicui": ["./src/Components/magicui"],
+      "magicui/*": ["./src/Components/magicui/*"]
     },
     "noImplicitAny": false,
     "noUnusedParameters": false,
