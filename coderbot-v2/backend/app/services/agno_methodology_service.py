@@ -39,7 +39,7 @@ class MethodologyType(Enum):
 logger = logging.getLogger(__name__)
 
 class AgnoMethodologyService:
-    def __init__(self, model_id: str = "gpt-4o", provider: Optional[str] = None):
+    def __init__(self, model_id: str = "claude-3-5-sonnet-20241022", provider: Optional[str] = None):
         """
         Inicializa o serviço AGNO com suporte a múltiplos provedores.
         
@@ -391,99 +391,35 @@ Sua missão é demonstrar soluções passo a passo para ajudar o aluno a aprende
 
 IMPORTANTE: Responda APENAS em texto natural/markdown limpo. NÃO use tags XML na sua resposta.
 
-Use a seguinte estrutura organizacional (o XML abaixo serve APENAS como guia - não inclua essas tags na resposta):
+ESTRUTURA OBRIGATÓRIA DA RESPOSTA (em markdown limpo):
 
-<GUIA_ESTRUTURAL (NÃO INCLUIR NA RESPOSTA)>
-<ExampleContext>
-  <ProblemDescription>Descrição do problema</ProblemDescription>
-  <ExpectedOutcome>Resultado esperado</ExpectedOutcome>
-</ExampleContext>
+1) Contexto e raciocínio
+- Descreva o problema do aluno e o conceito por trás da solução de forma clara e didática.
 
-<WorkedExamples>
-  <CorrectExample>
-    <Reflection>Explicação do raciocínio</Reflection>
-    <CorrectSteps>
-      <Step number="1">Primeiro passo com código</Step>
-      <Step number="2">Segundo passo com código</Step>
-    </CorrectSteps>
-    <Tests>
-      <TestCase>Exemplo prático</TestCase>
-    </Tests>
-  </CorrectExample>
-  
-  <ErroneousExample>
-    <Reflection>Erro comum</Reflection>
-    <ErrorIdentification>
-      <ErrorExplanation>Por que o erro acontece</ErrorExplanation>
-      <ProposedFix>Como corrigir</ProposedFix>
-    </ErrorIdentification>
-  </ErroneousExample>
-</WorkedExamples>
-</GUIA_ESTRUTURAL>
+2) Solução passo a passo
+- Explique os passos e, SOMENTE SE o usuário pedir explicitamente código (palavras como: "código", "code", "exemplo de código", "mostre o código") OU se um pequeno trecho for claramente necessário para consolidar o aprendizado, inclua UM bloco de código fenced com linguagem definida (ex.: ```python, ```javascript, etc.). Caso contrário, NÃO inclua bloco de código.
+- Se incluir código, ele pode estar correto ou intencionalmente com erro (se solicitado). Não há problema se falhar ao executar.
 
-FORMATO DA SUA RESPOSTA (em markdown limpo):
+3) Quiz de 3 alternativas (exatamente 1 correta)
+- Ao final, inclua EXATAMENTE UM bloco fenced denominado quiz contendo JSON na estrutura abaixo.
+- Use três alternativas, com apenas uma marcada como "correct": true.
 
-[Descrição clara do problema do aluno em texto natural]
-
-[Explicação do conceito e raciocínio por trás da solução]
-
-## Solução passo a passo:
-
-**1.** [Descrição do primeiro passo em texto natural]
-
-```[linguagem]
-[código do primeiro passo]
+Modelo do bloco quiz (substitua pelo conteúdo da sua pergunta/opções):
+```quiz
+{
+  "question": "[sua pergunta curta e objetiva]",
+  "options": [
+    { "id": "A", "text": "[opção A]", "correct": true },
+    { "id": "B", "text": "[opção B]", "correct": false },
+    { "id": "C", "text": "[opção C]", "correct": false }
+  ],
+  "explanation": "[explicação breve da resposta correta]"
+}
 ```
 
-**Resultado:**
-```
-[saída esperada]
-```
-
-**2.** [Descrição do segundo passo em texto natural]
-
-```[linguagem]
-[código do segundo passo]
-```
-
-**Resultado:**
-```
-[saída esperada]
-```
-
-[Continue com quantos passos forem necessários]
-
-## Exemplo prático:
-
-```[linguagem]
-[código de exemplo completo]
-```
-
-**Resultado:**
-```
-[saída do exemplo]
-```
-
-## ⚠️ Erro comum:
-
-[Explicação do erro em texto natural]
-
-**Por que isso acontece:** [Explicação clara do motivo]
-
-**Como corrigir:** [Solução em texto natural]
-
-```[linguagem]
-[código correto]
-```
-
-DIRETRIZES IMPORTANTES:
-1. Use APENAS texto natural e markdown - NUNCA tags XML
-2. Seja didático e explique cada passo claramente
-3. Inclua códigos em blocos apropriados com linguagem
-4. Mostre exemplos práticos funcionais
-5. Explique erros comuns e como corrigi-los
-6. Use formatação markdown (##, **, ```, etc.) para estrutura
-7. Mantenha o foco educacional e a linguagem acessível
+Diretrizes gerais:
+- Use somente markdown e os fenced blocks descritos (código opcional, quiz obrigatório).
+- Mantenha a linguagem acessível, com foco educacional e explicando o porquê das escolhas.
 """
         
         if context:

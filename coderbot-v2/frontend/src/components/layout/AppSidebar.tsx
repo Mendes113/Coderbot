@@ -105,20 +105,16 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
-        <div className="flex flex-col items-center gap-2 p-2 border-b border-sidebar-border min-h-[72px]">
+        <div className="flex flex-col items-center gap-2 p-3 border-b border-sidebar-border/60 bg-sidebar/60 backdrop-blur-sm min-h-[76px]">
           <img
             src="/coderbot_colorfull.png"
             alt="Logo Coderbot"
-            className="w-12 aspect-square mb-1 rounded-full shadow-lg transition-all duration-500 opacity-90 hover:opacity-100 hover:scale-105 object-contain mx-auto"
-            style={{ animation: 'fadeInScale 0.7s' }}
+            className="w-12 aspect-square rounded-full shadow-md ring-1 ring-black/5 transition-all duration-300 opacity-95 hover:opacity-100 hover:scale-105 object-contain mx-auto"
           />
           <SidebarTrigger />
-          {/* {state === "expanded" && (
-            <span className="text-xl font-bold text-coderbot-purple truncate">Learn Code Bot</span>
-          )} */}
         </div>
         <SidebarGroup>
-          <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
+          <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {filteredNavItems.map((item) => (
@@ -127,14 +123,14 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
                     asChild
                     isActive={currentNav === item.id}
                     tooltip={item.label}
-                    className="transition-all duration-200 group hover:scale-105 hover:bg-coderbot-purple/20 focus:scale-105"
+                    className="rounded-lg transition-colors duration-200 group hover:bg-coderbot-purple/15 data-[active=true]:bg-coderbot-purple/20 focus-visible:ring-2 focus-visible:ring-coderbot-purple"
                   >
                     <Link
                       to={item.path}
                       onClick={() => onNavChange(item.id)}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 text-sm"
                     >
-                      <item.icon className="h-5 w-5 transition-all duration-200 group-hover:text-coderbot-purple group-hover:scale-110" />
+                      <item.icon className="h-5 w-5 text-muted-foreground transition-all duration-200 group-hover:text-coderbot-purple group-hover:scale-110" />
                       <span>{item.label}</span>
                     </Link>
                   </SidebarMenuButton>
@@ -153,17 +149,17 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
                   asChild
                   isActive={location.pathname === "/profile"}
                   tooltip="Meu Perfil"
-                  className="flex items-center gap-2 transition-all duration-200 group hover:scale-105 hover:bg-coderbot-purple/20 focus:scale-105"
+                  className="flex items-center gap-2 rounded-lg transition-colors duration-200 group hover:bg-coderbot-purple/15 data-[active=true]:bg-coderbot-purple/20"
                 >
                   <Link to="/profile" className="flex items-center gap-2 w-full">
-                    <User className="h-5 w-5 transition-all duration-200 group-hover:text-coderbot-purple group-hover:scale-110" />
+                    <User className="h-5 w-5 text-muted-foreground transition-all duration-200 group-hover:text-coderbot-purple group-hover:scale-110" />
                     <span className={state === "collapsed" ? "sr-only" : ""}>Meu Perfil</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
             {state === "expanded" && (
-              <div className="mt-4 text-xs text-muted-foreground">
+              <div className="mt-4 text-xs text-muted-foreground/80">
                 <p>Learn Code Bot v1.0</p>
                 <p>©2025 Educational Platform</p>
               </div>

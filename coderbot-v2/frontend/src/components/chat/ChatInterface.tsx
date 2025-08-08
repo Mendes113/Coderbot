@@ -1079,6 +1079,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
 
+    // Temp AI message id needs outer scope to be accessible in catch/finally
+    const tempId = (Date.now() + 1).toString();
+
     try {
       // Save user message
       const userMsgId = await chatService.saveMessage({
@@ -1097,7 +1100,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
       );
 
       // Create a temporary AI message
-      const tempId = (Date.now() + 1).toString();
       setMessages((prev) => [...prev, {
         id: tempId,
         content: "",
@@ -1231,7 +1233,7 @@ Obrigado pela paciência! 🤖✨`,
       {/* Conteúdo principal */}
       <div className="flex-1 flex flex-col">
         {/* Header sempre visível */}
-      <div className="p-4 border-b shrink-0 sticky top-0 z-40 bg-background/80 backdrop-blur shadow-md">
+      <div className="px-4 py-3 border-b shrink-0 sticky top-0 z-40 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
           <div className="flex items-center gap-2">
             {isMobile && (
@@ -1368,7 +1370,7 @@ Obrigado pela paciência! 🤖✨`,
       {/* Área de mensagens com scroll */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto px-4" 
+        className="flex-1 overflow-y-auto px-4 bg-gradient-to-b from-purple-50/30 to-transparent dark:from-purple-900/10" 
         style={{ 
           height: 0,
           scrollBehavior: 'smooth',
@@ -1377,7 +1379,7 @@ Obrigado pela paciência! 🤖✨`,
         }}
         tabIndex={0}
       >
-        <div className="flex flex-col space-y-4 max-w-3xl mx-auto py-4">
+        <div className="flex flex-col space-y-6 max-w-3xl mx-auto py-6">
           {/* Header com progresso e streak - inspirado no Duolingo */}
          
 
@@ -1441,10 +1443,10 @@ Obrigado pela paciência! 🤖✨`,
       </div>
       {/* Input fixo no rodapé */}
       <div className={cn(
-        "border-t p-4 backdrop-blur-sm shrink-0",
+        "border-t p-4 backdrop-blur shrink-0 bg-background/70 supports-[backdrop-filter]:bg-background/60 sticky bottom-0",
         isMobile ? "pb-6" : ""
       )}>
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-3xl mx-auto rounded-2xl border bg-background/90 shadow-sm p-2">
           <ChatInput
             onSendMessage={handleSendMessage}
             isLoading={isLoading}

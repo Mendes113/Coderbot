@@ -184,20 +184,46 @@ export const METHODOLOGY_CONFIG = {
   }
 };
 
+// ====== MÉTRICAS (PostHog) - Helper seguro ======
+const phCapture = (event: string, properties?: Record<string, any>) => {
+  try {
+    (window as any)?.posthog?.capture?.(event, properties || {});
+  } catch (_) {
+    // silenciosamente ignora se PostHog não estiver disponível
+  }
+};
+
 class AgnoService {
 
   /**
    * Faz uma requisição ao serviço AGNO
    */
   async askQuestion(request: AgnoRequest): Promise<AgnoResponse> {
+    // ===== métricas: início da requisição =====
+    const startedAt = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    const provider = request.provider || 'claude';
+    const modelId = request.modelId || undefined;
+    const userContext = request.userContext;
+
+    phCapture('agno_request_started', {
+      methodology: request.methodology,
+      provider,
+      model_id: modelId,
+      has_context: Boolean(request.context),
+      has_user_context: Boolean(userContext),
+      user_id_present: Boolean(userContext?.userId),
+      previous_interactions_count: Array.isArray(userContext?.previousInteractions) ? userContext!.previousInteractions!.length : 0,
+      query_length: (request.userQuery || '').length,
+    });
+
     try {
       // Construir URL com query parameters para provedor
       let url = '/agno/ask';
       const params = new URLSearchParams();
       
       // Sempre enviar um provider, com claude como padrão
-      const provider = request.provider || 'claude';
-      params.append('provider', provider);
+      const providerResolved = request.provider || 'claude';
+      params.append('provider', providerResolved);
       
       if (request.modelId) {
         params.append('model_id', request.modelId);
@@ -224,10 +250,22 @@ class AgnoService {
       };
 
       console.log("AGNO Request URL:", url);
-      console.log("AGNO Request Provider:", provider);
+      console.log("AGNO Request Provider:", providerResolved);
       console.log("AGNO Request Body:", requestBody);
 
       const response = await api.post(url, requestBody);
+
+      const durationMs = Math.round(((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - startedAt);
+      phCapture('agno_request_completed', {
+        methodology: request.methodology,
+        provider: providerResolved,
+        model_id: request.modelId || null,
+        duration_ms: durationMs,
+        is_xml_formatted: Boolean(response.data?.is_xml_formatted || request.methodology === MethodologyType.WORKED_EXAMPLES),
+        has_metadata: Boolean(response.data?.metadata),
+        response_size: typeof response.data?.response === 'string' ? response.data.response.length : null,
+        success: true,
+      });
 
       return {
         response: response.data.response,
@@ -235,7 +273,18 @@ class AgnoService {
         isXmlFormatted: response.data.is_xml_formatted || request.methodology === MethodologyType.WORKED_EXAMPLES,
         metadata: response.data.metadata
       };
-    } catch (error) {
+    } catch (error: any) {
+      const durationMs = Math.round(((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - startedAt);
+      phCapture('agno_request_error', {
+        methodology: request.methodology,
+        provider: request.provider || 'claude',
+        model_id: request.modelId || null,
+        duration_ms: durationMs,
+        error_name: error?.name || 'Error',
+        error_message: error?.message || String(error),
+        success: false,
+      });
+
       console.error("Erro ao fazer requisição ao AGNO:", error);
       toast.error("Erro ao processar sua pergunta. Tente novamente.");
       throw error;
@@ -247,9 +296,16 @@ class AgnoService {
    */
   async getAvailableMethodologies(): Promise<MethodologyType[]> {
     try {
+      phCapture('agno_get_methodologies_started');
       const response = await api.get('/agno/methodologies');
-      return response.data.methodologies || Object.values(MethodologyType);
+      const list = response.data.methodologies || Object.values(MethodologyType);
+      phCapture('agno_get_methodologies_completed', {
+        count: Array.isArray(list) ? list.length : 0,
+        success: true,
+      });
+      return list;
     } catch (error) {
+      phCapture('agno_get_methodologies_error', { success: false });
       console.error("Erro ao buscar metodologias:", error);
       return Object.values(MethodologyType);
     }
