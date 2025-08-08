@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Bot, Sparkles, Heart, BookOpen, Lightbulb, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -50,100 +50,112 @@ export const InitialWelcomeMessages = ({ onComplete, onSkip }: InitialWelcomeMes
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [showMessage, setShowMessage] = useState(false);
-  const [animationComplete, setAnimationComplete] = useState(false);
   const [showSkipButton, setShowSkipButton] = useState(false);
   const [fastMode, setFastMode] = useState(false);
+  const [animationComplete, setAnimationComplete] = useState(false);
 
-  // Mostrar botão skip após 800ms (mais cedo ainda)
+  // Refs para timers e intervalos -> evita leaks/re-renders desnecessários
+  const delayTimerRef = useRef<number | null>(null);
+  const typingIntervalRef = useRef<number | null>(null);
+  const postMessageTimerRef = useRef<number | null>(null);
+
+  // Timestamp estável para a "hora" da mensagem
+  const messageTimestamp = useMemo(
+    () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    []
+  );
+
+  // Mostrar botão skip cedo
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowSkipButton(true);
-    }, 800);
-    return () => clearTimeout(timer);
+    const t = window.setTimeout(() => setShowSkipButton(true), 800);
+    return () => window.clearTimeout(t);
   }, []);
 
-  // Acelerar quando usuário clica na área da mensagem
+  const clearTimers = () => {
+    if (delayTimerRef.current) window.clearTimeout(delayTimerRef.current);
+    if (typingIntervalRef.current) window.clearInterval(typingIntervalRef.current);
+    if (postMessageTimerRef.current) window.clearTimeout(postMessageTimerRef.current);
+    delayTimerRef.current = null;
+    typingIntervalRef.current = null;
+    postMessageTimerRef.current = null;
+  };
+
   const handleMessageClick = () => {
-    if (!fastMode) {
-      setFastMode(true);
-    }
+    if (!fastMode) setFastMode(true);
   };
 
   useEffect(() => {
     if (currentMessageIndex >= WELCOME_MESSAGES.length) {
       setAnimationComplete(true);
-      setTimeout(() => {
-        onComplete?.();
-      }, 600); // Reduzido de 1000ms para 600ms
-      return;
+      const end = window.setTimeout(() => onComplete?.(), 600);
+      return () => window.clearTimeout(end);
     }
 
     const currentMessage = WELCOME_MESSAGES[currentMessageIndex];
-    
-    // Delay antes de começar a mostrar a mensagem
-    const delayTimer = setTimeout(() => {
-      setShowMessage(true);
+    const baseDelay = currentMessage.delay ?? 500;
+
+    clearTimers();
+    setDisplayedText("");
+    setIsTyping(false);
+
+    delayTimerRef.current = window.setTimeout(() => {
       setIsTyping(true);
-      setDisplayedText("");
-      
-      // Efeito de digitação
+      const text = currentMessage.content;
+      const speed = currentMessage.typingSpeed ?? 30;
+      const chosenSpeed = fastMode ? Math.max(8, Math.floor(speed / 2)) : speed;
       let charIndex = 0;
-      const typingInterval = setInterval(() => {
-        if (charIndex < currentMessage.content.length) {
-          setDisplayedText(currentMessage.content.substring(0, charIndex + 1));
-          charIndex++;
-        } else {
+
+      typingIntervalRef.current = window.setInterval(() => {
+        charIndex += 1;
+        setDisplayedText(text.slice(0, charIndex));
+        if (charIndex >= text.length) {
+          if (typingIntervalRef.current) window.clearInterval(typingIntervalRef.current);
           setIsTyping(false);
-          clearInterval(typingInterval);
-          
-          // Esperar um pouco antes da próxima mensagem (mais rápido)
-          setTimeout(() => {
-            setShowMessage(false);
-            setTimeout(() => {
-              setCurrentMessageIndex(prev => prev + 1);
-            }, 150);
-          }, fastMode ? 300 : 500);
+          postMessageTimerRef.current = window.setTimeout(() => {
+            setCurrentMessageIndex((prev) => prev + 1);
+          }, fastMode ? 250 : 450);
         }
-      }, currentMessage.typingSpeed || (fastMode ? 10 : 30));
+      }, chosenSpeed) as unknown as number;
+    }, fastMode ? Math.max(60, Math.floor(baseDelay / 3)) : baseDelay) as unknown as number;
 
-      return () => clearInterval(typingInterval);
-    }, currentMessage.delay || (fastMode ? 100 : 500));
-
-    return () => clearTimeout(delayTimer);
-  }, [currentMessageIndex, onComplete]);
+    return () => {
+      clearTimers();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMessageIndex, fastMode]);
 
   const getEmotionStyling = (emotion?: string) => {
+    // Estilo alinhado ao tema escuro com acentos roxos
     switch (emotion) {
       case 'welcoming':
         return {
-          containerClass: "from-blue-50 to-indigo-50 border-blue-200",
-          iconClass: "text-blue-500 bg-blue-100",
-          textClass: "text-blue-900",
+          containerClass: "border border-coderbot-purple/30 bg-coderbot-purple/10",
+          iconClass: "text-coderbot-purple bg-coderbot-purple/20",
+          textClass: "text-[#E6E6E6]",
         };
       case 'encouraging':
         return {
-          containerClass: "from-purple-50 to-pink-50 border-purple-200",
-          iconClass: "text-purple-500 bg-purple-100",
-          textClass: "text-purple-900",
+          containerClass: "border border-emerald-400/25 bg-emerald-400/10",
+          iconClass: "text-emerald-400 bg-emerald-400/20",
+          textClass: "text-[#E6F6EF]",
         };
       case 'inspiring':
         return {
-          containerClass: "from-yellow-50 to-orange-50 border-yellow-200",
-          iconClass: "text-orange-500 bg-orange-100",
-          textClass: "text-orange-900",
+          containerClass: "border border-amber-400/25 bg-amber-400/10",
+          iconClass: "text-amber-400 bg-amber-400/20",
+          textClass: "text-[#FFF7E6]",
         };
       case 'friendly':
         return {
-          containerClass: "from-green-50 to-emerald-50 border-green-200",
-          iconClass: "text-green-500 bg-green-100",
-          textClass: "text-green-900",
+          containerClass: "border border-sky-400/25 bg-sky-400/10",
+          iconClass: "text-sky-400 bg-sky-400/20",
+          textClass: "text-[#E6F2FF]",
         };
       default:
         return {
-          containerClass: "from-gray-50 to-slate-50 border-gray-200",
-          iconClass: "text-gray-500 bg-gray-100",
-          textClass: "text-gray-900",
+          containerClass: "border border-border/60 bg-muted/20",
+          iconClass: "text-muted-foreground bg-muted/30",
+          textClass: "text-foreground",
         };
     }
   };
@@ -153,27 +165,22 @@ export const InitialWelcomeMessages = ({ onComplete, onSkip }: InitialWelcomeMes
   const IconComponent = currentMessage?.icon || Bot;
 
   const handleSkip = () => {
+    clearTimers();
     setCurrentMessageIndex(WELCOME_MESSAGES.length);
+    setAnimationComplete(true);
     onSkip?.();
   };
 
-  if (animationComplete) {
-    return null;
-  }
+  if (animationComplete) return null;
 
   return (
-    <div className="relative">
+    <div className="relative select-none" onClick={handleMessageClick}>
       {/* Skip Button */}
       {showSkipButton && !animationComplete && (
-        <div 
-          className={cn(
-            "absolute top-2 right-2 z-10 transition-all duration-500",
-            showSkipButton ? "opacity-100 scale-100" : "opacity-0 scale-95"
-          )}
-        >
+        <div className={cn("absolute top-2 right-2 z-10 transition-all duration-500", showSkipButton ? "opacity-100 scale-100" : "opacity-0 scale-95")}>
           <button
             onClick={handleSkip}
-            className="group flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 bg-white/80 hover:bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full border border-gray-200 hover:border-gray-300 transition-all duration-200 hover:scale-105"
+            className="group flex items-center gap-1 text-xs text-[#9BA3AF] hover:text-foreground bg-background/70 hover:bg-background/80 backdrop-blur-sm px-2 py-1 rounded-full border border-border/60 transition-all duration-200 hover:scale-105"
           >
             <span>Pular</span>
             <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
@@ -182,83 +189,51 @@ export const InitialWelcomeMessages = ({ onComplete, onSkip }: InitialWelcomeMes
       )}
 
       {/* Welcome Message */}
-      <div 
-        className={cn(
-          "transform transition-all duration-700 ease-out",
-          showMessage 
-            ? "opacity-100 translate-y-0 scale-100" 
-            : "opacity-0 translate-y-4 scale-95"
-        )}
-      >
+      <div className={cn("transform transition-all duration-700 ease-out", isTyping ? "opacity-100 translate-y-0 scale-100" : "opacity-100 translate-y-0 scale-100")}> 
         {currentMessage && (
-          <div className={cn(
-            "flex items-start space-x-3 p-4 rounded-2xl border bg-gradient-to-br shadow-sm hover:shadow-md transition-all duration-300",
-            styling.containerClass
-          )}>
-            {/* Avatar com ícone animado */}
-            <div className={cn(
-              "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300",
-              styling.iconClass,
-              isTyping ? "animate-pulse" : "animate-gentle-float"
-            )}>
+          <div className={cn("flex items-start space-x-3 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300", styling.containerClass)}>
+            {/* Avatar com ícone */}
+            <div className={cn("flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300", styling.iconClass, isTyping ? "animate-pulse" : "")}> 
               <IconComponent className="w-4 h-4" />
             </div>
 
             {/* Conteúdo da mensagem */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center mb-1">
-                <span className="text-sm font-semibold text-gray-700">CodeBot</span>
-                <div className="ml-auto text-xs text-gray-500">
-                  {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </div>
+                <span className="text-sm font-semibold text-foreground/90">CodeBot</span>
+                <div className="ml-auto text-xs text-muted-foreground/80">{messageTimestamp}</div>
               </div>
-              
               <div className="relative">
-                <p className={cn(
-                  "text-sm leading-relaxed transition-colors duration-300",
-                  styling.textClass
-                )}>
+                <p className={cn("text-sm leading-relaxed transition-colors duration-300", styling.textClass)}>
                   {displayedText}
-                  {isTyping && (
-                    <span className="inline-block w-0.5 h-5 bg-current ml-1 animate-pulse" />
-                  )}
+                  {isTyping && <span className="inline-block w-0.5 h-4 bg-current ml-1 animate-pulse" />}
                 </p>
-                
-                {/* Efeito de partículas sutis durante digitação */}
-                {isTyping && (
-                  <div className="absolute -top-1 -right-1">
-                    <div className="w-2 h-2 bg-blue-300 rounded-full animate-ping opacity-30" />
-                  </div>
-                )}
               </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Progress indicator discreto */}
-      <div className="flex justify-center mt-4 space-x-1">
+      {/* Indicator */}
+      <div className="flex justify-center mt-3 space-x-1.5">
         {WELCOME_MESSAGES.map((_, index) => (
           <div
             key={index}
             className={cn(
               "w-1.5 h-1.5 rounded-full transition-all duration-300",
-              index < currentMessageIndex 
-                ? "bg-blue-500 scale-110" 
-                : index === currentMessageIndex 
-                  ? "bg-blue-300 animate-pulse scale-125" 
-                  : "bg-gray-200 scale-100"
+              index < currentMessageIndex
+                ? "bg-coderbot-purple/80 scale-110"
+                : index === currentMessageIndex
+                ? "bg-coderbot-purple/40 animate-pulse scale-125"
+                : "bg-muted/40 scale-100"
             )}
           />
         ))}
       </div>
 
-      {/* Breathing animation overlay para toda a experiência */}
-      <div className={cn(
-        "absolute inset-0 pointer-events-none transition-opacity duration-1000",
-        isTyping ? "opacity-5" : "opacity-0"
-      )}>
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-200/20 via-purple-200/20 to-pink-200/20 rounded-2xl animate-breathing" />
+      {/* Overlay sutil durante digitação */}
+      <div className={cn("absolute inset-0 pointer-events-none transition-opacity duration-700", isTyping ? "opacity-5" : "opacity-0")}> 
+        <div className="absolute inset-0 bg-gradient-to-r from-coderbot-purple/20 via-transparent to-transparent rounded-2xl" />
       </div>
     </div>
   );
