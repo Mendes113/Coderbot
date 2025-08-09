@@ -1,4 +1,4 @@
-import { User, MessageSquare, Code, GraduationCap, Presentation } from "lucide-react";
+import { User, MessageSquare, Code, GraduationCap, Presentation, Mail } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -46,6 +46,7 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
   const mainNavItems: NavItem[] = [
     { id: "chat", label: "Chat", icon: MessageSquare, accessKey: "c", path: "/dashboard/chat" },
     { id: "playground", label: "Playground", icon: Code, accessKey: "p", path: "/dashboard/playground" },
+    { id: "invitations", label: "Convites", icon: Mail, accessKey: "i", path: "/dashboard/invitations", roles: ["student", "teacher", "admin"] },
     {
       id: "teacher",
       label: "Turmas",
@@ -67,8 +68,11 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
 
   const filteredNavItems = mainNavItems.filter((item) => {
     if (!item.roles) return true;
-    if (!userRole) return false;
-    return item.roles.includes(userRole);
+    const normalizedUserRole = (userRole || "").toLowerCase().trim();
+    // Fallback: mostrar itens com controle de role mesmo se a role ainda não estiver carregada
+    if (!normalizedUserRole) return true;
+    const allowed = item.roles.map(r => r.toLowerCase().trim());
+    return allowed.includes(normalizedUserRole);
   });
 
   // Mapa de atalhos Alt+<tecla>

@@ -219,22 +219,27 @@ const EmotionalLoadingIndicator = ({ messages }: { messages: string[] }) => {
 
   return (
     <div className="flex flex-col items-center justify-center py-8 px-4">
-      {/* CodeBot pensando */}
-      <div className="mb-4">
+      <div className="mb-5">
         <CodeBotMascot emotion="thinking" size="large" />
       </div>
-      
-      {/* Mensagem dinâmica */}
-      <div className="text-center max-w-xs">
-        <p className="text-sm text-gray-600 font-medium animate-fade-in-out">
-          {messages[currentMessageIndex]}
-        </p>
-        
-        {/* Indicador de digitação tipo messenger */}
-        <div className="flex justify-center mt-3 space-x-1">
-          <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
-          <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-          <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+      <div className="w-full max-w-md">
+        <div className="relative overflow-hidden rounded-2xl border border-purple-100/60 bg-white/80 dark:bg-neutral-900/60 shadow-lg backdrop-blur-md">
+          <div className="absolute inset-0 pointer-events-none bg-gradient-to-br from-purple-50/60 to-fuchsia-50/40 dark:from-purple-900/20 dark:to-fuchsia-900/10"></div>
+          <div className="relative p-4">
+            <div className="flex items-center gap-3">
+              <div className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 bg-purple-50 text-purple-700">
+                <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
+                <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
+                <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+              </div>
+              <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                {messages[currentMessageIndex]}
+              </p>
+            </div>
+            <div className="mt-4 h-1.5 w-full bg-purple-100/60 dark:bg-purple-900/30 rounded-full overflow-hidden">
+              <div className="h-full w-2/3 bg-gradient-to-r from-purple-500 to-fuchsia-500 animate-pulse"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -546,11 +551,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const [isFirstInteraction, setIsFirstInteraction] = useState(true);
   const [userEngagement, setUserEngagement] = useState<'low' | 'medium' | 'high'>('medium');
   const [loadingMessages] = useState([
-    "Analisando sua pergunta com carinho... 🤔",
-    "Buscando a melhor forma de explicar... 💡",
-    "Preparando uma resposta especial para você... ✨",
-    "Organizando os conceitos de forma clara... 📚",
-    "Quase pronto! Criando algo incrível... 🚀"
+    "Pensando na melhor explicação pra você... 💡",
+    "Organizando os passos de forma clara... 🧩",
+    "Ajustando detalhes pra ficar redondinho... 🔎",
+    "Deixando tudo simples e direto... ✨",
+    "Quase lá! Finalizando sua resposta... 🚀"
   ]);
   const [celebrationCount, setCelebrationCount] = useState(0);
   const [showAchievement, setShowAchievement] = useState(false);
@@ -1456,26 +1461,7 @@ Obrigado pela paciência! 🤖✨`,
           )}
           
           {isLoading && (
-            <div className="flex flex-col items-center justify-center py-8 px-4">
-              {/* CodeBot pensando */}
-              <div className="mb-4">
-                <CodeBotMascot emotion="thinking" size="large" />
-              </div>
-              
-              {/* Enhanced typing indicator */}
-              <div className="bg-white/90 backdrop-blur-sm border border-purple-100 rounded-2xl p-4 shadow-lg max-w-md w-full">
-                <div className="flex items-center space-x-2">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  </div>
-                  <span className="text-sm text-gray-600 ml-2">
-                    {loadingMessages[Math.floor(Date.now() / 2000) % loadingMessages.length]}
-                  </span>
-                </div>
-              </div>
-            </div>
+            <EmotionalLoadingIndicator messages={loadingMessages} />
           )}
           <div ref={messagesEndRef} />
         </div>

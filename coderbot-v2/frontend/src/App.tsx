@@ -22,6 +22,7 @@ const Home = React.lazy(() => import("./home/Home"));
 const Mermaid = React.lazy(() => import("./pages/Mermaid"));
 const FlashCardPage = React.lazy(() => import("./pages/FlashCardPage"));
 const AdaptiveLearning = React.lazy(() => import("./pages/AdaptiveLearning"));
+const StudentInvitations = React.lazy(() => import("./components/student/StudentInvitations"));
 const Analytics = React.lazy(() => import("./pages/Analytics"));
 
 const queryClient = new QueryClient();
@@ -50,6 +51,7 @@ const App = () => {
                   <Route path="metrics" element={<LearningMetrics />} />
                   <Route path="teacher" element={<TeacherDashboard />} />
                   <Route path="student" element={<StudentDashboard />} />
+                  <Route path="invitations" element={<StudentInvitations />} />
                   <Route path="whiteboard" element={<Whiteboard />} />
                   <Route path="mermaid" element={<Mermaid />} />
                   <Route path="flashcard" element={<FlashCardPage />} />
