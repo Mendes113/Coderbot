@@ -28,6 +28,10 @@ export interface AgnoRequest {
   userContext?: UserContext;
   provider?: 'claude' | 'openai';
   modelId?: string;
+  includeFinalCode?: boolean;
+  includeDiagram?: boolean;
+  diagramType?: 'mermaid' | 'excalidraw';
+  maxFinalCodeLines?: number;
 }
 
 // Interface para a resposta do AGNO
@@ -39,6 +43,18 @@ export interface AgnoResponse {
     processingTime?: number;
     confidence?: number;
     suggestedNextSteps?: string[];
+  };
+  extras?: {
+    final_code?: {
+      language: string;
+      code: string;
+      truncated?: boolean;
+      line_count?: number;
+    };
+    diagram?: {
+      type: 'mermaid' | 'excalidraw' | string;
+      content: string;
+    };
   };
 }
 
@@ -246,7 +262,11 @@ class AgnoService {
         methodology: request.methodology,
         user_query: request.userQuery,
         context: request.context,
-        user_context: userContextConverted
+        user_context: userContextConverted,
+        include_final_code: request.includeFinalCode ?? true,
+        include_diagram: request.includeDiagram ?? true,
+        diagram_type: request.diagramType || 'mermaid',
+        max_final_code_lines: request.maxFinalCodeLines ?? 150
       };
 
       console.log("AGNO Request URL:", url);
@@ -271,7 +291,8 @@ class AgnoService {
         response: response.data.response,
         methodology: request.methodology,
         isXmlFormatted: response.data.is_xml_formatted || request.methodology === MethodologyType.WORKED_EXAMPLES,
-        metadata: response.data.metadata
+        metadata: response.data.metadata,
+        extras: response.data.extras
       };
     } catch (error: any) {
       const durationMs = Math.round(((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - startedAt);

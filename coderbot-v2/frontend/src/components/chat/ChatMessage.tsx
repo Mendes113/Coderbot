@@ -3,8 +3,10 @@ import { Bot, User, Copy, CheckCheck, Play, TerminalSquare, AlertTriangle } from
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import mermaid from "mermaid";
 import api from "@/lib/axios";
+import Editor from "@monaco-editor/react";
 
 const JUDGE0_URL = ""; // force proxy path
 const API_URL = (import.meta as any)?.env?.VITE_API_URL || "http://localhost:8000";
@@ -16,6 +18,71 @@ const simpleHash = (s: string) => {
     h = (h * 31 + s.charCodeAt(i)) | 0;
   }
   return `${h}`;
+};
+
+const MermaidView = ({ code, id }: { code: string; id: string }) => {
+  const [svg, setSvg] = useState<string>("");
+  const [error, setError] = useState<string>("");
+
+  const sanitize = (src: string) => {
+    let c = (src || "").trim();
+    // Remove cercas acidentais
+    c = c.replace(/^```mermaid\s*/i, "");
+    c = c.replace(/```\s*$/i, "");
+    // Se não começar com diretiva conhecida, prefixar um grafo simples
+    const startsOk = /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|journey|gantt|pie)\b/.test(c);
+    if (!startsOk) {
+      c = `graph TD\n${c}`;
+    }
+    return c;
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const render = async () => {
+      try {
+        mermaid.initialize({ startOnLoad: false, theme: "dark" });
+        const uniqueId = `mmd_${id}`;
+        const primary = sanitize(code);
+        try {
+          const result = await mermaid.render(uniqueId, primary);
+          if (!cancelled) {
+            setSvg(result.svg || "");
+            setError("");
+          }
+          return;
+        } catch (e1: any) {
+          // Segunda tentativa: encapsular em um grafo mínimo
+          const fallback = `graph TD\nA[Diagrama]-->B[Conteúdo]\n`;
+          const result2 = await mermaid.render(uniqueId + "_fb", fallback);
+          if (!cancelled) {
+            setSvg(result2.svg || "");
+            setError("Diagrama original inválido; exibindo fallback.");
+          }
+        }
+      } catch (e: any) {
+        if (!cancelled) {
+          setSvg("");
+          setError("Falha ao renderizar diagrama.");
+        }
+      }
+    };
+    render();
+    return () => { cancelled = true; };
+  }, [code, id]);
+
+  return (
+    <div className="bg-white p-4">
+      {svg ? (
+        <>
+          {error && <div className="text-xs text-red-500 mb-2">{error}</div>}
+          <div className="overflow-auto" dangerouslySetInnerHTML={{ __html: svg }} />
+        </>
+      ) : (
+        <div className="text-sm text-[#7d8590]">Não foi possível renderizar o diagrama.</div>
+      )}
+    </div>
+  );
 };
 
 type ChatMessageProps = {
@@ -150,19 +217,19 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
     return { level: 'info', text: statusDesc || 'Execução concluída.' };
   };
 
-  const runOnJudge0 = async (language: string | undefined, source: string, blockKey: string) => {
+  const runOnJudge0 = async (language: string | undefined, source: string, blockKey: string, stdin?: string) => {
     const langName = (language || 'javascript').toLowerCase();
     const langId = languageIdFrom(langName);
 
     console.log("=== EXECUTION DEBUG START ===");
-    console.log("[Runner] Run requested", { language: langName, langId, blockKey, API_URL, sourceCodeLength: source.length });
+    console.log("[Runner] Run requested", { language: langName, langId, blockKey, API_URL, sourceCodeLength: source.length, stdinLength: (stdin || '').length });
 
     setExecStates(prev => ({ ...prev, [blockKey]: { status: 'running' } }));
 
     // Always backend proxy now
     try {
       const endpoint = `${API_URL}/judge/executar`;
-      const payload = { language: langName, code: source } as { language: string; code: string };
+      const payload = { language: langName, code: source, stdin: stdin || "" } as { language: string; code: string; stdin?: string };
       console.log("[Runner] Using backend proxy", { endpoint, payload });
       const res = await api.post(endpoint, payload, { validateStatus: () => true });
       console.log("[Runner] Response status:", res.status);
@@ -213,6 +280,127 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
     return blocks;
   }, [contentWithoutQuiz]);
 
+  // Identify final code (last non-diagram block) and first diagram (mermaid/excalidraw)
+  const finalBlock = useMemo(() => {
+    for (let i = fencedBlocks.length - 1; i >= 0; i -= 1) {
+      const b = fencedBlocks[i];
+      const lang = (b.lang || '').toLowerCase();
+      if (lang === 'mermaid' || lang === 'excalidraw' || lang === 'quiz') continue;
+      if ((b.code || '').trim().length === 0) continue;
+      return b;
+    }
+    return null as null | { lang: string; code: string; blockKey: string };
+  }, [fencedBlocks]);
+
+  const [selectedView, setSelectedView] = useState<'explanation' | 'final'>('explanation');
+  const [editedFinalCode, setEditedFinalCode] = useState<string>(finalBlock?.code || '');
+  const [finalLang, setFinalLang] = useState<string>(finalBlock?.lang || 'javascript');
+  const [finalStdin, setFinalStdin] = useState<string>("");
+  const [downloadName, setDownloadName] = useState<string>("solution");
+  // keep edited code in sync when content changes
+  useMemo(() => {
+    if (finalBlock) {
+      setEditedFinalCode(finalBlock.code);
+      setFinalLang(finalBlock.lang || 'javascript');
+    }
+  }, [finalBlock?.blockKey]);
+
+  const downloadFinalCode = () => {
+    const lang = (finalLang || 'text').toLowerCase();
+    const extMap: Record<string, string> = { python: 'py', py: 'py', javascript: 'js', js: 'js', typescript: 'ts', ts: 'ts', java: 'java', c: 'c', cpp: 'cpp', cplusplus: 'cpp', ruby: 'rb', go: 'go', rust: 'rs', php: 'php', kotlin: 'kt' };
+    const ext = extMap[lang] || 'txt';
+    const blob = new Blob([editedFinalCode], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const base = downloadName && downloadName.trim().length > 0 ? downloadName.trim() : 'solution';
+    a.download = `${base}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const basicFormat = async () => {
+    const lang = (finalLang || '').toLowerCase();
+    if (lang.includes('python') || lang === 'py') {
+      try {
+        const res = await api.post('/format', { language: 'python', code: editedFinalCode });
+        const formatted = res?.data?.formatted || editedFinalCode;
+        setEditedFinalCode(formatted);
+        return;
+      } catch (e) {
+        // fallback abaixo
+      }
+    }
+    if (lang.includes('javascript') || lang === 'js' || lang.includes('typescript') || lang === 'ts') {
+      try {
+        // Carrega Prettier via CDN apenas em runtime (evita que o bundler resolva)
+        const ensureScript = (id: string, src: string) => new Promise<void>((resolve, reject) => {
+          if (document.getElementById(id)) return resolve();
+          const s = document.createElement('script');
+          s.id = id;
+          s.src = src;
+          s.async = true;
+          s.onload = () => resolve();
+          s.onerror = () => reject(new Error('Falha ao carregar ' + src));
+          document.head.appendChild(s);
+        });
+        // @ts-ignore
+        if (!(window as any).prettier) {
+          await ensureScript('prettier-standalone', 'https://unpkg.com/prettier@3.3.3/standalone.js');
+        }
+        // Plugins
+        const parser = lang.includes('ts') ? 'typescript' : 'babel';
+        const pluginUrls = parser === 'typescript'
+          ? [
+              'https://unpkg.com/prettier@3.3.3/plugins/estree.js',
+              'https://unpkg.com/prettier@3.3.3/plugins/typescript.js',
+            ]
+          : [
+              'https://unpkg.com/prettier@3.3.3/plugins/estree.js',
+              'https://unpkg.com/prettier@3.3.3/plugins/babel.js',
+            ];
+        for (let i = 0; i < pluginUrls.length; i++) {
+          await ensureScript('prettier-plugin-' + i + '-' + parser, pluginUrls[i]);
+        }
+        // @ts-ignore
+        const prettier = (window as any).prettier;
+        // @ts-ignore
+        const plugins = (window as any).prettierPlugins || (window as any).prettier?.plugins || [];
+        const formatted = prettier.format(editedFinalCode, {
+          parser,
+          plugins,
+          semi: true,
+          singleQuote: true,
+        });
+        setEditedFinalCode(formatted);
+        return;
+      } catch (e) {
+        // fallback abaixo
+      }
+    }
+    // Fallback simples
+    const lines = editedFinalCode.replace(/\r\n/g, '\n').split('\n').map(l => l.replace(/\s+$/g, ''));
+    setEditedFinalCode(lines.join('\n').trim() + '\n');
+  };
+
+  const monacoLanguage = useMemo(() => {
+    const m = (finalLang || '').toLowerCase();
+    if (m.includes('python') || m === 'py') return 'python';
+    if (m.includes('typescript') || m === 'ts' || m === 'tsx') return 'typescript';
+    if (m.includes('javascript') || m === 'js') return 'javascript';
+    if (m.includes('java')) return 'java';
+    if (m === 'c') return 'c';
+    if (m.includes('cpp') || m.includes('cplusplus')) return 'cpp';
+    if (m.includes('csharp') || m === 'cs') return 'csharp';
+    if (m.includes('go')) return 'go';
+    if (m.includes('rust')) return 'rust';
+    if (m.includes('php')) return 'php';
+    if (m.includes('kotlin')) return 'kotlin';
+    return 'plaintext';
+  }, [finalLang]);
+
   return (
     <div
       className={cn(
@@ -245,6 +433,35 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
       <div className="ml-10">
         {isAi ? (
           <div className="markdown-content prose prose-invert max-w-none">
+            {/* Tabs */}
+            {finalBlock && (
+              <div className="mb-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-xs border transition-colors",
+                    selectedView === 'explanation' ? 'bg-[#7c3aed] text-white border-[#a78bfa]' : 'bg-transparent border-[#6b7280] text-[#cbd5e1] hover:bg-white/10'
+                  )}
+                  onClick={() => setSelectedView('explanation')}
+                >
+                  Explicação
+                </button>
+                {finalBlock && (
+                  <button
+                    type="button"
+                    className={cn(
+                      "px-3 py-1.5 rounded-full text-xs border transition-colors",
+                      selectedView === 'final' ? 'bg-[#7c3aed] text-white border-[#a78bfa]' : 'bg-transparent border-[#6b7280] text-[#cbd5e1] hover:bg-white/10'
+                    )}
+                    onClick={() => setSelectedView('final')}
+                  >
+                    Código final
+                  </button>
+                )}
+              </div>
+            )}
+
+            {selectedView === 'explanation' && (
             <ReactMarkdown
               components={{
                 code({ node, className, children, inline, ...props }: any) {
@@ -257,155 +474,49 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
                   if (!isInline && lang && lang.toLowerCase() === 'quiz') {
                     return null;
                   }
+                    // Hide final code and diagram blocks in explanation view
+                    if (!isInline && lang) {
+                      const effectiveLang = (lang || 'javascript').toLowerCase();
+                      const blockKey = simpleHash(`${effectiveLang}::${code}`);
+                      if (finalBlock && blockKey === finalBlock.blockKey) return null;
+                      if (effectiveLang === 'mermaid' || effectiveLang === 'excalidraw') return null; // sempre ocultar diagramas
+                    }
 
                   if (!isInline) {
-                    codeBlockCounter += 1;
-                    const currentIndex = codeBlockCounter;
-                    const effectiveLang = lang || 'javascript';
-                    const judgeSupported = languageIdFrom(effectiveLang) !== null;
-                    const blockKey = simpleHash(`${effectiveLang}::${code}`);
-                    const running = execStates[blockKey]?.status === 'running';
-
+                    const effectiveLang = lang || 'text';
                     return (
-                      <div className="relative group my-4 rounded-lg overflow-hidden bg-[#0d1117] border border-[#30363d]">
-                        <div className="flex items-center justify-between bg-[#161b22] px-4 py-2.5 border-b border-[#30363d]">
-                          <div className="flex items-center gap-2">
-                            <div className="flex gap-1.5">
-                              <div className="w-3 h-3 rounded-full bg-[#ff605c]"></div>
-                              <div className="w-3 h-3 rounded-full bg-[#ffbd2e]"></div>
-                              <div className="w-3 h-3 rounded-full bg-[#28ca42]"></div>
-                            </div>
-                            <span className="text-sm text-[#7d8590] font-mono ml-2">
-                              {effectiveLang}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {judgeSupported && (
-                              <button
-                                type="button"
-                                onClick={() => runOnJudge0(effectiveLang, code, blockKey)}
-                                className={"opacity-90 transition-opacity duration-200 rounded px-3 py-1.5 text-[#7d8590] text-sm flex items-center gap-1.5 " + (running ? " bg-[#30363d] cursor-not-allowed" : " bg-[#21262d] hover:bg-[#30363d] hover:text-[#c9d1d9]")}
-                                aria-label="Executar código"
-                                disabled={running}
-                              >
-                                                                                                                                                                                                      <Play size={14} />
-                                                                                                                                                                                                      {running ? 'Executando...' : 'Executar'}
-                                                                                                                                                                                                    </button>
+                      <div className="my-3 rounded-md overflow-hidden bg-[#0d1117] border border-[#30363d]">
+                        <div className="flex items-center justify-between px-3 py-2 border-b border-[#30363d]">
+                          <span className="text-xs text-[#9ca3af] font-mono">{effectiveLang}</span>
+                          <button 
+                            onClick={() => copyToClipboard(code)}
+                            className="opacity-90 hover:opacity-100 transition-opacity duration-200 bg-[#21262d] hover:bg-[#30363d] rounded px-2 py-1 text-[#7d8590] hover:text-[#c9d1d9] text-xs flex items-center gap-1"
+                            aria-label="Copy code"
+                          >
+                            {copiedCode === code ? (
+                              <>
+                                <CheckCheck size={12} className="text-[#3fb950]" />
+                                <span className="text-[#3fb950]">Copiado</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy size={12} />
+                                <span>Copiar</span>
+                              </>
                             )}
-                            {!judgeSupported && (
-                              <span className="text-xs text-[#7d8590]">Linguagem não suportada</span>
-                            )}
-                            <button 
-                              onClick={() => copyToClipboard(code)}
-                              className="opacity-90 hover:opacity-100 transition-opacity duration-200 bg-[#21262d] hover:bg-[#30363d] rounded px-3 py-1.5 text-[#7d8590] hover:text-[#c9d1d9] text-sm flex items-center gap-1.5"
-                              aria-label="Copy code"
-                            >
-                              {copiedCode === code ? (
-                                <>
-                                  <CheckCheck size={14} className="text-[#3fb950]" />
-                                  <span className="text-[#3fb950]">Copiado!</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Copy size={14} />
-                                  <span>Copiar</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
+                          </button>
                         </div>
                         <div className="overflow-x-auto">
                           <SyntaxHighlighter
-                            language={lang || 'javascript'}
+                            language={lang || 'text'}
                             style={oneDark}
-                            customStyle={{ 
-                              margin: 0,
-                              borderRadius: 0,
-                              background: '#0d1117',
-                              fontSize: '14px',
-                              lineHeight: '1.6',
-                              padding: '20px'
-                            }}
-                            showLineNumbers={true}
-                            lineNumberStyle={{
-                              color: '#7d8590',
-                              paddingRight: '1em',
-                              userSelect: 'none'
-                            }}
+                            customStyle={{ margin: 0, borderRadius: 0, background: '#0d1117', fontSize: '14px', lineHeight: '1.6', padding: '16px' }}
+                            showLineNumbers={false}
                             wrapLongLines={false}
                             {...props}
                           >
                             {code}
                           </SyntaxHighlighter>
-                        </div>
-                        <div className="border-t border-[#30363d] bg-[#0f1420] px-4 py-3 text-sm text-[#c9d1d9]">
-                          <div className="flex items-center gap-2 mb-2">
-                            <TerminalSquare size={16} />
-                            <span className="text-[#7d8590]">Saída da execução</span>
-                          </div>
-                          {execStates[blockKey]?.status === 'running' && (
-                            <div className="text-[#7d8590]">Executando...</div>
-                          )}
-                          {execStates[blockKey]?.status === 'done' && (
-                            <>
-                              {(() => {
-                                const summary = buildSummary(effectiveLang, execStates[blockKey]?.data);
-                                const open = Boolean(detailsOpen[blockKey]);
-                                return (
-                                  <div className="space-y-2">
-                                    <div className={cn(
-                                      "px-3 py-2 rounded-md text-sm flex items-start gap-2",
-                                      summary.level === 'success' && 'bg-[#0c1a10] text-[#c9d1d9] border border-[#1f6f3e]',
-                                      summary.level === 'info' && 'bg-[#0d1726] text-[#c9d1d9] border border-[#1f3b6f]',
-                                      summary.level === 'warn' && 'bg-[#1b150c] text-[#c9d1d9] border border-[#6f531f]',
-                                      summary.level === 'error' && 'bg-[#1a0c0c] text-[#c9d1d9] border border-[#6f1f1f]'
-                                    )}>
-                                      <div className="pt-0.5">
-                                        {summary.level === 'success' ? <CheckCheck size={14} className="text-[#3fb950]"/> : summary.level === 'warn' ? <AlertTriangle size={14} className="text-[#f59e0b]"/> : summary.level === 'error' ? <AlertTriangle size={14} className="text-[#ef4444]"/> : <TerminalSquare size={14} className="text-[#60a5fa]"/>}
-                                      </div>
-                                      <div className="flex-1">
-                                        {summary.text}
-                                      </div>
-                                      <button
-                                        type="button"
-                                        className="text-xs text-[#7d8590] hover:text-[#c9d1d9] underline ml-2"
-                                        onClick={() => toggleDetails(blockKey)}
-                                      >
-                                        {open ? 'Ocultar detalhes' : 'Mostrar detalhes'}
-                                      </button>
-                                    </div>
-
-                                    {open && (
-                                      <div className="space-y-2">
-                                        <pre className="whitespace-pre-wrap text-[#c9d1d9]">{execStates[blockKey]?.output}</pre>
-                                        {execStates[blockKey]?.meta && (
-                                          <div className="mt-2 text-xs text-[#7d8590]">
-                                            <div>Executado via: {execStates[blockKey]?.meta?.path}</div>
-                                            <div>HTTP: {execStates[blockKey]?.meta?.status} • endpoint: {execStates[blockKey]?.meta?.endpoint}</div>
-                                            {execStates[blockKey]?.meta?.token && (<div>token: {execStates[blockKey]?.meta?.token}</div>)}
-                                            {execStates[blockKey]?.meta?.message && (<div>mensagem: {execStates[blockKey]?.meta?.message}</div>)}
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })()}
-                            </>
-                          )}
-                          {execStates[blockKey]?.status === 'error' && (
-                            <div className="text-red-400 flex flex-col gap-1">
-                              <div className="flex items-center gap-2"><AlertTriangle size={14} /> {execStates[blockKey]?.error}</div>
-                              {execStates[blockKey]?.meta && (
-                                <div className="text-xs text-[#fca5a5]">
-                                  <div>via: {execStates[blockKey]?.meta?.path} • endpoint: {execStates[blockKey]?.meta?.endpoint}</div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          {!execStates[blockKey] && (
-                            <div className="text-[#7d8590]">Clique em Executar para ver a saída.</div>
-                          )}
                         </div>
                       </div>
                     );
@@ -450,149 +561,47 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
             >
               {contentWithoutQuiz}
             </ReactMarkdown>
+            )}
 
-            {/* Fallback runner when markdown produced no code blocks */}
-            {codeBlockCounter < 0 && fencedBlocks.length > 0 && (
+            {/* Fallback runner when markdown produced no code blocks - only in explanation view */}
+            {selectedView === 'explanation' && codeBlockCounter < 0 && fencedBlocks.length > 0 && (
               <div className="mt-4 space-y-4">
                 {fencedBlocks.map(({ lang, code, blockKey }) => {
-                  const judgeSupported = languageIdFrom(lang) !== null;
-                  const running = execStates[blockKey]?.status === 'running';
+                  // hide in explanation if this is final or diagram
+                  if (finalBlock && blockKey === finalBlock.blockKey) return null;
+                  if (lang === 'mermaid' || lang === 'excalidraw') return null; // sempre ocultar diagramas
                   return (
-                    <div key={blockKey} className="relative group rounded-lg overflow-hidden bg-[#0d1117] border border-[#30363d]">
-                      <div className="flex items-center justify-between bg-[#161b22] px-4 py-2.5 border-b border-[#30363d]">
-                        <div className="flex items-center gap-2">
-                          <div className="flex gap-1.5">
-                            <div className="w-3 h-3 rounded-full bg-[#ff605c]"></div>
-                            <div className="w-3 h-3 rounded-full bg-[#ffbd2e]"></div>
-                            <div className="w-3 h-3 rounded-full bg-[#28ca42]"></div>
-                          </div>
-                          <span className="text-sm text-[#7d8590] font-mono ml-2">{lang}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {judgeSupported ? (
-                            <button
-                              type="button"
-                              onClick={() => runOnJudge0(lang, code, blockKey)}
-                              className={"opacity-90 transition-opacity duration-200 rounded px-3 py-1.5 text-[#7d8590] text-sm flex items-center gap-1.5 " + (running ? " bg-[#30363d] cursor-not-allowed" : " bg-[#21262d] hover:bg-[#30363d] hover:text-[#c9d1d9]")}
-                              aria-label="Executar código"
-                              disabled={running}
-                            >
-                              <Play size={14} />
-                              {running ? 'Executando...' : 'Executar'}
-                            </button>
+                    <div key={blockKey} className="rounded-md overflow-hidden bg-[#0d1117] border border-[#30363d]">
+                      <div className="flex items-center justify-between px-3 py-2 border-b border-[#30363d]">
+                        <span className="text-xs text-[#9ca3af] font-mono">{lang || 'text'}</span>
+                        <button 
+                          onClick={() => copyToClipboard(code)}
+                          className="opacity-90 hover:opacity-100 transition-opacity duration-200 bg-[#21262d] hover:bg-[#30363d] rounded px-2 py-1 text-[#7d8590] hover:text-[#c9d1d9] text-xs flex items-center gap-1"
+                          aria-label="Copy code"
+                        >
+                          {copiedCode === code ? (
+                            <>
+                              <CheckCheck size={12} className="text-[#3fb950]" />
+                              <span className="text-[#3fb950]">Copiado</span>
+                            </>
                           ) : (
-                            <span className="text-xs text-[#7d8590]">Linguagem não suportada</span>
+                            <>
+                              <Copy size={12} />
+                              <span>Copiar</span>
+                            </>
                           )}
-                          <button 
-                            onClick={() => copyToClipboard(code)}
-                            className="opacity-90 hover:opacity-100 transition-opacity duration-200 bg-[#21262d] hover:bg-[#30363d] rounded px-3 py-1.5 text-[#7d8590] hover:text-[#c9d1d9] text-sm flex items-center gap-1.5"
-                            aria-label="Copy code"
-                          >
-                            {copiedCode === code ? (
-                              <>
-                                <CheckCheck size={14} className="text-[#3fb950]" />
-                                <span className="text-[#3fb950]">Copiado!</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy size={14} />
-                                <span>Copiar</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
+                        </button>
                       </div>
                       <div className="overflow-x-auto">
                         <SyntaxHighlighter
-                          language={lang || 'javascript'}
+                          language={lang || 'text'}
                           style={oneDark}
-                          customStyle={{ 
-                            margin: 0,
-                            borderRadius: 0,
-                            background: '#0d1117',
-                            fontSize: '14px',
-                            lineHeight: '1.6',
-                            padding: '20px'
-                          }}
-                          showLineNumbers={true}
-                          lineNumberStyle={{
-                            color: '#7d8590',
-                            paddingRight: '1em',
-                            userSelect: 'none'
-                          }}
+                          customStyle={{ margin: 0, borderRadius: 0, background: '#0d1117', fontSize: '14px', lineHeight: '1.6', padding: '16px' }}
+                          showLineNumbers={false}
                           wrapLongLines={false}
                         >
                           {code}
                         </SyntaxHighlighter>
-                      </div>
-                      <div className="border-t border-[#30363d] bg-[#0f1420] px-4 py-3 text-sm text-[#c9d1d9]">
-                        <div className="flex items-center gap-2 mb-2">
-                          <TerminalSquare size={16} />
-                          <span className="text-[#7d8590]">Saída da execução</span>
-                        </div>
-                        {execStates[blockKey]?.status === 'running' && (
-                          <div className="text-[#7d8590]">Executando...</div>
-                        )}
-                        {execStates[blockKey]?.status === 'done' && (
-                          <>
-                            {(() => {
-                              const summary = buildSummary(lang, execStates[blockKey]?.data);
-                              const open = Boolean(detailsOpen[blockKey]);
-                              return (
-                                <div className="space-y-2">
-                                  <div className={cn(
-                                    "px-3 py-2 rounded-md text-sm flex items-start gap-2",
-                                    summary.level === 'success' && 'bg-[#0c1a10] text-[#c9d1d9] border border-[#1f6f3e]',
-                                    summary.level === 'info' && 'bg-[#0d1726] text-[#c9d1d9] border border-[#1f3b6f]',
-                                    summary.level === 'warn' && 'bg-[#1b150c] text-[#c9d1d9] border border-[#6f531f]',
-                                    summary.level === 'error' && 'bg-[#1a0c0c] text-[#c9d1d9] border border-[#6f1f1f]'
-                                  )}>
-                                    <div className="pt-0.5">
-                                      {summary.level === 'success' ? <CheckCheck size={14} className="text-[#3fb950]"/> : summary.level === 'warn' ? <AlertTriangle size={14} className="text-[#f59e0b]"/> : summary.level === 'error' ? <AlertTriangle size={14} className="text-[#ef4444]"/> : <TerminalSquare size={14} className="text-[#60a5fa]"/>}
-                                    </div>
-                                    <div className="flex-1">
-                                      {summary.text}
-                                    </div>
-                                    <button
-                                      type="button"
-                                      className="text-xs text-[#7d8590] hover:text-[#c9d1d9] underline ml-2"
-                                      onClick={() => toggleDetails(blockKey)}
-                                    >
-                                      {open ? 'Ocultar detalhes' : 'Mostrar detalhes'}
-                                    </button>
-                                  </div>
-
-                                  {open && (
-                                    <div className="space-y-2">
-                                      <pre className="whitespace-pre-wrap text-[#c9d1d9]">{execStates[blockKey]?.output}</pre>
-                                      {execStates[blockKey]?.meta && (
-                                        <div className="mt-2 text-xs text-[#7d8590]">
-                                          <div>Executado via: {execStates[blockKey]?.meta?.path}</div>
-                                          <div>HTTP: {execStates[blockKey]?.meta?.status} • endpoint: {execStates[blockKey]?.meta?.endpoint}</div>
-                                          {execStates[blockKey]?.meta?.token && (<div>token: {execStates[blockKey]?.meta?.token}</div>)}
-                                          {execStates[blockKey]?.meta?.message && (<div>mensagem: {execStates[blockKey]?.meta?.message}</div>)}
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })()}
-                          </>
-                        )}
-                        {execStates[blockKey]?.status === 'error' && (
-                          <div className="text-red-400 flex flex-col gap-1">
-                            <div className="flex items-center gap-2"><AlertTriangle size={14} /> {execStates[blockKey]?.error}</div>
-                            {execStates[blockKey]?.meta && (
-                              <div className="text-xs text-[#fca5a5]">
-                                <div>via: {execStates[blockKey]?.meta?.path} • endpoint: {execStates[blockKey]?.meta?.endpoint}</div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        {!execStates[blockKey] && (
-                          <div className="text-[#7d8590]">Clique em Executar para ver a saída.</div>
-                        )}
                       </div>
                     </div>
                   );
@@ -600,8 +609,8 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
               </div>
             )}
 
-            {/* Render quiz options if present */}
-            {quizData && (
+            {/* Quiz options render in explanation view */}
+            {selectedView === 'explanation' && quizData && (
               <div className="mt-4 p-3 rounded-xl border border-[#30363d] bg-[#0f1420]">
                 <div className="text-sm text-white font-medium mb-2">{quizData.question || 'Quiz'}</div>
                 <div className="flex gap-2 flex-wrap">
@@ -641,6 +650,164 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
                 )}
               </div>
             )}
+
+            {/* Final code view */}
+            {selectedView === 'final' && finalBlock && (
+              <div className="rounded-lg overflow-hidden bg-[#0d1117] border border-[#30363d]">
+                <div className="flex items-center justify-between bg-[#161b22] px-4 py-2.5 border-b border-[#30363d]">
+                  <div className="text-sm text-[#7d8590] font-mono">{finalLang || 'javascript'}</div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={basicFormat}
+                      className="opacity-90 transition-opacity duration-200 rounded px-3 py-1.5 text-[#7d8590] text-sm bg-[#21262d] hover:bg-[#30363d] hover:text-[#c9d1d9]"
+                    >
+                      Formatar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={downloadFinalCode}
+                      className="opacity-90 transition-opacity duration-200 rounded px-3 py-1.5 text-[#7d8590] text-sm bg-[#21262d] hover:bg-[#30363d] hover:text-[#c9d1d9]"
+                    >
+                      Baixar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const key = simpleHash(`${(finalLang || 'javascript').toLowerCase()}::${editedFinalCode}`);
+                        runOnJudge0(finalLang || 'javascript', editedFinalCode, key, finalStdin);
+                      }}
+                      className="opacity-90 transition-opacity duration-200 rounded px-3 py-1.5 text-[#7d8590] text-sm flex items-center gap-1.5 bg-[#21262d] hover:bg-[#30363d] hover:text-[#c9d1d9]"
+                    >
+                      <Play size={14} /> Executar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(editedFinalCode)}
+                      className="opacity-90 hover:opacity-100 transition-opacity duration-200 bg-[#21262d] hover:bg-[#30363d] rounded px-3 py-1.5 text-[#7d8590] hover:text-[#c9d1d9] text-sm flex items-center gap-1.5"
+                    >
+                      {copiedCode === editedFinalCode ? (
+                        <>
+                          <CheckCheck size={14} className="text-[#3fb950]" />
+                          <span className="text-[#3fb950]">Copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={14} />
+                          <span>Copiar</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <div className="border-t border-[#30363d]"></div>
+                <Editor
+                  height="320px"
+                  language={monacoLanguage}
+                  theme="vs-dark"
+                  value={editedFinalCode}
+                  onChange={(val) => setEditedFinalCode(val ?? '')}
+                  options={{
+                    wordWrap: 'on',
+                    minimap: { enabled: false },
+                    fontSize: 14,
+                    lineNumbers: 'on',
+                    scrollBeyondLastLine: false,
+                    smoothScrolling: true,
+                    tabSize: 2,
+                  }}
+                />
+                <div className="px-4 py-2 border-t border-[#30363d] bg-[#0d1117]">
+                  {/(input\s*\(|prompt\s*\()/i.test(editedFinalCode) && (
+                    <div className="mb-2 text-xs text-[#9ca3af]">Este código solicita entradas. Preencha o campo abaixo com os valores de stdin (um por linha), por exemplo:<br/>18<br/>8.5</div>
+                  )}
+                  <label className="block text-xs text-[#9ca3af] mb-1">Entrada (stdin opcional)</label>
+                  <textarea
+                    value={finalStdin}
+                    onChange={(e) => setFinalStdin(e.target.value)}
+                    className="w-full bg-[#0b0f14] text-[#c9d1d9] p-2 font-mono text-xs outline-none min-h-[80px] border border-[#30363d] rounded"
+                    placeholder="Valores para stdin..."
+                  />
+                  <div className="mt-2 flex items-center gap-2">
+                    <label className="text-xs text-[#9ca3af]">Nome do arquivo:</label>
+                    <input
+                      value={downloadName}
+                      onChange={(e) => setDownloadName(e.target.value)}
+                      className="bg-[#0b0f14] text-[#c9d1d9] px-2 py-1 text-xs outline-none border border-[#30363d] rounded"
+                      placeholder="solution"
+                    />
+                  </div>
+                </div>
+                {(() => {
+                  const key = simpleHash(`${(finalLang || 'javascript').toLowerCase()}::${editedFinalCode}`);
+                  const status = execStates[key]?.status;
+                  return (
+                    <div className="border-t border-[#30363d] bg-[#0f1420] px-4 py-3 text-sm text-[#c9d1d9]">
+                      <div className="flex items-center gap-2 mb-2">
+                        <TerminalSquare size={16} />
+                        <span className="text-[#7d8590]">Saída da execução</span>
+                      </div>
+                      {status === 'running' && <div className="text-[#7d8590]">Executando...</div>}
+                      {status === 'done' && (
+                        (() => {
+                          const summary = buildSummary(finalLang || 'javascript', execStates[key]?.data);
+                          const open = Boolean(detailsOpen[key]);
+                          return (
+                            <div className="space-y-2">
+                              <div className={cn(
+                                "px-3 py-2 rounded-md text-sm flex items-start gap-2",
+                                summary.level === 'success' && 'bg-[#0c1a10] text-[#c9d1d9] border border-[#1f6f3e]',
+                                summary.level === 'info' && 'bg-[#0d1726] text-[#c9d1d9] border border-[#1f3b6f]',
+                                summary.level === 'warn' && 'bg-[#1b150c] text-[#c9d1d9] border border-[#6f531f]',
+                                summary.level === 'error' && 'bg-[#1a0c0c] text-[#c9d1d9] border border-[#6f1f1f]'
+                              )}>
+                                <div className="pt-0.5">
+                                  {summary.level === 'success' ? <CheckCheck size={14} className="text-[#3fb950]"/> : summary.level === 'warn' ? <AlertTriangle size={14} className="text-[#f59e0b]"/> : summary.level === 'error' ? <AlertTriangle size={14} className="text-[#ef4444]"/> : <TerminalSquare size={14} className="text-[#60a5fa]"/>}
+                                </div>
+                                <div className="flex-1">{summary.text}</div>
+                                <button
+                                  type="button"
+                                  className="text-xs text-[#7d8590] hover:text-[#c9d1d9] underline ml-2"
+                                  onClick={() => toggleDetails(key)}
+                                >
+                                  {open ? 'Ocultar detalhes' : 'Mostrar detalhes'}
+                                </button>
+                              </div>
+                              {open && (
+                                <div className="space-y-2">
+                                  <pre className="whitespace-pre-wrap text-[#c9d1d9]">{execStates[key]?.output}</pre>
+                                  {execStates[key]?.meta && (
+                                    <div className="mt-2 text-xs text-[#7d8590]">
+                                      <div>Executado via: {execStates[key]?.meta?.path}</div>
+                                      <div>HTTP: {execStates[key]?.meta?.status} • endpoint: {execStates[key]?.meta?.endpoint}</div>
+                                      {execStates[key]?.meta?.token && (<div>token: {execStates[key]?.meta?.token}</div>)}
+                                      {execStates[key]?.meta?.message && (<div>mensagem: {execStates[key]?.meta?.message}</div>)}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()
+                      )}
+                      {status === 'error' && (
+                        <div className="text-red-400 flex flex-col gap-1">
+                          <div className="flex items-center gap-2"><AlertTriangle size={14} /> {execStates[key]?.error}</div>
+                          {execStates[key]?.meta && (
+                            <div className="text-xs text-[#fca5a5]">
+                              <div>via: {execStates[key]?.meta?.path} • endpoint: {execStates[key]?.meta?.endpoint}</div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {!status && <div className="text-[#7d8590]">Edite e clique em Executar para ver a saída.</div>}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Diagram view removido */}
           </div>
         ) : (
           <div className={cn("text-base whitespace-pre-wrap leading-relaxed", "text-white")}>{content}</div>

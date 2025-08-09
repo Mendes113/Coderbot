@@ -70,15 +70,16 @@ PISTON_URL = os.getenv("PISTON_URL", "https://emkc.org/api/v2/piston")
 class ExecRequest(BaseModel):
     language: str  # "javascript", "python", ...
     code: str
+    stdin: str | None = ""
 
 import base64
 
-async def try_local_judge0(lang_id: int, source_code: str) -> dict:
+async def try_local_judge0(lang_id: int, source_code: str, stdin: str) -> dict:
     """Try to execute code using local Judge0 instance"""
     payload = {
         "language_id": lang_id,
         "source_code": source_code,  # Local Judge0 uses plain text
-        "stdin": ""
+        "stdin": stdin or ""
     }
     
     submit_endpoint = f"{LOCAL_JUDGE0_URL}/submissions?base64_encoded=false&wait=true"
@@ -112,7 +113,7 @@ async def try_local_judge0(lang_id: int, source_code: str) -> dict:
             logger.warning(f"Local Judge0 connection failed: {e}")
             raise e
 
-async def try_piston(language_name: str, source_code: str) -> dict:
+async def try_piston(language_name: str, source_code: str, stdin: str) -> dict:
     """Fallback to Piston API (no key) for minimal execution"""
     piston_lang = LANGUAGE_TO_PISTON.get(language_name)
     if not piston_lang:
@@ -164,7 +165,7 @@ async def try_piston(language_name: str, source_code: str) -> dict:
         payload = {
             "language": piston_lang,
             "version": str(version),
-            "stdin": "",
+            "stdin": stdin or "",
             "files": [
                 {"name": f"main.{ 'py' if piston_lang=='python' else 'txt' }", "content": source_code}
             ]
@@ -190,12 +191,12 @@ async def try_piston(language_name: str, source_code: str) -> dict:
             "status": {"id": 0 if code == 0 else 1, "description": status_desc}
         }
 
-async def try_rapidapi_judge0(lang_id: int, source_code: str) -> dict:
+async def try_rapidapi_judge0(lang_id: int, source_code: str, stdin: str) -> dict:
     """Fallback to RapidAPI Judge0"""
     payload = {
         "language_id": lang_id,
         "source_code": base64.b64encode(source_code.encode()).decode(),  # RapidAPI uses base64
-        "stdin": ""
+        "stdin": base64.b64encode((stdin or "").encode()).decode()
     }
     
     logger.info("Falling back to RapidAPI Judge0")
@@ -227,7 +228,7 @@ async def executar(req: ExecRequest):
 
     # PRIMARY: Piston (no key, reliable for minimal execution)
     try:
-        piston = await try_piston(lang_name, req.code)
+        piston = await try_piston(lang_name, req.code, req.stdin or "")
         logger.info("Executed using Piston (primary)")
         return piston
     except Exception as piston_error:
@@ -236,7 +237,7 @@ async def executar(req: ExecRequest):
     # SECONDARY (optional): RapidAPI Judge0 if key present and lang_id mapped
     if lang_id is not None and getattr(settings, 'rapidapi_key', ''):
         try:
-            rapid = await try_rapidapi_judge0(lang_id, req.code)
+            rapid = await try_rapidapi_judge0(lang_id, req.code, req.stdin or "")
             logger.info("Executed using RapidAPI Judge0 (secondary)")
             return rapid
         except Exception as rapidapi_error:

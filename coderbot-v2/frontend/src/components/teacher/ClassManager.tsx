@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -8,43 +8,19 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { School, Plus, Users, BookOpen, Calendar, Edit, Trash2, Eye, UserPlus } from "lucide-react";
+import { createClass, listTeachingClasses, ClassSummary } from "@/integrations/pocketbase/client";
 
 type Class = {
-  id: number;
+  id: string;
   name: string;
-  description: string;
-  studentCount: number;
-  activitiesCount: number;
-  schedule: string;
+  description?: string;
+  studentCount?: number;
+  activitiesCount?: number;
+  schedule?: string;
 };
 
 export const ClassManager = () => {
-  const [classes, setClasses] = useState<Class[]>([
-    {
-      id: 1,
-      name: "Desenvolvimento Web",
-      description: "HTML, CSS e JavaScript para iniciantes",
-      studentCount: 18,
-      activitiesCount: 12,
-      schedule: "Segunda e Quarta, 19h-21h"
-    },
-    {
-      id: 2,
-      name: "React Frontend",
-      description: "Desenvolvimento de aplicações modernas com React",
-      studentCount: 15,
-      activitiesCount: 8,
-      schedule: "Terça e Quinta, 19h-21h"
-    },
-    {
-      id: 3,
-      name: "Backend com Node.js",
-      description: "Criação de APIs e servidores com Node.js",
-      studentCount: 12,
-      activitiesCount: 10,
-      schedule: "Sábado, 9h-12h"
-    }
-  ]);
+  const [classes, setClasses] = useState<Class[]>([]);
 
   const [newClass, setNewClass] = useState({
     name: "",
@@ -54,23 +30,36 @@ export const ClassManager = () => {
 
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
 
-  const handleAddClass = () => {
-    const newId = classes.length > 0 ? Math.max(...classes.map(c => c.id)) + 1 : 1;
-    
-    setClasses([...classes, {
-      id: newId,
-      name: newClass.name,
-      description: newClass.description,
-      studentCount: 0,
-      activitiesCount: 0,
-      schedule: newClass.schedule
-    }]);
-    
-    setNewClass({
-      name: "",
-      description: "",
-      schedule: ""
-    });
+  const loadClasses = async () => {
+    try {
+      const list = await listTeachingClasses();
+      const mapped: Class[] = (list || []).map((item: ClassSummary) => ({
+        id: (item as any).id,
+        name: (item as any).title || (item as any).name || "Turma",
+        description: (item as any).description || "",
+        studentCount: 0,
+        activitiesCount: 0,
+      }));
+      setClasses(mapped);
+    } catch (err) {
+      // silenciar por enquanto
+    }
+  };
+
+  useEffect(() => {
+    loadClasses();
+  }, []);
+
+  const handleAddClass = async () => {
+    if (!newClass.name.trim()) return;
+    try {
+      await createClass(newClass.name.trim(), newClass.description?.trim());
+      await loadClasses();
+    } catch (err) {
+      // opcional: toast de erro
+    } finally {
+      setNewClass({ name: "", description: "", schedule: "" });
+    }
   };
 
   return (
@@ -138,99 +127,42 @@ export const ClassManager = () => {
                 <CardTitle>{classItem.name}</CardTitle>
                 <div className="flex gap-1">
                   <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                     <Edit className="h-4 w-4" />
                   </Button>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[600px]">
-                      <DialogHeader>
-                        <DialogTitle>Detalhes da Turma</DialogTitle>
-                        <DialogDescription>
-                          {classItem.description}
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between border-b pb-2">
-                          <span className="font-medium">Horário:</span>
-                          <span className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            {classItem.schedule}
-                          </span>
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-medium mb-2">Alunos Matriculados</h3>
-                          <div className="border rounded-lg overflow-hidden">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead className="w-[250px]">Nome</TableHead>
-                                  <TableHead>Email</TableHead>
-                                  <TableHead className="text-right">Progresso</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {classItem.id === 1 ? (
-                                  [
-                                    { id: 1, name: "Ana Silva", email: "ana.silva@example.com", progress: "85%" },
-                                    { id: 2, name: "Carlos Mendes", email: "carlos.m@example.com", progress: "72%" },
-                                    { id: 3, name: "Juliana Costa", email: "ju.costa@example.com", progress: "93%" },
-                                  ].map(student => (
-                                    <TableRow key={student.id}>
-                                      <TableCell className="font-medium">{student.name}</TableCell>
-                                      <TableCell>{student.email}</TableCell>
-                                      <TableCell className="text-right">{student.progress}</TableCell>
-                                    </TableRow>
-                                  ))
-                                ) : (
-                                  <TableRow>
-                                    <TableCell colSpan={3} className="text-center text-muted-foreground">
-                                      Os dados dos alunos serão exibidos aqui
-                                    </TableCell>
-                                  </TableRow>
-                                )}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        </div>
-                      </div>
-                      <DialogFooter className="mt-4">
-                        <Button variant="outline">Gerenciar Alunos</Button>
-                        <Button>Adicionar Atividade</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
-              <CardDescription>{classItem.description}</CardDescription>
+              <CardDescription className="line-clamp-2">{classItem.description || "Sem descrição"}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-4 py-2">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{classItem.studentCount} Alunos</span>
+                  <Users className="h-4 w-4" />
+                  <span>{classItem.studentCount ?? 0} alunos</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <BookOpen className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{classItem.activitiesCount} Atividades</span>
+                  <BookOpen className="h-4 w-4" />
+                  <span>{classItem.activitiesCount ?? 0} atividades</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{classItem.schedule}</span>
+                  <Calendar className="h-4 w-4" />
+                  <span>{classItem.schedule || "Sem horário"}</span>
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="bg-muted/50 py-2 flex justify-between">
-              <Button variant="outline" size="sm" className="gap-1">
+            <CardFooter className="flex justify-end gap-2">
+              <Button size="sm" variant="secondary" className="gap-2">
                 <UserPlus className="h-4 w-4" />
-                Adicionar Alunos
+                Convidar Alunos
               </Button>
-              <Button size="sm" className="gap-1">
-                <Plus className="h-4 w-4" />
-                Nova Atividade
+              <Button size="sm" className="gap-2">
+                <Calendar className="h-4 w-4" />
+                Criar Evento
               </Button>
             </CardFooter>
           </Card>

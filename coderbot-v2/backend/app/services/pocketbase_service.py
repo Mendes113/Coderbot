@@ -2,7 +2,7 @@ import json
 import requests
 import os
 from typing import List, Dict, Optional, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.models.adaptive_models import (
     UserLearningProfile, PersonalizedLearningPath, LearningSession,
     ConceptMastery, AdaptiveRecommendation, SkillMatrix, AssessmentResponse
@@ -29,7 +29,13 @@ class PocketBaseService:
             "skill_matrices": "skill_matrices",
             "learning_analytics": "learning_analytics",
             "user_achievements": "user_achievements",
-            "learning_streaks": "learning_streaks"
+            "learning_streaks": "learning_streaks",
+            # New class management collections
+            "classes": "classes",
+            "class_members": "class_members",
+            "class_invites": "class_invites",
+            "class_events": "class_events",
+            "class_api_keys": "class_api_keys",
         }
         
         # Try to authenticate on initialization
@@ -543,3 +549,230 @@ class PocketBaseService:
 # Global instance
 from app.config import settings
 pb_service = PocketBaseService(base_url=settings.pocketbase_url)
+
+# ------------------
+# Class Management API
+# ------------------
+
+class PocketBaseService(PocketBaseService):
+    # Utility: internal GET helper
+    def _get(self, collection: str, params: Optional[Dict[str, Any]] = None):
+        return requests.get(
+            f"{self.base_url}/api/collections/{collection}/records",
+            params=params or {},
+            headers=self._get_headers(),
+        )
+
+    # Utility: internal POST helper
+    def _post(self, collection: str, payload: Dict[str, Any]):
+        return requests.post(
+            f"{self.base_url}/api/collections/{collection}/records",
+            json=payload,
+            headers=self._get_headers(),
+        )
+
+    # Utility: internal PATCH helper
+    def _patch(self, collection: str, record_id: str, payload: Dict[str, Any]):
+        return requests.patch(
+            f"{self.base_url}/api/collections/{collection}/records/{record_id}",
+            json=payload,
+            headers=self._get_headers(),
+        )
+
+    # Utility: internal DELETE helper
+    def _delete(self, collection: str, record_id: str):
+        return requests.delete(
+            f"{self.base_url}/api/collections/{collection}/records/{record_id}",
+            headers=self._get_headers(),
+        )
+
+    # ---- Classes ----
+    def create_class(self, teacher_user_id: str, title: str, description: Optional[str] = None, code: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        payload = {
+            "title": title,
+            "description": description or "",
+            "teacher": teacher_user_id,
+        }
+        if code:
+            payload["code"] = code
+        r = self._post(self.collections["classes"], payload)
+        if r.status_code in (200, 201):
+            return r.json()
+        self._handle_response_error(r, "Create class")
+        return None
+
+    def get_class(self, class_id: str) -> Optional[Dict[str, Any]]:
+        r = self._get(self.collections["classes"], params={"filter": f"id = '{class_id}'", "perPage": 1})
+        if r.status_code == 200:
+            items = r.json().get("items", [])
+            return items[0] if items else None
+        return None
+
+    def list_classes_for_teacher(self, teacher_user_id: str) -> List[Dict[str, Any]]:
+        # Prefer createdBy field as owner/teacher for existing schema
+        r = self._get(self.collections["classes"], params={"filter": f"createdBy = '{teacher_user_id}'", "sort": "-created"})
+        if r.status_code == 200:
+            return r.json().get("items", [])
+        return []
+
+    def list_classes_for_user(self, user_id: str) -> List[Dict[str, Any]]:
+        # Via membership with expand class
+        r = self._get(
+            self.collections["class_members"],
+            params={"filter": f"user = '{user_id}'", "expand": "class", "perPage": 200, "sort": "-created"},
+        )
+        if r.status_code == 200:
+            return r.json().get("items", [])
+        return []
+
+    # ---- Permissions ----
+    def is_user_class_teacher(self, class_id: str, user_id: str) -> bool:
+        c = self.get_class(class_id)
+        if not c or not user_id:
+            return False
+        # Check teacher field or fallback to createdBy
+        if c.get("teacher") == user_id or (isinstance(c.get("teacher"), dict) and c.get("teacher", {}).get("id") == user_id):
+            return True
+        if c.get("createdBy") == user_id or (isinstance(c.get("createdBy"), dict) and c.get("createdBy", {}).get("id") == user_id):
+            return True
+        return False
+
+    def is_user_class_member(self, class_id: str, user_id: str) -> bool:
+        r = self._get(self.collections["class_members"], params={"filter": f"class = '{class_id}' && user = '{user_id}'", "perPage": 1})
+        if r.status_code == 200:
+            return len(r.json().get("items", [])) > 0
+        return False
+
+    # ---- Members ----
+    def add_member(self, class_id: str, user_id: str, role: str = "student") -> bool:
+        r = self._post(self.collections["class_members"], {"class": class_id, "user": user_id, "role": role})
+        if r.status_code in (200, 201):
+            return True
+        self._handle_response_error(r, "Add member")
+        return False
+
+    def remove_member(self, class_id: str, user_id: str) -> bool:
+        # find record id first
+        r = self._get(self.collections["class_members"], params={"filter": f"class = '{class_id}' && user = '{user_id}'", "perPage": 1})
+        if r.status_code != 200:
+            return False
+        items = r.json().get("items", [])
+        if not items:
+            return True
+        member_id = items[0]["id"]
+        d = self._delete(self.collections["class_members"], member_id)
+        return d.status_code == 204
+
+    def list_members(self, class_id: str) -> List[Dict[str, Any]]:
+        r = self._get(self.collections["class_members"], params={"filter": f"class = '{class_id}'", "expand": "user", "perPage": 200})
+        if r.status_code == 200:
+            return r.json().get("items", [])
+        return []
+
+    # ---- Invites ----
+    def create_invite(self, class_id: str, invited_by: str, email: Optional[str] = None, user_id: Optional[str] = None, ttl_hours: int = 72) -> Optional[Dict[str, Any]]:
+        from uuid import uuid4
+        token = uuid4().hex
+        expires_at = (datetime.utcnow() + timedelta(hours=ttl_hours)).isoformat()
+        payload: Dict[str, Any] = {"class": class_id, "token": token, "status": "pending", "expires_at": expires_at, "invited_by": invited_by}
+        if email:
+            payload["email"] = email
+        if user_id:
+            payload["user"] = user_id
+        r = self._post(self.collections["class_invites"], payload)
+        if r.status_code in (200, 201):
+            return r.json()
+        self._handle_response_error(r, "Create invite")
+        return None
+
+    def get_invite_by_token(self, token: str) -> Optional[Dict[str, Any]]:
+        r = self._get(self.collections["class_invites"], params={"filter": f"token = '{token}'", "perPage": 1})
+        if r.status_code == 200:
+            items = r.json().get("items", [])
+            return items[0] if items else None
+        return None
+
+    def accept_invite(self, token: str, user_id: str) -> bool:
+        invite = self.get_invite_by_token(token)
+        if not invite:
+            return False
+        if invite.get("status") != "pending":
+            return False
+        exp = invite.get("expires_at")
+        try:
+            if exp and datetime.fromisoformat(exp.replace("Z", "+00:00")) < datetime.utcnow():
+                return False
+        except Exception:
+            pass
+        class_id = invite.get("class") if isinstance(invite.get("class"), str) else invite.get("class", {}).get("id")
+        # Add member first
+        added = self.add_member(class_id, user_id, role="student")
+        if not added:
+            return False
+        # Update invite status
+        r = self._patch(self.collections["class_invites"], invite["id"], {"status": "accepted", "user": user_id})
+        return r.status_code == 200
+
+    # ---- Events ----
+    def create_event(self, class_id: str, type_: str, title: str, description: str = "", starts_at: str = "", ends_at: Optional[str] = None, visibility: str = "class") -> Optional[Dict[str, Any]]:
+        payload = {
+            "class": class_id,
+            "type": type_,
+            "title": title,
+            "description": description,
+            "starts_at": starts_at,
+            "ends_at": ends_at,
+            "visibility": visibility,
+        }
+        r = self._post(self.collections["class_events"], payload)
+        if r.status_code in (200, 201):
+            return r.json()
+        self._handle_response_error(r, "Create event")
+        return None
+
+    def list_events(self, class_id: str, since: Optional[str] = None, until: Optional[str] = None) -> List[Dict[str, Any]]:
+        filters = [f"class = '{class_id}'"]
+        if since:
+            filters.append(f"starts_at >= '{since}'")
+        if until:
+            filters.append(f"starts_at <= '{until}'")
+        flt = " && ".join(filters)
+        r = self._get(self.collections["class_events"], params={"filter": flt, "sort": "starts_at", "perPage": 200})
+        if r.status_code == 200:
+            return r.json().get("items", [])
+        return []
+
+    def update_event(self, event_id: str, payload: Dict[str, Any]) -> bool:
+        r = self._patch(self.collections["class_events"], event_id, payload)
+        return r.status_code == 200
+
+    def delete_event(self, event_id: str) -> bool:
+        r = self._delete(self.collections["class_events"], event_id)
+        return r.status_code == 204
+
+    # ---- Class API Keys ----
+    def set_class_api_key(self, class_id: str, provider: str, api_key: str, created_by: str, active: bool = True) -> bool:
+        # Deactivate existing active keys for the same provider and class
+        r_list = self._get(
+            self.collections["class_api_keys"],
+            params={"filter": f"class = '{class_id}' && provider = '{provider}' && active = true", "perPage": 200},
+        )
+        if r_list.status_code == 200:
+            for item in r_list.json().get("items", []):
+                self._patch(self.collections["class_api_keys"], item["id"], {"active": False})
+        r = self._post(
+            self.collections["class_api_keys"],
+            {"class": class_id, "provider": provider, "api_key": api_key, "created_by": created_by, "active": active},
+        )
+        return r.status_code in (200, 201)
+
+    def get_class_api_key(self, class_id: str, provider: str, include_inactive: bool = False) -> Optional[str]:
+        flt = f"class = '{class_id}' && provider = '{provider}'"
+        if not include_inactive:
+            flt += " && active = true"
+        r = self._get(self.collections["class_api_keys"], params={"filter": flt, "perPage": 1, "sort": "-created"})
+        if r.status_code == 200:
+            items = r.json().get("items", [])
+            if items:
+                return items[0].get("api_key")
+        return None

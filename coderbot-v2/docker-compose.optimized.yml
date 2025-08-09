@@ -40,8 +40,8 @@ services:
   # Backend API (core profile) - otimizado
   backend:
     build:
-      context: .
-      dockerfile: docker/Dockerfile.backend
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.backend
     container_name: coderbot-backend
     ports:
       - "8000:8000"
@@ -101,8 +101,8 @@ services:
   # Frontend React App (core profile) - preview leve
   frontend:
     build:
-      context: .
-      dockerfile: docker/Dockerfile.frontend
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.frontend
     container_name: coderbot-frontend
     ports:
       - "3000:3000"
@@ -129,29 +129,6 @@ services:
       - /tmp
     cpus: "0.50"
     mem_limit: "256m"
-    ulimits:
-      nofile:
-        soft: 8192
-        hard: 65536
-    stop_grace_period: 10s
-
-  # Code Server IDE (opcional - perfil ide)
-  code-server:
-    image: codercom/code-server:latest
-    container_name: coderbot-code-server
-    ports:
-      - "8787:8787"
-    volumes:
-      - ./:/home/coder/project
-      - code_server_data:/home/coder/.local/share/code-server
-    networks:
-      - coderbot-network
-    restart: unless-stopped
-    command: --bind-addr 0.0.0.0:8787 --auth none /home/coder/project
-    logging: *default-logging
-    profiles: [ide]
-    cpus: "0.50"
-    mem_limit: "512m"
     ulimits:
       nofile:
         soft: 8192
@@ -249,10 +226,10 @@ services:
     mem_limit: "512m"
 
 volumes:
-  # pocketbase_data:
-  #   driver: local
-  code_server_data:
+  pocketbase_data:
     driver: local
+  # code_server_data:
+  #   driver: local
 
 networks:
   coderbot-network:

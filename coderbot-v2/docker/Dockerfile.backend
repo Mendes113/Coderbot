@@ -15,14 +15,14 @@ RUN pip install --no-cache-dir pdm
 # Definir diretório de trabalho
 WORKDIR /app
 
-# Copiar arquivos de configuração do PDM
-COPY backend/pyproject.toml backend/pdm.lock* ./
+# Copiar arquivos de configuração do PDM (contexto: ./backend)
+COPY pyproject.toml pdm.lock* ./
 
 # Instalar dependências usando PDM
 RUN pdm install --prod --no-editable
 
 # Copiar código da aplicação
-COPY backend/ ./
+COPY . ./
 
 # Instalar dependências novamente após copiar o código (caso necessário)
 RUN pdm install --prod --no-editable

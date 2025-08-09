@@ -52,6 +52,7 @@ import {
 } from 'lucide-react';
 import { pb } from '@/integrations/pocketbase/client';
 import { toast } from '@/components/ui/use-toast';
+import { createInvite, listClassEvents, createClassEvent, hasClassApiKey, setClassApiKey, ClassEvent, listClassMembers, removeClassMember } from '@/integrations/pocketbase/client';
 
 // Tipos
 interface ClassInfo {
@@ -111,6 +112,19 @@ export const ClassDetails: React.FC = () => {
     exerciseId: '',
     dueDate: ''
   });
+
+  // Eventos da turma
+  const [events, setEvents] = useState<ClassEvent[]>([]);
+  const [newEvent, setNewEvent] = useState<{ type: string; title: string; starts_at: string; description?: string }>({
+    type: 'lecture',
+    title: '',
+    starts_at: ''
+  });
+
+  // API key da turma
+  const [provider, setProvider] = useState<'openai'|'claude'|'deepseek'|'other'>('claude');
+  const [apiKey, setApiKey] = useState('');
+  const [maskedKey, setMaskedKey] = useState<string | undefined>(undefined);
   
   // Buscar dados da turma
   useEffect(() => {
@@ -129,20 +143,20 @@ export const ClassDetails: React.FC = () => {
           created: new Date(classData.created).toLocaleDateString()
         });
         
-        // Buscar alunos inscritos na turma
-        const enrollments = await pb.collection('class_enrollments').getList(1, 100, {
-          filter: `class = "${classId}"`,
-          expand: 'student'
-        });
-        
-        const mappedStudents = enrollments.items.map(item => ({
-          id: item.student,
-          name: item.expand?.student?.name || item.expand?.student?.username || 'Aluno',
-          email: item.expand?.student?.email || '',
-          progress: Math.floor(Math.random() * 100), // Simulado por enquanto
-          joinDate: new Date(item.created).toLocaleDateString()
-        }));
-        setStudents(mappedStudents);
+        // Buscar membros reais (via backend -> class_members com expand user)
+        try {
+          const members = await listClassMembers(classId);
+          const mapped = (members || []).map((m: any) => ({
+            id: m.user, // usamos o userId para operações
+            name: m.expand?.user?.name || m.expand?.user?.username || 'Aluno',
+            email: m.expand?.user?.email || '',
+            progress: 0,
+            joinDate: m.created ? new Date(m.created).toLocaleDateString() : ''
+          }));
+          setStudents(mapped);
+        } catch (_) {
+          setStudents([]);
+        }
         
         // Buscar exercícios criados pelo professor
         const exercisesData = await pb.collection('exercises').getList(1, 100, {
@@ -157,6 +171,18 @@ export const ClassDetails: React.FC = () => {
           difficulty: item.difficulty
         }));
         setExercises(mappedExercises);
+
+        // Buscar eventos
+        try {
+          const evts = await listClassEvents(classId);
+          setEvents(evts);
+        } catch (_) {}
+
+        // Verificar API key da turma (provider padrão)
+        try {
+          const info = await hasClassApiKey(classId, provider);
+          setMaskedKey(info?.masked);
+        } catch (_) {}
         
         // Buscar atribuições de exercícios para esta turma
         const assignmentsData = await pb.collection('class_assignments').getList(1, 100, {
@@ -196,17 +222,13 @@ export const ClassDetails: React.FC = () => {
     };
     
     fetchClassData();
-  }, [classId]);
+  }, [classId, provider]);
   
   // Função para convidar aluno para a turma
   const handleInviteStudent = async () => {
     try {
-      await pb.collection('invitations').create({
-        class: classId,
-        email: invitation.email,
-        status: 'pending',
-        createdBy: pb.authStore.model?.id
-      });
+      if (!classId) return;
+      await createInvite({ class_id: classId, email: invitation.email, ttl_hours: 72 });
       
       setInvitation({ email: '' });
       setIsInviting(false);
@@ -222,6 +244,35 @@ export const ClassDetails: React.FC = () => {
         description: 'Não foi possível enviar o convite.',
         variant: 'destructive'
       });
+    }
+  };
+
+  // Eventos
+  const handleCreateEvent = async () => {
+    try {
+      if (!classId || !newEvent.title || !newEvent.type || !newEvent.starts_at) return;
+      const startsIso = new Date(newEvent.starts_at).toISOString();
+      await createClassEvent(classId, { type: newEvent.type, title: newEvent.title, description: newEvent.description, starts_at: startsIso, visibility: 'class' });
+      const evts = await listClassEvents(classId);
+      setEvents(evts);
+      setNewEvent({ type: 'lecture', title: '', starts_at: '' });
+      toast({ title: 'Evento criado', description: 'O evento foi adicionado à turma.' });
+    } catch (e) {
+      toast({ title: 'Erro ao criar evento', description: 'Tente novamente mais tarde.', variant: 'destructive' });
+    }
+  };
+
+  // API key da turma
+  const handleSaveClassApiKey = async () => {
+    try {
+      if (!classId || !apiKey) return;
+      await setClassApiKey(classId, provider, apiKey, true);
+      const info = await hasClassApiKey(classId, provider);
+      setMaskedKey(info?.masked);
+      setApiKey('');
+      toast({ title: 'API key salva', description: 'A turma está configurada para usar esta chave.' });
+    } catch (_) {
+      toast({ title: 'Erro ao salvar API key', description: 'Verifique a chave e tente novamente.', variant: 'destructive' });
     }
   };
   
@@ -285,33 +336,10 @@ export const ClassDetails: React.FC = () => {
   // Função para remover aluno da turma
   const handleRemoveStudent = async (studentId: string) => {
     try {
-      // Buscar o ID da inscrição
-      const enrollmentResponse = await pb.collection('class_enrollments').getList(1, 1, {
-        filter: `class = "${classId}" && student = "${studentId}"`
-      });
-      
-      if (enrollmentResponse.items.length > 0) {
-        await pb.collection('class_enrollments').delete(enrollmentResponse.items[0].id);
-        
-        // Remover exercícios atribuídos ao aluno nesta turma
-        const studentExercises = await pb.collection('student_exercises').getList(1, 100, {
-          filter: `student = "${studentId}"`,
-          expand: 'assignment'
-        });
-        
-        for (const exercise of studentExercises.items) {
-          if (exercise.expand?.assignment?.class === classId) {
-            await pb.collection('student_exercises').delete(exercise.id);
-          }
-        }
-        
-        setStudents(prev => prev.filter(student => student.id !== studentId));
-        
-        toast({
-          title: 'Aluno removido',
-          description: 'O aluno foi removido da turma com sucesso.'
-        });
-      }
+      if (!classId) return;
+      await removeClassMember(classId, studentId);
+      setStudents(prev => prev.filter(student => student.id !== studentId));
+      toast({ title: 'Aluno removido', description: 'O aluno foi removido da turma com sucesso.' });
     } catch (error) {
       console.error('Erro ao remover aluno:', error);
       toast({
@@ -461,34 +489,13 @@ export const ClassDetails: React.FC = () => {
                       </TableCell>
                       <TableCell>{student.joinDate}</TableCell>
                       <TableCell>
-                        <div className="flex space-x-2">
-                          <Button variant="ghost" size="sm">
-                            <FileText className="h-4 w-4 mr-1" /> Detalhes
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            className="text-destructive"
-                            onClick={() => handleRemoveStudent(student.id)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-1" /> Remover
-                          </Button>
-                        </div>
+                        <Button variant="destructive" size="sm" onClick={() => handleRemoveStudent(student.id)}>
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Remover
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
-                  {students.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center">
-                        Nenhum aluno inscrito nesta turma.
-                        <div className="mt-2">
-                          <Button variant="outline" size="sm" onClick={() => setIsInviting(true)}>
-                            <Mail className="mr-2 h-4 w-4" /> Convidar Aluno
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -499,165 +506,114 @@ export const ClassDetails: React.FC = () => {
         <TabsContent value="assignments">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>Exercícios da Turma</CardTitle>
-                  <CardDescription>
-                    Atribua exercícios para os alunos resolverem
-                  </CardDescription>
-                </div>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="mr-2 h-4 w-4" /> Atribuir Exercício
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Atribuir Exercício</DialogTitle>
-                      <DialogDescription>
-                        Selecione um exercício para atribuir a todos os alunos desta turma
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="exerciseSelect" className="text-right">
-                          Exercício
-                        </Label>
-                        <select
-                          id="exerciseSelect"
-                          value={newAssignment.exerciseId}
-                          onChange={(e) => setNewAssignment({ ...newAssignment, exerciseId: e.target.value })}
-                          className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        >
-                          <option value="">Selecione um exercício</option>
-                          {exercises.map(exercise => (
-                            <option key={exercise.id} value={exercise.id}>
-                              {exercise.title} ({exercise.subject})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="dueDate" className="text-right">
-                          Prazo
-                        </Label>
-                        <Input
-                          id="dueDate"
-                          type="date"
-                          value={newAssignment.dueDate}
-                          onChange={(e) => setNewAssignment({ ...newAssignment, dueDate: e.target.value })}
-                          className="col-span-3"
-                        />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline">
-                        Cancelar
-                      </Button>
-                      <Button onClick={handleAssignExercise} disabled={!newAssignment.exerciseId}>
-                        Atribuir
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
+              <CardTitle>Atribuir Exercício</CardTitle>
+              <CardDescription>Selecione um exercício e um prazo (opcional)</CardDescription>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableCaption>Exercícios atribuídos à turma</TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Exercício</TableHead>
-                    <TableHead>Data de Atribuição</TableHead>
-                    <TableHead>Prazo</TableHead>
-                    <TableHead>Progresso</TableHead>
-                    <TableHead>Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {assignments.map((assignment) => (
-                    <TableRow key={assignment.id}>
-                      <TableCell className="font-medium">{assignment.exerciseTitle}</TableCell>
-                      <TableCell>{assignment.assignedDate}</TableCell>
-                      <TableCell>{assignment.dueDate}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="w-full bg-secondary rounded-full h-2.5">
-                            <div 
-                              className="bg-primary h-2.5 rounded-full" 
-                              style={{ width: `${assignment.totalStudents ? (assignment.completedCount / assignment.totalStudents) * 100 : 0}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-xs whitespace-nowrap">
-                            {assignment.completedCount}/{assignment.totalStudents}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="sm">
-                          <CheckCircle className="h-4 w-4 mr-1" /> Ver Respostas
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {assignments.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center">
-                        Nenhum exercício atribuído a esta turma.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="exercise">Exercício</Label>
+                  <select id="exercise" className="w-full rounded-md border px-3 py-2" value={newAssignment.exerciseId} onChange={(e) => setNewAssignment({ ...newAssignment, exerciseId: e.target.value })}>
+                    <option value="">Selecionar...</option>
+                    {exercises.map(ex => (
+                      <option key={ex.id} value={ex.id}>{ex.title}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="due">Prazo</Label>
+                  <Input id="due" type="date" value={newAssignment.dueDate} onChange={(e) => setNewAssignment({ ...newAssignment, dueDate: e.target.value })} />
+                </div>
+              </div>
+              <Button onClick={handleAssignExercise} disabled={!newAssignment.exerciseId}>
+                <SendIcon className="mr-2 h-4 w-4" /> Atribuir
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
         
         {/* Tab de Configurações */}
         <TabsContent value="settings">
-          <Card>
-            <CardHeader>
-              <CardTitle>Configurações da Turma</CardTitle>
-              <CardDescription>
-                Ajuste as configurações e informações da turma
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="className">Nome da Turma</Label>
-                  <Input
-                    id="className"
-                    value={classInfo.name}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="classDescription">Descrição</Label>
-                  <Input
-                    id="classDescription"
-                    value={classInfo.description}
-                    className="mt-1"
-                  />
-                </div>
-                <div className="pt-4">
-                  <h3 className="text-lg font-semibold mb-2 text-destructive">Zona de Perigo</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    As seguintes ações não podem ser desfeitas:
-                  </p>
-                  <div className="flex gap-4">
-                    <Button variant="destructive">
-                      <Trash2 className="mr-2 h-4 w-4" /> Excluir Turma
-                    </Button>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>API Key da Turma</CardTitle>
+                <CardDescription>Defina a chave do provedor que será usada por esta turma</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                  <div>
+                    <Label>Provedor</Label>
+                    <select className="w-full rounded-md border px-3 py-2" value={provider} onChange={(e) => setProvider(e.target.value as any)}>
+                      <option value="claude">Claude</option>
+                      <option value="openai">OpenAI</option>
+                      <option value="deepseek">DeepSeek</option>
+                      <option value="other">Outro</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>API Key</Label>
+                    <Input value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={maskedKey ? `Atual: ${maskedKey}` : 'Cole a API key aqui'} />
                   </div>
                 </div>
-              </div>
-            </CardContent>
-            <CardFooter className="border-t pt-4">
-              <Button>Salvar Alterações</Button>
-            </CardFooter>
-          </Card>
+                <Button onClick={handleSaveClassApiKey} disabled={!apiKey}>Salvar Key</Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Eventos da Turma</CardTitle>
+                <CardDescription>Crie e gerencie eventos (aula, prova, exercício)</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <Label>Tipo</Label>
+                    <select className="w-full rounded-md border px-3 py-2" value={newEvent.type} onChange={(e) => setNewEvent({ ...newEvent, type: e.target.value })}>
+                      <option value="lecture">Aula</option>
+                      <option value="exam">Prova</option>
+                      <option value="exercise">Exercício</option>
+                      <option value="assignment">Trabalho</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label>Título</Label>
+                    <Input value={newEvent.title} onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label>Início</Label>
+                    <Input type="datetime-local" value={newEvent.starts_at} onChange={(e) => setNewEvent({ ...newEvent, starts_at: e.target.value })} />
+                  </div>
+                </div>
+                <div>
+                  <Label>Descrição</Label>
+                  <Input value={newEvent.description || ''} onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })} />
+                </div>
+                <Button onClick={handleCreateEvent} disabled={!newEvent.title || !newEvent.starts_at}>Criar Evento</Button>
+
+                <div className="mt-4">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Título</TableHead>
+                        <TableHead>Início</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {events.map(ev => (
+                        <TableRow key={ev.id}>
+                          <TableCell>{ev.type}</TableCell>
+                          <TableCell>{ev.title}</TableCell>
+                          <TableCell>{ev.starts_at ? new Date(ev.starts_at).toLocaleString() : '-'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

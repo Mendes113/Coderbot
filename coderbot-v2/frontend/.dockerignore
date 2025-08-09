@@ -1,0 +1,13 @@
+node_modules
+.dist
+build
+dist
+.cache
+.turbo
+.pnpm-store
+.git
+src-tauri
+temp-tauri
+supabase
+*.log
+**/*.map

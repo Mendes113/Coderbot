@@ -15,7 +15,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import SpotlightCard from "@/components/SpotlightCard/SpotlightCard";
 import Waves from "@/Backgrounds/Waves/Waves";
-import { invoke } from "@tauri-apps/api/core"; // or plugin-fs if using plugin
 
 // Lazy sections (code-splitting) ————————————————————————————————————————————
 const Features     = lazy(() => import("./sections/FeaturesSection"));
@@ -458,10 +457,7 @@ export const CodeEditor = () => {
   const [fileEntries, setFileEntries] = useState<FileEntry[]>([]);
 
   useEffect(() => {
-    (async () => {
-      const entries = await invoke<FileEntry[]>("list_workspace_files");
-      setFileEntries(entries);
-      // ...load file contents for editor as needed
-    })();
+    // Tauri removido: stub vazio no web
+    setFileEntries([]);
   }, []);
 };

@@ -9,12 +9,14 @@ Este router expõe endpoints para:
 """
 
 from fastapi import APIRouter, Depends, Query, HTTPException, BackgroundTasks, status
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from pydantic import BaseModel, Field
 import uuid
 import time
+import re
 
 from app.services.agno_methodology_service import AgnoMethodologyService, MethodologyType
+from app.services.agno_team_service import AgnoTeamService
 
 router = APIRouter(
     prefix="/agno",
@@ -51,6 +53,24 @@ class AgnoRequest(BaseModel):
         default=None,
         description="Contexto do usuário para personalização"
     )
+    # Preferências de saída
+    include_final_code: Optional[bool] = Field(
+        default=True,
+        description="Se verdadeiro, instrui o agente a incluir um bloco final com o código completo."
+    )
+    # Mantido para compatibilidade, mas ignorado
+    include_diagram: Optional[bool] = Field(
+        default=False,
+        description="(Deprecado) Diagrama não é mais gerado pela API."
+    )
+    diagram_type: Optional[str] = Field(
+        default=None,
+        description="(Ignorado) Tipo de diagrama preferido"
+    )
+    max_final_code_lines: Optional[int] = Field(
+        default=150,
+        description="Limite de linhas para o código final (para usabilidade)."
+    )
 
 class AgnoResponse(BaseModel):
     """Modelo de resposta do sistema AGNO."""
@@ -62,6 +82,10 @@ class AgnoResponse(BaseModel):
     metadata: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Metadados adicionais da resposta"
+    )
+    extras: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Dados extras como código final extraído da resposta"
     )
 
 class MethodologyInfo(BaseModel):
@@ -173,11 +197,45 @@ async def ask_question(
         
         # Processa a pergunta
         start_time = time.time()
-        response = agno_service.ask(
-            methodology=methodology_enum,
-            user_query=request.user_query,
-            context=request.context
-        )
+        # Augmentar contexto com instruções para código final e exemplos correto/incorreto
+        def _augment_context_for_outputs(base_context: Optional[str], req: AgnoRequest) -> str:
+            context_parts: List[str] = []
+            if base_context:
+                context_parts.append(str(base_context))
+            instructions = [
+                "FORMATAÇÃO: Responda em Markdown claro, com passos do exemplo trabalhado.",
+                "Inclua DOIS pequenos exemplos:",
+                "- Exemplo Correto: mostre a abordagem correta em poucas linhas, com breve explicação.",
+                "- Exemplo Incorreto: mostre um erro comum, explique por que está errado e como corrigir.",
+                "No FINAL da resposta inclua:",
+            ]
+            if req.include_final_code:
+                instructions.append(
+                    f"1) Uma seção 'Código final' contendo UM ÚNICO bloco de código completo, pronto para executar, com no máximo {req.max_final_code_lines} linhas, usando a linguagem adequada (ex.: ```python, ```javascript, etc.)."
+                )
+            instructions.append("Mantenha o código final conciso e funcional. Evite trechos enormes.")
+            context_parts.append("\n".join(instructions))
+            return "\n\n".join([p for p in context_parts if p])
+
+        augmented_context = _augment_context_for_outputs(request.context, request)
+
+        team_extras: Dict[str, Any] = {}
+        if request.include_final_code:
+            team = AgnoTeamService(provider=agno_service.provider, model_id=agno_service.model_id)
+            response, team_extras = team.generate_worked_example_with_artifacts(
+                user_query=request.user_query,
+                base_context=augmented_context,
+                include_final_code=True,
+                include_diagram=False,
+                diagram_type=None,
+                max_final_code_lines=request.max_final_code_lines or 150,
+            )
+        else:
+            response = agno_service.ask(
+                methodology=methodology_enum,
+                user_query=request.user_query,
+                context=augmented_context
+            )
         processing_time = time.time() - start_time
         
         # Prepara metadados
@@ -189,6 +247,55 @@ async def ask_question(
             "response_format": "markdown"
         }
         
+        # Pós-processamento: extrair código final
+        def _extract_fenced_blocks(md: str) -> List[Dict[str, Any]]:
+            blocks: List[Dict[str, Any]] = []
+            # Captura ```lang ... ``` incluindo newlines
+            pattern = re.compile(r"```(\w+)?\s*([\s\S]*?)```", re.MULTILINE)
+            for m in pattern.finditer(md or ""):
+                lang = (m.group(1) or '').strip().lower()
+                code = (m.group(2) or '').strip()
+                blocks.append({
+                    'lang': lang,
+                    'code': code,
+                    'start': m.start(),
+                    'end': m.end(),
+                })
+            return blocks
+
+        def _pick_final_code(blocks: List[Dict[str, Any]], max_lines: int) -> Optional[Dict[str, Any]]:
+            # escolha: último bloco que não seja quiz/mermaid/excalidraw
+            for b in reversed(blocks):
+                lang = b.get('lang') or ''
+                if lang in ('quiz', 'mermaid', 'excalidraw'):
+                    continue
+                code = b.get('code') or ''
+                if not code.strip():
+                    continue
+                lines = code.splitlines()
+                truncated = False
+                if max_lines and len(lines) > max_lines:
+                    truncated = True
+                    # não truncar o conteúdo para não quebrar execução; apenas sinalizar
+                return {
+                    'language': lang or 'text',
+                    'code': code,
+                    'truncated': truncated,
+                    'line_count': len(lines),
+                }
+            return None
+
+        blocks = _extract_fenced_blocks(response)
+        extras: Dict[str, Any] = {}
+        if team_extras:
+            extras.update(team_extras)
+        if request.include_final_code:
+            final_code = _pick_final_code(blocks, request.max_final_code_lines or 150)
+            if final_code:
+                extras['final_code'] = final_code
+                metadata['final_code_lines'] = final_code.get('line_count')
+                metadata['final_code_truncated'] = final_code.get('truncated')
+
         # Adiciona sugestões de próximos passos para worked examples
         if methodology_enum == MethodologyType.WORKED_EXAMPLES:
             metadata["suggested_next_steps"] = [
@@ -201,7 +308,8 @@ async def ask_question(
             response=response,
             methodology=request.methodology,
             is_xml_formatted=False,  # Sempre False - agora geramos markdown diretamente
-            metadata=metadata
+            metadata=metadata,
+            extras=extras or None
         )
         
     except ValueError as e:

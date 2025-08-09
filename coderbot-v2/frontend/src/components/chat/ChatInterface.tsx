@@ -446,7 +446,8 @@ const DesktopSettingsView: React.FC<SettingsProps> = (props) => (
         <SelectContent>
           <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
           <SelectItem value="gpt-4">GPT-4</SelectItem>
-          <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
+          <SelectItem value="claude-3-sonnet">Claude 3.5 Sonnet</SelectItem>
+          <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
         </SelectContent>
       </Select>
     </div>
@@ -475,7 +476,8 @@ const MobileSettingsDrawerView: React.FC<SettingsProps> = (props) => (
             <SelectContent>
               <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
               <SelectItem value="gpt-4">GPT-4</SelectItem>
-              <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
+              <SelectItem value="claude-3-sonnet">Claude 3.5 Sonnet</SelectItem>
+              <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -520,7 +522,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const [isLoading, setIsLoading] = useState(false);
   const [analogiesEnabled, setAnalogiesEnabled] = useState(false);
   const [knowledgeBase, setKnowledgeBase] = useState("");
-  const [aiModel, setAiModel] = useState<string>("gpt-3.5-turbo");
+  const [aiModel, setAiModel] = useState<string>("claude-3-sonnet");
   // Estados para compatibilidade com sistema antigo (fallback)
   const [methodologyState, setMethodology] = useState<string>("default");
   const [availableMethodologies, setAvailableMethodologies] = useState<MethodologyInfo[]>([]);
@@ -532,6 +534,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const isMobile = useIsMobile();
   const [showSidebar, setShowSidebar] = useState(!isMobile);
   const [showAnalogyDropdown, setShowAnalogyDropdown] = useState(false);
+  const [diagramsEnabled, setDiagramsEnabled] = useState(true);
+  const [diagramType, setDiagramType] = useState<'mermaid' | 'excalidraw'>("mermaid");
+  const [maxFinalCodeLines] = useState<number>(150);
   
   // Estados para controle das mensagens de boas-vindas
   const [showWelcomeMessages, setShowWelcomeMessages] = useState(true);
@@ -1141,9 +1146,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
         } else if (aiModel.includes('claude')) {
           provider = 'claude';
           // Mapear modelos do frontend para IDs corretos do backend
-          if (aiModel === 'claude-3-opus') {
-            modelId = 'claude-3-opus-20240229';
-          } else if (aiModel === 'claude-3-sonnet') {
+          if (aiModel === 'claude-3-sonnet') {
             modelId = 'claude-3-5-sonnet-20241022';
           } else if (aiModel === 'claude-3-haiku') {
             modelId = 'claude-3-haiku-20240307';
@@ -1156,7 +1159,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
           context: whiteboardContext ? JSON.stringify(whiteboardContext) : `Contexto: ${knowledgeBase || 'Aprendizado geral de programação'}`,
           userContext,
           provider,
-          modelId
+          modelId,
+          includeFinalCode: true,
+          includeDiagram: diagramsEnabled,
+          diagramType: diagramType,
+          maxFinalCodeLines
         });
 
         response = {
@@ -1282,7 +1289,8 @@ Obrigado pela paciência! 🤖✨`,
               <SelectContent>
                 <SelectItem value="gpt-3.5-turbo">GPT-3.5</SelectItem>
                 <SelectItem value="gpt-4">GPT-4</SelectItem>
-                <SelectItem value="claude-3-opus">Claude 3</SelectItem>
+                <SelectItem value="claude-3-sonnet">Claude 3.5 Sonnet</SelectItem>
+                <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
               </SelectContent>
             </Select>
             
@@ -1364,6 +1372,37 @@ Obrigado pela paciência! 🤖✨`,
                 </div>
               )}
             </div>
+            {/* Toggle de Diagramas */}
+            <div className="relative">
+              <button
+                type="button"
+                aria-label={diagramsEnabled ? "Desativar diagramas" : "Ativar diagramas"}
+                title={diagramsEnabled ? "Diagramas ativados" : "Diagramas desativados"}
+                onClick={() => setDiagramsEnabled((v) => !v)}
+                className={cn(
+                  "flex items-center gap-1 px-2 py-1 rounded-full border border-gray-200 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+                  diagramsEnabled
+                    ? "bg-[hsl(var(--education-purple)/0.12)] text-[hsl(var(--education-purple))] border-[hsl(var(--education-purple))]"
+                    : "bg-white text-gray-500 hover:text-[hsl(var(--education-purple))] hover:border-[hsl(var(--education-purple))]"
+                )}
+                tabIndex={0}
+                style={{ minHeight: 28 }}
+              >
+                <Sparkles className="h-4 w-4" />
+                <span>Diagramas</span>
+              </button>
+            </div>
+            {diagramsEnabled && (
+              <Select value={diagramType} onValueChange={(v) => setDiagramType(v as any)}>
+                <SelectTrigger className="w-[120px] h-8 text-xs">
+                  <SelectValue placeholder="Tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mermaid">Mermaid</SelectItem>
+                  <SelectItem value="excalidraw">Excalidraw</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
       </div>

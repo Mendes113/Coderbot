@@ -1,5 +1,5 @@
 import { User, MessageSquare, Code, GraduationCap, Presentation } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -13,7 +13,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getCurrentUser } from "@/integrations/pocketbase/client";
 
 type NavItem = {
@@ -32,6 +32,7 @@ type AppSidebarProps = {
 
 export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { state } = useSidebar();
@@ -47,7 +48,7 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
     { id: "playground", label: "Playground", icon: Code, accessKey: "p", path: "/dashboard/playground" },
     {
       id: "teacher",
-      label: "Professor",
+      label: "Turmas",
       icon: GraduationCap,
       accessKey: "t",
       path: "/dashboard/teacher",
@@ -69,6 +70,38 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
     if (!userRole) return false;
     return item.roles.includes(userRole);
   });
+
+  // Mapa de atalhos Alt+<tecla>
+  const accessKeyMap = useMemo(() => {
+    const map = new Map<string, NavItem>();
+    for (const item of filteredNavItems) {
+      map.set(item.accessKey.toLowerCase(), item);
+    }
+    return map;
+  }, [filteredNavItems]);
+
+  // Listener global para atalhos (ignora campos de texto)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isEditable = !!target && (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable ||
+        (target.getAttribute && target.getAttribute("role") === "textbox")
+      );
+      if (isEditable) return;
+      if (!e.altKey) return;
+      const key = e.key.toLowerCase();
+      const item = accessKeyMap.get(key);
+      if (!item) return;
+      e.preventDefault();
+      onNavChange(item.id);
+      navigate(item.path);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [accessKeyMap, navigate, onNavChange]);
 
   const isItemActive = (item: NavItem) => {
     return currentNav === item.id || location.pathname.startsWith(item.path);
@@ -154,13 +187,14 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
                           to={item.path}
                           onClick={() => onNavChange(item.id)}
                           aria-current={active ? "page" : undefined}
+                          aria-keyshortcuts={`Alt+${item.accessKey.toUpperCase()}`}
                           className="flex items-center gap-2 text-sm"
                         >
                           <ActiveIcon className={"h-5 w-5 transition-all duration-200 " + (active ? "text-coderbot-purple" : "text-muted-foreground group-hover:text-coderbot-purple group-hover:scale-110")} />
                           <span className={state === "collapsed" ? "sr-only" : "truncate"}>{item.label}</span>
                           {state !== "collapsed" && (
                             <span className="ml-auto text-[10px] font-medium text-muted-foreground/80 bg-muted/40 px-1.5 py-0.5 rounded border border-border/50">
-                              <kbd className="uppercase">{item.accessKey}</kbd>
+                              <kbd className="uppercase">Alt+{item.accessKey}</kbd>
                             </span>
                           )}
                         </Link>

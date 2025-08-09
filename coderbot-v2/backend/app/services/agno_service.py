@@ -10,6 +10,8 @@ Agora com suporte para múltiplos provedores de IA (OpenAI e Claude).
 from typing import Optional, Dict, Any, List
 from .agno_methodology_service import AgnoMethodologyService, MethodologyType
 import logging
+from .pocketbase_service import pb_service
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +36,34 @@ class AgnoService:
         self.methodology_service = AgnoMethodologyService(model_id, provider)
         self.logger = logger
     
+    def _inject_class_api_key(self, class_id: Optional[str]) -> None:
+        """Se class_id for fornecido, tenta carregar a API key da turma e injeta via env.
+        Nunca expõe a chave; apenas configura variáveis usadas pelos SDKs/AGNO.
+        Ordem: usa provedor atual do serviço; se não houver, tenta ambos (claude/openai)."""
+        if not class_id:
+            return
+        provider = (self.methodology_service.provider or "").lower()
+        candidates = [provider] if provider in ("claude", "openai") else ["claude", "openai"]
+        for prov in candidates:
+            key = pb_service.get_class_api_key(class_id, prov)
+            if not key:
+                continue
+            if prov == "claude":
+                # Anthropic SDK usa ANTHROPIC_API_KEY
+                os.environ["ANTHROPIC_API_KEY"] = key
+                self.logger.info("Class-scoped Anthropic API key injected for AGNO use")
+                return
+            if prov == "openai":
+                os.environ["OPENAI_API_KEY"] = key
+                self.logger.info("Class-scoped OpenAI API key injected for AGNO use")
+                return
+
     def ask_question(
         self, 
         methodology: MethodologyType, 
         user_query: str, 
-        context: Optional[str] = None
+        context: Optional[str] = None,
+        class_id: Optional[str] = None,
     ) -> str:
         """
         Faz uma pergunta ao sistema AGNO usando uma metodologia específica.
@@ -47,11 +72,14 @@ class AgnoService:
             methodology: Metodologia educacional a ser usada
             user_query: Pergunta do usuário
             context: Contexto adicional (opcional)
+            class_id: Se informado, utiliza a API key da turma (professor) para executar
             
         Returns:
             str: Resposta gerada pelo sistema AGNO
         """
         try:
+            # Injeta key de turma se disponível
+            self._inject_class_api_key(class_id)
             self.logger.info(f"Processando pergunta com metodologia: {methodology.value}")
             response = self.methodology_service.ask(methodology, user_query, context)
             self.logger.info(f"Resposta gerada com sucesso")
@@ -63,7 +91,8 @@ class AgnoService:
     def get_worked_example(
         self, 
         user_query: str, 
-        context: Optional[str] = None
+        context: Optional[str] = None,
+        class_id: Optional[str] = None,
     ) -> str:
         """
         Método de conveniência para obter um worked example.
@@ -71,16 +100,18 @@ class AgnoService:
         Args:
             user_query: Pergunta do usuário
             context: Contexto adicional (opcional)
+            class_id: Turma (opcional)
             
         Returns:
             str: Resposta XML formatada com worked example
         """
-        return self.ask_question(MethodologyType.WORKED_EXAMPLES, user_query, context)
+        return self.ask_question(MethodologyType.WORKED_EXAMPLES, user_query, context, class_id)
     
     def get_socratic_response(
         self, 
         user_query: str, 
-        context: Optional[str] = None
+        context: Optional[str] = None,
+        class_id: Optional[str] = None,
     ) -> str:
         """
         Método de conveniência para obter uma resposta socrática.
@@ -88,16 +119,18 @@ class AgnoService:
         Args:
             user_query: Pergunta do usuário
             context: Contexto adicional (opcional)
+            class_id: Turma (opcional)
             
         Returns:
             str: Resposta usando método socrático
         """
-        return self.ask_question(MethodologyType.SOCRATIC, user_query, context)
+        return self.ask_question(MethodologyType.SOCRATIC, user_query, context, class_id)
     
     def get_analogy_response(
         self, 
         user_query: str, 
-        context: Optional[str] = None
+        context: Optional[str] = None,
+        class_id: Optional[str] = None,
     ) -> str:
         """
         Método de conveniência para obter uma resposta com analogias.
@@ -105,16 +138,18 @@ class AgnoService:
         Args:
             user_query: Pergunta do usuário
             context: Contexto adicional (opcional)
+            class_id: Turma (opcional)
             
         Returns:
             str: Resposta usando analogias
         """
-        return self.ask_question(MethodologyType.ANALOGY, user_query, context)
+        return self.ask_question(MethodologyType.ANALOGY, user_query, context, class_id)
     
     def get_scaffolding_response(
         self, 
         user_query: str, 
-        context: Optional[str] = None
+        context: Optional[str] = None,
+        class_id: Optional[str] = None,
     ) -> str:
         """
         Método de conveniência para obter uma resposta com scaffolding.
@@ -122,16 +157,18 @@ class AgnoService:
         Args:
             user_query: Pergunta do usuário
             context: Contexto adicional (opcional)
+            class_id: Turma (opcional)
             
         Returns:
             str: Resposta usando scaffolding
         """
-        return self.ask_question(MethodologyType.SCAFFOLDING, user_query, context)
+        return self.ask_question(MethodologyType.SCAFFOLDING, user_query, context, class_id)
     
     def get_sequential_thinking_response(
         self, 
         user_query: str, 
-        context: Optional[str] = None
+        context: Optional[str] = None,
+        class_id: Optional[str] = None,
     ) -> str:
         """
         Método de conveniência para obter uma resposta com pensamento sequencial.
@@ -139,11 +176,12 @@ class AgnoService:
         Args:
             user_query: Pergunta do usuário
             context: Contexto adicional (opcional)
+            class_id: Turma (opcional)
             
         Returns:
             str: Resposta usando pensamento sequencial
         """
-        return self.ask_question(MethodologyType.SEQUENTIAL_THINKING, user_query, context)
+        return self.ask_question(MethodologyType.SEQUENTIAL_THINKING, user_query, context, class_id)
     
     def get_available_methodologies(self) -> List[str]:
         """

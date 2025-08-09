@@ -6,3 +6,17 @@ coderbot-v2/backend/app/__pycache__/
 
 .env
 
+
+# BEGIN security ignore
+# Env files
+*.env
+.env
+.env.*
+**/.env*
+*.env.backup
+!**/.env.example
+
+# PocketBase data
+coderbot-v2/pocketbase_0.27.2_linux_amd64/pb_data/*.db
+coderbot-v2/pocketbase_0.27.2_linux_amd64/pb_data/backups/
+# END security ignore

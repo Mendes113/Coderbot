@@ -26,22 +26,18 @@ export const CodeEditorProvider: React.FC<CodeEditorProviderProps> = ({ children
 
     // Handler para interceptar window.open e links target=_blank
     function handleMessage(event: MessageEvent) {
-      // Só aceite mensagens do VS Code Web
       if (!event.data || typeof event.data !== "object") return;
-      // VS Code Web pode enviar mensagens de navegação
       if (event.data.type === "vscode:openExternal" && event.data.url) {
-        // Use dynamic import to avoid issues when Tauri isn't available (e.g., in tests)
-        import('@tauri-apps/api/core').then(({ invoke }) => {
-          invoke("plugin:opener|open", { path: event.data.url });
-        }).catch(err => {
-          console.error("Failed to load Tauri API:", err);
-        });
+        try {
+          window.open(event.data.url, '_blank', 'noopener,noreferrer');
+        } catch (err) {
+          console.error('Falha ao abrir link externo:', err);
+        }
       }
     }
 
     window.addEventListener("message", handleMessage);
 
-    // Injetar script no iframe para interceptar window.open e links target=_blank
     function injectScript() {
       if (!iframe.contentWindow) return;
       iframe.contentWindow.postMessage(
