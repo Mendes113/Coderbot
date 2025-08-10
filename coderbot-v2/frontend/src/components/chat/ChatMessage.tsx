@@ -3,7 +3,7 @@ import { Bot, User, Copy, CheckCheck, Play, TerminalSquare, AlertTriangle } from
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import mermaid from "mermaid";
 import api from "@/lib/axios";
 import Editor from "@monaco-editor/react";
@@ -144,6 +144,16 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
   }, [content]);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+
+  // Quiz timing: measure time from render to answer click
+  const quizStartRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (quizData && selectedOption === null) {
+      quizStartRef.current = Date.now();
+    } else if (!quizData) {
+      quizStartRef.current = null;
+    }
+  }, [quizData, selectedOption]);
 
   const copyToClipboard = async (code: string) => {
     try {
@@ -653,7 +663,12 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
                           setSelectedOption(opt.id!);
                           const correctNow = Boolean(opt.correct);
                           setIsCorrect(correctNow);
-                          trackEvent('edu_quiz_answer', { correct: correctNow });
+                          const questionId = simpleHash(quizData.question || '');
+                          // time spent until answer
+                          const start = quizStartRef.current || Date.now();
+                          const timeMs = Math.max(0, Date.now() - start);
+                          trackEvent('edu_quiz_time_spent', { questionId, timeMs });
+                          trackEvent('edu_quiz_answer', { questionId, correct: correctNow });
                           if (onQuizAnswer) {
                             onQuizAnswer({
                               question: quizData.question,
