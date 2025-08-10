@@ -32,18 +32,13 @@ app = FastAPI(
 )
 
 
-# Habilitar CORS para qualquer origem (você pode restringir isso conforme necessário)
+# CORS: permitir qualquer origem local (qualquer porta)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"]
 )
 
 
@@ -64,7 +59,6 @@ async def startup_event():
     
     # Aqui pode-se inicializar serviços compartilhados, como PromptLoader e RAGService,
     # para que fiquem disponíveis aos endpoints relevantes.
-
 
 
 

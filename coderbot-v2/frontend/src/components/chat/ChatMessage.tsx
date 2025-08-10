@@ -7,6 +7,7 @@ import { useMemo, useState, useEffect } from "react";
 import mermaid from "mermaid";
 import api from "@/lib/axios";
 import Editor from "@monaco-editor/react";
+import posthog from "posthog-js";
 
 const JUDGE0_URL = ""; // force proxy path
 const API_URL = (import.meta as any)?.env?.VITE_API_URL || "http://localhost:8000";
@@ -18,6 +19,20 @@ const simpleHash = (s: string) => {
     h = (h * 31 + s.charCodeAt(i)) | 0;
   }
   return `${h}`;
+};
+
+const trackEvent = (name: string, props?: Record<string, any>) => {
+  try {
+    posthog?.capture?.(name, props);
+  } catch { /* no-op */ }
+};
+
+export type QuizAnswerEvent = {
+  question: string;
+  selectedId: string;
+  selectedText: string;
+  correct: boolean;
+  explanation?: string;
 };
 
 const MermaidView = ({ code, id }: { code: string; id: string }) => {
@@ -89,9 +104,10 @@ type ChatMessageProps = {
   content: string;
   isAi: boolean;
   timestamp: Date;
+  onQuizAnswer?: (evt: QuizAnswerEvent) => void;
 };
 
-export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
+export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMessageProps) => {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Track execution results per code block (stable key based)
@@ -134,6 +150,7 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
       await navigator.clipboard.writeText(code);
       setCopiedCode(code);
       setTimeout(() => setCopiedCode(null), 2000);
+      trackEvent('edu_code_copied', { size: code.length });
     } catch (err) {
       console.error('Failed to copy text: ', err);
       const textArea = document.createElement('textarea');
@@ -148,6 +165,7 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
         document.execCommand('copy');
         setCopiedCode(code);
         setTimeout(() => setCopiedCode(null), 2000);
+        trackEvent('edu_code_copied', { size: code.length });
       } catch (err) {
         console.error('Fallback copy failed: ', err);
       }
@@ -226,17 +244,21 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
 
     setExecStates(prev => ({ ...prev, [blockKey]: { status: 'running' } }));
 
+    const startedAt = Date.now();
+
     // Always backend proxy now
     try {
       const endpoint = `${API_URL}/judge/executar`;
       const payload = { language: langName, code: source, stdin: stdin || "" } as { language: string; code: string; stdin?: string };
       console.log("[Runner] Using backend proxy", { endpoint, payload });
       const res = await api.post(endpoint, payload, { validateStatus: () => true });
+      const durationMs = Date.now() - startedAt;
       console.log("[Runner] Response status:", res.status);
       if (!(res.status >= 200 && res.status < 300)) {
         const errMsg = `Backend ${res.status}: ${typeof res.data === 'string' ? res.data : JSON.stringify(res.data)}`;
         setExecStates(prev => ({ ...prev, [blockKey]: { status: 'error', error: errMsg, meta: { path: 'BACKEND_PROXY', endpoint, status: res.status } } }));
         console.error('[Runner] HTTP Error Response:', res.data);
+        trackEvent('edu_code_run', { lang: langName, path: 'BACKEND_PROXY', durationMs, status: res.status, success: false });
         console.log("=== EXECUTION DEBUG END ===");
         return;
       }
@@ -250,9 +272,12 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
       if (json.token) parts.push(`token: ${String(json.token)}`);
       const out = parts.join("\n");
       setExecStates(prev => ({ ...prev, [blockKey]: { status: 'done', output: out || '(sem saída)', meta: { path: 'BACKEND_PROXY', endpoint, status: res.status, token: json?.token, message: json?.message || json?.status?.description }, data: json } }));
+      trackEvent('edu_code_run', { lang: langName, path: 'BACKEND_PROXY', durationMs, status: res.status, success: true });
       console.log("[Runner] SUCCESS");
     } catch (e: any) {
+      const durationMs = Date.now() - startedAt;
       setExecStates(prev => ({ ...prev, [blockKey]: { status: 'error', error: e?.message || 'Falha ao executar código (proxy)', meta: { path: 'BACKEND_PROXY', endpoint: `${API_URL}/judge/executar`, status: 0 } } }));
+      trackEvent('edu_code_run', { lang: langName, path: 'BACKEND_PROXY', durationMs, status: 0, success: false });
       console.error('[Runner] CATCH Error:', e);
     }
     console.log("=== EXECUTION DEBUG END ===");
@@ -319,6 +344,7 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+    trackEvent('edu_code_downloaded', { lang, size: editedFinalCode.length });
   };
 
   const basicFormat = async () => {
@@ -625,7 +651,18 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
                         onClick={() => {
                           if (selectedOption) return;
                           setSelectedOption(opt.id!);
-                          setIsCorrect(Boolean(opt.correct));
+                          const correctNow = Boolean(opt.correct);
+                          setIsCorrect(correctNow);
+                          trackEvent('edu_quiz_answer', { correct: correctNow });
+                          if (onQuizAnswer) {
+                            onQuizAnswer({
+                              question: quizData.question,
+                              selectedId: opt.id!,
+                              selectedText: opt.text,
+                              correct: correctNow,
+                              explanation: quizData.explanation,
+                            });
+                          }
                         }}
                         className={cn(
                           "px-3 py-1.5 rounded-full text-xs border transition-colors",
@@ -767,7 +804,7 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
                                 <div className="flex-1">{summary.text}</div>
                                 <button
                                   type="button"
-                                  className="text-xs text-[#7d8590] hover:text-[#c9d1d9] underline ml-2"
+                                  className="text-xs text-[#7d8590] hover:text[#c9d1d9] underline ml-2"
                                   onClick={() => toggleDetails(key)}
                                 >
                                   {open ? 'Ocultar detalhes' : 'Mostrar detalhes'}

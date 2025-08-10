@@ -45,8 +45,7 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
 
   const mainNavItems: NavItem[] = [
     { id: "chat", label: "Chat", icon: MessageSquare, accessKey: "c", path: "/dashboard/chat" },
-    { id: "playground", label: "Playground", icon: Code, accessKey: "p", path: "/dashboard/playground" },
-    { id: "invitations", label: "Convites", icon: Mail, accessKey: "i", path: "/dashboard/invitations", roles: ["student", "teacher", "admin"] },
+    // Removed invitations route from sidebar
     {
       id: "teacher",
       label: "Turmas",
@@ -64,6 +63,8 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
       roles: ["student", "teacher", "admin"],
     },
     { id: "whiteboard", label: "Quadro", icon: Presentation, accessKey: "w", path: "/dashboard/whiteboard" },
+    // New: Profile button (accessible to all roles)
+    { id: "profile", label: "Perfil", icon: User, accessKey: "p", path: "/profile" },
   ];
 
   const filteredNavItems = mainNavItems.filter((item) => {
@@ -141,111 +142,33 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
             className={(state === "collapsed" ? "w-9 h-9" : "w-10 h-10") + " rounded-xl shadow-sm ring-1 ring-black/5 object-contain"}
           />
           {state !== "collapsed" && (
-            <div className="min-w-0">
-              <div className="text-sm font-semibold tracking-tight leading-5">Learn Code Bot</div>
-              <div className="text-[11px] text-muted-foreground">Plataforma Educacional • v1.0</div>
+            <div>
+              <div className="font-semibold">CoderBot</div>
+              <div className="text-xs text-muted-foreground">Ambiente Educacional</div>
             </div>
-          )}
-          <div className="ml-auto">
-            <SidebarTrigger aria-label="Alternar sidebar" className="rounded-md hover:bg-coderbot-purple/15 transition-colors" />
-          </div>
-          {state !== "collapsed" && (
-            <div className="pointer-events-none absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-transparent via-sidebar-border/80 to-transparent" />
           )}
         </div>
 
-        {/* Botão extra para expandir quando colapsado (logo abaixo do header) */}
-        {state === "collapsed" && (
-          <div className="p-2 border-b border-sidebar-border/50">
-            <SidebarTrigger
-              aria-label="Expandir sidebar"
-              className="w-full justify-center rounded-md border border-sidebar-border/50 bg-sidebar hover:bg-coderbot-purple/12 transition-colors"
-            />
-          </div>
-        )}
-
         <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+          <SidebarGroupLabel>Navegação</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {filteredNavItems.map((item) => {
-                const ActiveIcon = item.icon;
-                const active = isItemActive(item);
-                return (
-                  <SidebarMenuItem key={item.id}>
-                    <div className="relative">
-                      {/* Indicador lateral de item ativo (sempre visível) */}
-                      <div
-                        className={
-                          "absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full transition-all " +
-                          (active ? "bg-coderbot-purple opacity-100" : "opacity-0")
-                        }
-                      />
-                      <SidebarMenuButton
-                        asChild
-                        isActive={active}
-                        tooltip={item.label}
-                        className={(state === "collapsed" ? "pl-2 pr-2" : "pl-3 pr-2") + " py-2 rounded-lg transition-colors duration-200 group hover:bg-coderbot-purple/12 data-[active=true]:bg-coderbot-purple/20 focus-visible:ring-2 focus-visible:ring-coderbot-purple"}
-                      >
-                        <Link
-                          to={item.path}
-                          onClick={() => onNavChange(item.id)}
-                          aria-current={active ? "page" : undefined}
-                          aria-keyshortcuts={`Alt+${item.accessKey.toUpperCase()}`}
-                          className="flex items-center gap-2 text-sm"
-                        >
-                          <ActiveIcon className={"h-5 w-5 transition-all duration-200 " + (active ? "text-coderbot-purple" : "text-muted-foreground group-hover:text-coderbot-purple group-hover:scale-110")} />
-                          <span className={state === "collapsed" ? "sr-only" : "truncate"}>{item.label}</span>
-                          {state !== "collapsed" && (
-                            <span className="ml-auto text-[10px] font-medium text-muted-foreground/80 bg-muted/40 px-1.5 py-0.5 rounded border border-border/50">
-                              <kbd className="uppercase">Alt+{item.accessKey}</kbd>
-                            </span>
-                          )}
-                        </Link>
-                      </SidebarMenuButton>
-                    </div>
-                  </SidebarMenuItem>
-                );
-              })}
+              {filteredNavItems.map((item) => (
+                <SidebarMenuItem key={item.id}>
+                  <SidebarMenuButton asChild isActive={isItemActive(item)}>
+                    <Link to={item.path} onClick={() => onNavChange(item.id)}>
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
       <SidebarFooter>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={location.pathname === "/profile"}
-                  tooltip="Meu Perfil"
-                  className="flex items-center gap-2 rounded-lg transition-colors duration-200 group hover:bg-coderbot-purple/12 data-[active=true]:bg-coderbot-purple/20"
-                >
-                  <Link to="/profile" className="flex items-center gap-2 w-full">
-                    <User className="h-5 w-5 text-muted-foreground transition-all duration-200 group-hover:text-coderbot-purple group-hover:scale-110" />
-                    <span className={state === "collapsed" ? "sr-only" : ""}>Meu Perfil</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              {/* Botão extra no rodapé para expandir quando colapsado */}
-              {state === "collapsed" && (
-                <SidebarMenuItem>
-                  <SidebarTrigger
-                    aria-label="Expandir sidebar"
-                    className="w-full justify-center rounded-md hover:bg-coderbot-purple/12"
-                  />
-                </SidebarMenuItem>
-              )}
-            </SidebarMenu>
-            {state === "expanded" && (
-              <div className="mt-3 text-[11px] text-muted-foreground/80">
-                <p>©2025 Educational Platform</p>
-              </div>
-            )}
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <SidebarTrigger />
       </SidebarFooter>
     </Sidebar>
   );

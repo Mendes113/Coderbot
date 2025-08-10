@@ -18,7 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle } from 'lucide-react';
-import { pb } from '@/integrations/pocketbase/client';
+import { pb, acceptInvite } from '@/integrations/pocketbase/client';
 import { toast } from '@/components/ui/use-toast';
 
 interface Invitation {
@@ -27,6 +27,7 @@ interface Invitation {
   className: string;
   teacherName: string;
   date: string;
+  token: string;
 }
 
 export const StudentInvitations: React.FC = () => {
@@ -43,19 +44,20 @@ export const StudentInvitations: React.FC = () => {
           throw new Error('Usuário não autenticado');
         }
 
-        // Buscar convites pendentes para o email do usuário
-        const invitationsResponse = await pb.collection('invitations').getList(1, 50, {
+        // Buscar convites pendentes (collection correta: class_invites)
+        const invitationsResponse = await pb.collection('class_invites').getList(1, 50, {
           filter: `email = "${currentUser.email}" && status = "pending"`,
           sort: '-created',
-          expand: 'class,createdBy'
+          expand: 'class,invited_by'
         });
 
         const mappedInvitations = invitationsResponse.items.map(item => ({
           id: item.id,
-          classId: item.class,
+          classId: typeof item.class === 'string' ? item.class : (item.expand?.class?.id || ''),
           className: item.expand?.class?.name || 'Turma',
-          teacherName: item.expand?.createdBy?.name || 'Professor',
-          date: new Date(item.created).toLocaleDateString()
+          teacherName: item.expand?.invited_by?.name || 'Professor',
+          date: new Date(item.created).toLocaleDateString(),
+          token: item.token as string
         }));
         setInvitations(mappedInvitations);
       } catch (error) {
@@ -74,18 +76,10 @@ export const StudentInvitations: React.FC = () => {
   }, []);
 
   // Função para aceitar convite
-  const handleAcceptInvitation = async (invitationId: string, classId: string) => {
+  const handleAcceptInvitation = async (invitationId: string, classId: string, token: string) => {
     try {
-      // Primeiro atualiza o status do convite para 'accepted'
-      await pb.collection('invitations').update(invitationId, {
-        status: 'accepted'
-      });
-
-      // Depois cria uma inscrição do aluno na turma
-      await pb.collection('class_enrollments').create({
-        class: classId,
-        student: pb.authStore.model?.id
-      });
+      // Usa o endpoint do backend para aceitar via token
+      await acceptInvite(token);
 
       // Atualiza o estado local
       setInvitations(prev => prev.filter(invitation => invitation.id !== invitationId));
@@ -108,7 +102,7 @@ export const StudentInvitations: React.FC = () => {
   // Função para recusar convite
   const handleRejectInvitation = async (invitationId: string) => {
     try {
-      await pb.collection('invitations').update(invitationId, {
+      await pb.collection('class_invites').update(invitationId, {
         status: 'rejected'
       });
 
@@ -175,7 +169,7 @@ export const StudentInvitations: React.FC = () => {
                     <Button
                       variant="default"
                       size="sm"
-                      onClick={() => handleAcceptInvitation(invitation.id, invitation.classId)}
+                      onClick={() => handleAcceptInvitation(invitation.id, invitation.classId, invitation.token)}
                     >
                       <CheckCircle className="h-4 w-4 mr-1" /> Aceitar
                     </Button>

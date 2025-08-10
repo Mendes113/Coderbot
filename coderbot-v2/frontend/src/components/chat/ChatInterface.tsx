@@ -21,6 +21,8 @@ import { SessionSidebar } from "@/components/chat/SessionSidebar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { soundEffects } from "@/utils/sounds";
 import { agnoService, MethodologyType, METHODOLOGY_CONFIG } from "@/services/agnoService";
+import posthog from "posthog-js";
+import type { QuizAnswerEvent } from "@/components/chat/ChatMessage";
 // import { ProfileHeader } from "@/components/profile/ProfileHeader";
 
 // --- Componentes de Design Emocional ---
@@ -497,6 +499,15 @@ const MobileSettingsDrawerView: React.FC<SettingsProps> = (props) => (
   </Drawer>
 );
 
+// Analytics helper (privacy-safe)
+const trackEvent = (name: string, props?: Record<string, any>) => {
+  try {
+    posthog?.capture?.(name, props);
+  } catch (_e) {
+    // no-op
+  }
+};
+
 // --- Main Chat Interface Component ---
 
 interface ChatInterfaceProps {
@@ -542,7 +553,51 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const [diagramsEnabled, setDiagramsEnabled] = useState(true);
   const [diagramType, setDiagramType] = useState<'mermaid' | 'excalidraw'>("mermaid");
   const [maxFinalCodeLines] = useState<number>(150);
+
+  // Quiz correctness context
+  const [quizCorrectCount, setQuizCorrectCount] = useState(0);
+  const [quizWrongCount, setQuizWrongCount] = useState(0);
+  const [lastQuizAnswer, setLastQuizAnswer] = useState<QuizAnswerEvent | null>(null);
+
+  const handleQuizAnswer = (evt: QuizAnswerEvent) => {
+    setLastQuizAnswer(evt);
+    if (evt.correct) setQuizCorrectCount((c) => c + 1);
+    else setQuizWrongCount((c) => c + 1);
+    // Optional aggregate metric
+    const total = (evt.correct ? quizCorrectCount + 1 : quizCorrectCount) + (evt.correct ? quizWrongCount : quizWrongCount + 1);
+    const accuracy = total > 0 ? ((evt.correct ? quizCorrectCount + 1 : quizCorrectCount) / total) : 0;
+    posthog?.capture?.('edu_quiz_accuracy', { correctCount: evt.correct ? quizCorrectCount + 1 : quizCorrectCount, wrongCount: evt.correct ? quizWrongCount : quizWrongCount + 1, accuracy });
+  };
   
+  // Track settings changes (skip initial)
+  const prevAiModel = useRef(aiModel);
+  const prevAgno = useRef(agnoMethodology);
+  const prevDiagrams = useRef(diagramsEnabled);
+  const prevAnalogies = useRef(analogiesEnabled);
+  useEffect(() => {
+    if (prevAiModel.current !== aiModel) {
+      trackEvent('edu_chat_settings_change', { setting: 'aiModel', value: aiModel });
+      prevAiModel.current = aiModel;
+    }
+  }, [aiModel]);
+  useEffect(() => {
+    if (prevAgno.current !== agnoMethodology) {
+      trackEvent('edu_chat_settings_change', { setting: 'methodology', value: agnoMethodology });
+      prevAgno.current = agnoMethodology;
+    }
+  }, [agnoMethodology]);
+  useEffect(() => {
+    if (prevDiagrams.current !== diagramsEnabled) {
+      trackEvent('edu_chat_settings_change', { setting: 'diagramsEnabled', value: diagramsEnabled });
+      prevDiagrams.current = diagramsEnabled;
+    }
+  }, [diagramsEnabled]);
+  useEffect(() => {
+    if (prevAnalogies.current !== analogiesEnabled) {
+      trackEvent('edu_chat_settings_change', { setting: 'analogiesEnabled', value: analogiesEnabled });
+      prevAnalogies.current = analogiesEnabled;
+    }
+  }, [analogiesEnabled]);
   // Estados para controle das mensagens de boas-vindas
   const [showWelcomeMessages, setShowWelcomeMessages] = useState(true);
   const [welcomeComplete, setWelcomeComplete] = useState(false);
@@ -575,6 +630,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const [idleTimer, setIdleTimer] = useState<NodeJS.Timeout | null>(null);
   const [idleShowSuggestions, setIdleShowSuggestions] = useState(false);
   const [idleLevel, setIdleLevel] = useState<'none' | 'mild' | 'moderate' | 'high'>('none');
+  // Track idle changes (ignore 'none')
+  useEffect(() => {
+    if (idleLevel && idleLevel !== 'none') {
+      trackEvent('edu_chat_idle_level', { level: idleLevel });
+    }
+  }, [idleLevel]);
 
   // Funções de celebração profissionais usando canvas-confetti + sons
   const triggerBasicCelebration = () => {
@@ -854,6 +915,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
         setSessionId(newSessionId);
         sessionStorage.setItem("coderbot_last_chat_session", newSessionId);
         
+        trackEvent('edu_chat_session_created', { sessionId: newSessionId });
+        
         console.log("New session created:", newSessionId); // Debug log
       } catch (error) {
         console.error("Error creating new chat session:", error);
@@ -889,6 +952,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
       setSessionId(newSessionId);
       sessionStorage.setItem("coderbot_last_chat_session", newSessionId);
       scrollToBottom();
+      
+      trackEvent('edu_chat_session_loaded', { sessionId: newSessionId, numMessages: sessionMessages?.length ?? 0 });
     } catch (error) {
       console.error("Error changing session:", error);
       toast.error("Erro ao carregar mensagens da sessão");
@@ -907,6 +972,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
       const newSessionId = await chatService.createSession();
       setSessionId(newSessionId);
       sessionStorage.setItem("coderbot_last_chat_session", newSessionId);
+      trackEvent('edu_chat_session_created', { sessionId: newSessionId, source: 'manual' });
     } catch (error) {
       console.error("Error creating new chat session:", error);
       toast.error("Erro ao criar nova sessão de chat");
@@ -994,6 +1060,19 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     
     // Sistema emocional inspirado no Duolingo
     const now = new Date();
+    
+    // Track sent event & latency start
+    const startTs = Date.now();
+    let chosenProvider: string = 'claude';
+    let chosenModel: string = aiModel;
+    trackEvent('edu_chat_message_sent', {
+      length: input.length,
+      sessionId,
+      model: aiModel,
+      methodology: agnoMethodology,
+      diagramsEnabled,
+      analogiesEnabled,
+    });
     
     // Detectar primeiro uso e celebrar
     if (isFirstInteraction) {
@@ -1136,11 +1215,22 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
           currentTopic: "", // Pode ser extraído do contexto
           difficultyLevel: userProfile.difficulty_level || "medium",
           learningProgress: userProfile.learning_progress || {},
+          quizStats: {
+            correctCount: quizCorrectCount,
+            wrongCount: quizWrongCount,
+            accuracy: (quizCorrectCount + quizWrongCount) > 0 ? quizCorrectCount / (quizCorrectCount + quizWrongCount) : 0,
+            lastAnswer: lastQuizAnswer ? { correct: lastQuizAnswer.correct, question: lastQuizAnswer.question, selectedId: lastQuizAnswer.selectedId } : null,
+          },
           previousInteractions: messages
             .filter(msg => !msg.isAi)
             .map(msg => msg.content)
             .slice(-5) // Últimas 5 interações
         };
+
+        // Build context prompt influence when last answer was wrong
+        const extraContext = lastQuizAnswer && lastQuizAnswer.correct === false
+          ? `\nO aluno errou a questão anterior. Explique claramente o porquê do erro e como chegar na resposta correta. Pergunta: ${lastQuizAnswer.question}.`
+          : '';
 
         // Definir provedor baseado no modelo selecionado
         let provider: 'claude' | 'openai' = 'claude';
@@ -1158,10 +1248,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
           }
         }
 
+        // Save chosen mapping for analytics
+        chosenProvider = provider;
+        chosenModel = modelId;
+
         const agnoResponse = await agnoService.askQuestion({
           methodology: agnoMethodology,
           userQuery: input,
-          context: whiteboardContext ? JSON.stringify(whiteboardContext) : `Contexto: ${knowledgeBase || 'Aprendizado geral de programação'}`,
+          context: (whiteboardContext ? JSON.stringify(whiteboardContext) : `Contexto: ${knowledgeBase || 'Aprendizado geral de programação'}`) + extraContext,
           userContext,
           provider,
           modelId,
@@ -1179,6 +1273,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
         console.log(`✅ AGNO resposta recebida usando ${provider}/${modelId}: ${agnoResponse.response.length} caracteres`);
         
       } catch (error) {
+        // Analytics: failure in AGNO path (no sensitive data)
+        trackEvent('edu_chat_response_failed', {
+          kind: 'agno',
+          sessionId,
+          model: chosenModel,
+          provider: chosenProvider,
+          methodology: agnoMethodology,
+          latencyMs: Date.now() - startTs,
+        });
         console.error("Erro crítico no sistema AGNO:", error);
         toast.error("Erro no sistema educacional. Verifique a conexão.");
         
@@ -1215,9 +1318,29 @@ Obrigado pela paciência! 🤖✨`,
             : msg
         )
       );
+      
+      // Analytics: response received
+      trackEvent('edu_chat_response_received', {
+        sessionId,
+        responseLength: (response.content || '').length,
+        latencyMs: Date.now() - startTs,
+        model: chosenModel,
+        provider: chosenProvider,
+        methodology: agnoMethodology,
+      });
     } catch (error) {
       console.error("Error processing message:", error);
       toast.error("Error processing message. Please try again.");
+      
+      // Analytics: generic failure
+      trackEvent('edu_chat_response_failed', {
+        kind: 'generic',
+        sessionId,
+        model: chosenModel,
+        provider: chosenProvider,
+        methodology: agnoMethodology,
+        latencyMs: Date.now() - startTs,
+      });
       
       // Remove only the temporary AI message that was added for loading
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
@@ -1449,6 +1572,7 @@ Obrigado pela paciência! 🤖✨`,
               content={message.content}
               isAi={message.isAi}
               timestamp={message.timestamp}
+              onQuizAnswer={handleQuizAnswer}
             />
           ))}
           

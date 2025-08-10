@@ -199,6 +199,16 @@ export async function getClassDetails(classId: string) {
   return res.data as any;
 }
 
+export async function updateClass(classId: string, payload: { title?: string; description?: string; archived?: boolean }) {
+  const res = await api.put(`/classes/${classId}`, payload, getAuthHeaders());
+  return res.data;
+}
+
+export async function deleteClass(classId: string) {
+  const res = await api.delete(`/classes/${classId}`, getAuthHeaders());
+  return res.data;
+}
+
 // Members
 export async function listClassMembers(classId: string) {
   const res = await api.get(`/classes/${classId}/members`, getAuthHeaders());
@@ -234,7 +244,7 @@ export async function listClassEvents(classId: string, opts?: { since?: string; 
   return (res.data?.items ?? []) as ClassEvent[];
 }
 
-export async function createClassEvent(classId: string, body: { type: string; title: string; description?: string; starts_at?: string; ends_at?: string; visibility?: string }) {
+export async function createClassEvent(classId: string, body: { type: string; title: string; description?: string; starts_at?: string; ends_at?: string; visibility?: string, is_online?: boolean, meeting_url?: string }) {
   const res = await api.post(`/classes/${classId}/events`, body, getAuthHeaders());
   return res.data as ClassEvent;
 }

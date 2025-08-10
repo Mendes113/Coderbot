@@ -546,10 +546,6 @@ class PocketBaseService:
             logger.error(f"Error fetching API key for user {user_id}, provider {provider}: {e}")
             return None
 
-# Global instance
-from app.config import settings
-pb_service = PocketBaseService(base_url=settings.pocketbase_url)
-
 # ------------------
 # Class Management API
 # ------------------
@@ -588,16 +584,28 @@ class PocketBaseService(PocketBaseService):
 
     # ---- Classes ----
     def create_class(self, teacher_user_id: str, title: str, description: Optional[str] = None, code: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        payload = {
+        # PocketBase schema may use 'name' instead of 'title'. Send both for compatibility.
+        payload: Dict[str, Any] = {
             "title": title,
-            "description": description or "",
+            "name": title,
+            "description": (description or ""),
+            # keep teacher if schema supports it; harmless if ignored
             "teacher": teacher_user_id,
         }
         if code:
             payload["code"] = code
         r = self._post(self.collections["classes"], payload)
         if r.status_code in (200, 201):
-            return r.json()
+            created = r.json()
+            # Ensure teacher is registered as a member with role 'teacher'
+            try:
+                class_id = created.get("id")
+                if class_id and teacher_user_id:
+                    self.add_member(class_id, teacher_user_id, role="teacher")
+            except Exception:
+                # best-effort; failure here shouldn't block class creation
+                pass
+            return created
         self._handle_response_error(r, "Create class")
         return None
 
@@ -608,11 +616,40 @@ class PocketBaseService(PocketBaseService):
             return items[0] if items else None
         return None
 
+    def update_class(self, class_id: str, payload: Dict[str, Any]) -> bool:
+        r = self._patch(self.collections["classes"], class_id, payload)
+        return r.status_code == 200
+
+    def delete_class(self, class_id: str) -> bool:
+        r = self._delete(self.collections["classes"], class_id)
+        return r.status_code == 204
+
     def list_classes_for_teacher(self, teacher_user_id: str) -> List[Dict[str, Any]]:
-        # Prefer createdBy field as owner/teacher for existing schema
-        r = self._get(self.collections["classes"], params={"filter": f"createdBy = '{teacher_user_id}'", "sort": "-created"})
+        # Prefer membership relation; some schemas may not have a role field
+        params = {
+            "filter": f"user = '{teacher_user_id}'",
+            "expand": "class",
+            "perPage": 200,
+            "sort": "-created",
+        }
+        r = self._get(self.collections["class_members"], params=params)
         if r.status_code == 200:
-            return r.json().get("items", [])
+            items = r.json().get("items", [])
+            classes_map: Dict[str, Dict[str, Any]] = {}
+            for it in items:
+                exp = it.get("expand", {})
+                c = exp.get("class")
+                if isinstance(c, dict):
+                    cid = c.get("id")
+                    if cid and cid not in classes_map:
+                        classes_map[cid] = c
+            classes = list(classes_map.values())
+            if classes:
+                return classes
+        # Fallback: return all classes (schema without membership or teacher owner)
+        r_all = self._get(self.collections["classes"], params={"perPage": 200, "sort": "-created"})
+        if r_all.status_code == 200:
+            return r_all.json().get("items", [])
         return []
 
     def list_classes_for_user(self, user_id: str) -> List[Dict[str, Any]]:
@@ -714,7 +751,7 @@ class PocketBaseService(PocketBaseService):
         return r.status_code == 200
 
     # ---- Events ----
-    def create_event(self, class_id: str, type_: str, title: str, description: str = "", starts_at: str = "", ends_at: Optional[str] = None, visibility: str = "class") -> Optional[Dict[str, Any]]:
+    def create_event(self, class_id: str, type_: str, title: str, description: str = "", starts_at: str = "", ends_at: Optional[str] = None, visibility: str = "class", is_online: Optional[bool] = False, meeting_url: Optional[str] = None) -> Optional[Dict[str, Any]]:
         payload = {
             "class": class_id,
             "type": type_,
@@ -723,6 +760,8 @@ class PocketBaseService(PocketBaseService):
             "starts_at": starts_at,
             "ends_at": ends_at,
             "visibility": visibility,
+            "is_online": bool(is_online) if is_online is not None else False,
+            "meeting_url": meeting_url or "",
         }
         r = self._post(self.collections["class_events"], payload)
         if r.status_code in (200, 201):
@@ -776,3 +815,7 @@ class PocketBaseService(PocketBaseService):
             if items:
                 return items[0].get("api_key")
         return None
+
+# Recreate global instance AFTER extending the class so it includes class management methods
+from app.config import settings
+pb_service = PocketBaseService(base_url=settings.pocketbase_url)
