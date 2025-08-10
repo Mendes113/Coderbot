@@ -226,7 +226,7 @@ async def ask_question(
                 user_query=request.user_query,
                 base_context=augmented_context,
                 include_final_code=True,
-                include_diagram=False,
+                include_diagram=False,  # diagramas desativados
                 diagram_type=None,
                 max_final_code_lines=request.max_final_code_lines or 150,
             )

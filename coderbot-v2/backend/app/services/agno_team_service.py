@@ -1,5 +1,6 @@
 from typing import Optional, Dict, Any, Tuple
 import textwrap
+import re
 
 from app.services.agno_methodology_service import AgnoMethodologyService, MethodologyType
 
@@ -9,10 +10,9 @@ class AgnoTeamService:
     Orquestrador de "equipes" lógicas para separar responsabilidades:
       - agente de EXPLICAÇÃO (worked example em passos curtos, sem código final longo)
       - agente de CÓDIGO FINAL (um único bloco completo, pronto para executar)
-      - agente de DIAGRAMA (mermaid ou excalidraw)
+      - agente de VALIDAÇÃO (garante Markdown/fences corretos e sem artefatos não suportados)
 
-    Implementa o conceito de Teams usando o serviço existente (evita nova dependência),
-    mas com prompts/roles distintos e composição do resultado final.
+    Remove geração de diagramas (mermaid/excalidraw) para evitar falhas de render no frontend.
     """
 
     def __init__(self, provider: Optional[str] = "claude", model_id: Optional[str] = None):
@@ -25,14 +25,15 @@ class AgnoTeamService:
         user_query: str,
         base_context: Optional[str] = None,
         include_final_code: bool = True,
-        include_diagram: bool = True,
-        diagram_type: str = "mermaid",
+        include_diagram: bool = False,  # ignorado, diagramas desativados
+        diagram_type: str = None,       # ignorado
         max_final_code_lines: int = 150,
     ) -> Tuple[str, Dict[str, Any]]:
         """
-        Gera explicação (worked example) + código final + diagrama, retornando:
+        Gera explicação (worked example) + código final e valida a saída.
+        Retorna:
          - response_markdown (string unificada com seções)
-         - extras { final_code: {...}, diagram: {...} }
+         - extras { final_code: {...} } quando possível
         """
 
         # 1) Agente de EXPLICAÇÃO
@@ -65,29 +66,15 @@ class AgnoTeamService:
                 }
                 final_code_section = self._render_final_code_section(code_lang or "", code_text)
 
-        # 3) Agente de DIAGRAMA
-        diagram_section = ""
-        if include_diagram:
-            diagram_prompt = self._build_diagram_prompt(user_query, diagram_type)
-            diagram_md = self.core.ask(
-                methodology=MethodologyType.DEFAULT,
-                user_query=diagram_prompt,
-                context=base_context or "",
-            )
-            diag_lang, diag_text = self._extract_single_code_block(diagram_md)
-            if diag_text:
-                extras["diagram"] = {
-                    "type": (diag_lang or diagram_type or "mermaid").lower(),
-                    "content": diag_text,
-                }
-                diagram_section = self._render_diagram_section(diag_lang or diagram_type or "mermaid", diag_text)
-
-        # 4) Compor resposta final
+        # 3) Compor resposta parcial (sem diagramas)
         response = "\n\n".join([
             explanation_md.strip(),
             final_code_section.strip() if final_code_section else "",
-            diagram_section.strip() if diagram_section else "",
         ]).strip()
+
+        # 4) Sanitizar e validar para o frontend
+        response = self._sanitize_for_frontend(response)
+        response = self._validate_and_fix_markdown(response, max_final_code_lines)
 
         return response, extras
 
@@ -98,7 +85,7 @@ class AgnoTeamService:
             parts.append(str(base_context))
         parts.append(textwrap.dedent(
             """
-            FORMATAÇÃO: Responda em Markdown claro, com PASsos numerados do exemplo
+            FORMATAÇÃO: Responda em Markdown claro, com PASSOS numerados do exemplo
             trabalhado (worked example), evitando blocos de código muito extensos.
             Foque em explicar cada etapa de forma breve e objetiva.
             """
@@ -118,40 +105,53 @@ class AgnoTeamService:
             - Responda estritamente com um bloco cercado por crases: ```linguagem ... ```
         """).strip()
 
-    def _build_diagram_prompt(self, user_query: str, diagram_type: str) -> str:
-        dtype = (diagram_type or "mermaid").lower()
-        if dtype not in ("mermaid", "excalidraw"):
-            dtype = "mermaid"
-        if dtype == "mermaid":
-            prompt = textwrap.dedent("""
-                Crie APENAS um diagrama Mermaid que represente o conceito principal
-                do problema/pedido a seguir, com nós e setas claros. O diagrama
-                DEVE começar com 'graph TD' e conter somente sintaxe válida do Mermaid:
-                "{user_query}"
+    # ------------------- VALIDAÇÃO / SANITIZAÇÃO -------------------
+    def _sanitize_for_frontend(self, md: str) -> str:
+        """
+        Remove blocos não suportados (mermaid/excalidraw) e limpa artefatos simples
+        que possam quebrar a renderização no frontend.
+        """
+        if not md:
+            return md
+        # remove blocos mermaid/excalidraw inteiros
+        pattern = re.compile(r"```(mermaid|excalidraw)\s*[\s\S]*?```", re.IGNORECASE | re.MULTILINE)
+        md = pattern.sub("", md)
+        return md.strip()
 
-                Regras:
-                - Responda estritamente com um bloco cercado por crases: ```mermaid ... ```
-                - Evite diagramas muito grandes.
-                - Exemplo mínimo de formato válido:
-                  ```mermaid
-                  graph TD
-                    A[Início] --> B[Processo]
-                    B --> C{Condição?}
-                    C -->|Sim| D[Saída 1]
-                    C -->|Não| E[Saída 2]
-                  ```
-            """).strip()
-            return prompt.replace("{user_query}", user_query)
-        else:
-            return textwrap.dedent(f"""
-                Crie APENAS um JSON Excalidraw mínimo (bloco cercado por crases `excalidraw`)
-                que represente o conceito principal da tarefa:
-                "{user_query}"
-
-                Regras:
-                - Responda estritamente com um bloco cercado por crases: ```excalidraw ... ```
-                - Evite diagramas muito grandes.
-            """).strip()
+    def _validate_and_fix_markdown(self, md: str, max_lines: int) -> str:
+        """
+        Usa um agente validador para garantir que o Markdown final está consistente:
+        - fences (```lang ... ```) bem formadas
+        - no máximo UM bloco "Código final" ao final
+        - sem blocos não suportados
+        - linhas do bloco final dentro de limites, se possível
+        """
+        validator_rules = textwrap.dedent(f"""
+            Você é um validador de saída para um frontend React. Receberá um Markdown e deve
+            devolver um Markdown semanticamente correto e seguro para renderização:
+            Regras obrigatórias:
+            - Garanta que todos os blocos de código cercados com ``` estejam corretamente abertos e fechados.
+            - Remova quaisquer blocos mermaid/excalidraw.
+            - Se houver uma seção "### Código final": mantenha apenas UM bloco nessa seção. Se não existir,
+              crie uma seção "### Código final" ao final contendo UM ÚNICO bloco com no máximo {max_lines} linhas,
+              baseado no conteúdo presente. Não adicione texto fora de Markdown válido.
+            - Não inclua XML/HTML bruto não escapado que quebre a renderização.
+            - Preserve o restante da explicação em Markdown simples.
+        """)
+        prompt = "Valide e corrija o Markdown a seguir para renderizar sem erros."
+        context = "\n\n".join([validator_rules, "\n---\nConteúdo original:\n", md])
+        try:
+            fixed = self.core.ask(
+                methodology=MethodologyType.DEFAULT,
+                user_query=prompt,
+                context=context,
+            )
+            # Sanitização final por garantia
+            fixed = self._sanitize_for_frontend(fixed)
+            return fixed or md
+        except Exception:
+            # fallback: retorna md sanitizado
+            return md
 
     # ------------------- RENDERIZAÇÃO AUXILIAR -------------------
     def _render_final_code_section(self, lang: str, code: str) -> str:
@@ -164,19 +164,8 @@ class AgnoTeamService:
             ```
         """).strip()
 
-    def _render_diagram_section(self, lang: str, content: str) -> str:
-        t = (lang or "mermaid").strip()
-        return textwrap.dedent(f"""
-            ### Diagrama
-
-            ```{t}
-            {content}
-            ```
-        """).strip()
-
     # ------------------- EXTRAÇÃO AUXILIAR -------------------
     def _extract_single_code_block(self, md: str) -> Tuple[Optional[str], Optional[str]]:
-        import re
         m = re.search(r"```(\w+)?\s*([\s\S]*?)```", md or "", re.MULTILINE)
         if not m:
             return None, None
