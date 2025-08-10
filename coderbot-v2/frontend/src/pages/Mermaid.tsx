@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import Dock from "@/Components/Dock/Dock";
 import { Plus, ArrowRight, RefreshCcw, Download, Maximize2, Save, Eye } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { invoke } from "@tauri-apps/api/core";
 
 // Custom node component with connectors (handles) and inline editing
 const CustomNode = ({ data, isConnectable, id, selected }: NodeProps) => {
@@ -95,21 +94,22 @@ const nodeTypes = {
   customNode: CustomNode,
 };
 
-// Save file to disk function (adapted from CodeEditor.tsx)
+// Save file to disk function (browser download)
 async function saveFileToDisk(name: string, content: string): Promise<void> {
   try {
-    console.log('Saving file:', name);
-    
-    // Ensure directory exists
-    await invoke("ensure_dir", { dirname: "" });
-    
-    // Write file
-    await invoke("write_file", { filename: name, content });
-    console.log('File saved successfully');
-    toast.success("Diagrama salvo com sucesso!");
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name || "diagram.mmd";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast.success("Diagrama salvo (download iniciado)");
   } catch (error) {
     console.error("Error saving file:", error);
-    toast.error(`Erro ao salvar: ${error}`);
+    toast.error("Erro ao iniciar download do diagrama");
     throw error;
   }
 }

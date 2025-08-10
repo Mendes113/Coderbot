@@ -1,198 +1,110 @@
-import React from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Overview } from "@/components/dashboard/Overview";
-import { RecentActivity } from "@/components/dashboard/RecentActivity";
-import {
-  BookOpen,
-  Code,
-  FileText,
-  BarChart2,
-  BookMarked,
-  GraduationCap,
-} from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Loader2, School, RefreshCw, Info } from "lucide-react";
+import { listMyClasses } from "@/integrations/pocketbase/client";
+
+type StudentClass = { id: string; title?: string; name?: string; description?: string };
 
 export const StudentDashboard = () => {
+  const [classes, setClasses] = useState<StudentClass[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
+  const [filterQuery, setFilterQuery] = useState<string>("");
+
+  const loadMyClasses = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const list = await listMyClasses();
+      const mapped = (list || []).map((it: any) => ({
+        id: it?.id,
+        title: it?.title ?? it?.name ?? "Turma",
+        name: it?.name,
+        description: it?.description ?? "",
+      })) as StudentClass[];
+      setClasses(mapped);
+    } catch (e) {
+      setError("Não foi possível carregar suas turmas.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadMyClasses();
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = filterQuery.trim().toLowerCase();
+    if (!q) return classes;
+    return classes.filter((c) => (c.title || "").toLowerCase().includes(q) || (c.description || "").toLowerCase().includes(q));
+  }, [classes, filterQuery]);
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard do Aluno</h2>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+          <School className="h-7 w-7 text-education-primary" />
+          Minhas Turmas
+        </h2>
+        <div className="flex items-center gap-2">
+          <Input
+            placeholder="Filtrar por nome ou descrição..."
+            value={filterQuery}
+            onChange={(e) => setFilterQuery(e.target.value)}
+            className="w-72"
+          />
+          <Button variant="outline" onClick={loadMyClasses} disabled={loading} className="gap-2">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Atualizar
+          </Button>
+        </div>
       </div>
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-          <TabsTrigger value="progress">Progresso</TabsTrigger>
-          <TabsTrigger value="activities">Atividades</TabsTrigger>
-        </TabsList>
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Exercícios Concluídos
-                </CardTitle>
-                <FileText className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">12</div>
-                <p className="text-xs text-muted-foreground">
-                  +3 desde a semana passada
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Projetos Finalizados
-                </CardTitle>
-                <Code className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">3</div>
-                <p className="text-xs text-muted-foreground">
-                  +1 desde o mês passado
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Horas de Estudo
-                </CardTitle>
-                <BookOpen className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">28h</div>
-                <p className="text-xs text-muted-foreground">
-                  +5h desde a semana passada
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Pontuação Total
-                </CardTitle>
-                <BarChart2 className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">2,580</div>
-                <p className="text-xs text-muted-foreground">
-                  +250 desde a semana passada
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-            <Card className="col-span-4">
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 text-sm">{error}</div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center h-48 text-muted-foreground gap-2">
+          <Loader2 className="h-5 w-5 animate-spin" /> Carregando turmas...
+        </div>
+      ) : filtered.length === 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Nenhuma turma encontrada</CardTitle>
+            <CardDescription>
+              {classes.length === 0
+                ? "Você ainda não está em nenhuma turma. Aguarde um convite do professor."
+                : "Tente ajustar o filtro para encontrar a turma desejada."}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((c) => (
+            <Card key={c.id} className="hover:shadow-sm transition-shadow">
               <CardHeader>
-                <CardTitle>Seu Progresso</CardTitle>
-                <CardDescription>
-                  Acompanhe seu progresso ao longo do tempo
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <Overview />
-              </CardContent>
-            </Card>
-            <Card className="col-span-3">
-              <CardHeader>
-                <CardTitle>Atividades Recentes</CardTitle>
-                <CardDescription>
-                  Suas últimas interações com o sistema
-                </CardDescription>
+                <CardTitle className="text-lg font-semibold truncate">{c.title || c.name || "Turma"}</CardTitle>
+                {c.description && (
+                  <CardDescription className="line-clamp-2">{c.description}</CardDescription>
+                )}
               </CardHeader>
               <CardContent>
-                <RecentActivity />
+                <div className="text-xs text-muted-foreground">ID: {c.id}</div>
               </CardContent>
+              <CardFooter>
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3.5 w-3.5" />
+                  Entre em contato com seu professor para detalhes e atividades.
+                </div>
+              </CardFooter>
             </Card>
-          </div>
-        </TabsContent>
-        <TabsContent value="progress" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Trilha de Aprendizado</CardTitle>
-              <CardDescription>
-                Seu caminho de estudos e próximos passos
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <BookMarked className="h-5 w-5 text-primary" />
-                  <h3 className="text-lg font-medium">Módulo atual: Estruturas de Dados Básicas</h3>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Você está 65% completo neste módulo. Continue estudando para avançar!
-                </p>
-                <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
-                  <div className="bg-primary h-full rounded-full" style={{ width: "65%" }}></div>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <h4 className="text-sm font-medium">Próximas Lições:</h4>
-                <ul className="space-y-2">
-                  <li className="flex items-center space-x-2">
-                    <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">Árvores Binárias - Conceitos Básicos</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">Algoritmos de Ordenação - Parte 2</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">Projeto Prático: Sistema de Gerenciamento</span>
-                  </li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="activities" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Atividades Pendentes</CardTitle>
-              <CardDescription>
-                Exercícios e tarefas para completar
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid gap-2">
-                  <div className="flex items-center justify-between p-2 border rounded-md hover:bg-accent">
-                    <div className="flex items-center space-x-2">
-                      <FileText className="h-4 w-4 text-primary" />
-                      <span>Exercício: Implementação de Listas Encadeadas</span>
-                    </div>
-                    <span className="text-sm font-medium text-destructive">Vence em 2 dias</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 border rounded-md hover:bg-accent">
-                    <div className="flex items-center space-x-2">
-                      <Code className="h-4 w-4 text-primary" />
-                      <span>Projeto: Desenvolvimento de API Básica</span>
-                    </div>
-                    <span className="text-sm font-medium text-destructive">Vence em 1 semana</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 border rounded-md hover:bg-accent">
-                    <div className="flex items-center space-x-2">
-                      <BookOpen className="h-4 w-4 text-primary" />
-                      <span>Leitura: Introdução a Padrões de Projeto</span>
-                    </div>
-                    <span className="text-sm font-medium text-muted-foreground">Sem prazo</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          ))}
+        </div>
+      )}
     </div>
   );
 }; 

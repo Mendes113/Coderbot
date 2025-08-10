@@ -1,5 +1,5 @@
-import { User, MessageSquare, Code, BarChart3, GraduationCap, FileText, Presentation, GitBranch, ClipboardEdit, Brain, TrendingUp, Star, Sparkles, Heart, Target, Trophy } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { User, MessageSquare, Code, GraduationCap, Presentation, Mail } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -13,10 +13,8 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getCurrentUser } from "@/integrations/pocketbase/client";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
 type NavItem = {
   id: string;
@@ -34,37 +32,28 @@ type AppSidebarProps = {
 
 export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { state, isMobile } = useSidebar();
+  const { state } = useSidebar();
 
   useEffect(() => {
-    // Get current user role
     const user = getCurrentUser();
-    if (user) {
-      setUserRole(user.role);
-    }
+    if (user) setUserRole(user.role);
     setIsLoading(false);
   }, []);
 
-  // Map navigation items to their corresponding routes
   const mainNavItems: NavItem[] = [
     { id: "chat", label: "Chat", icon: MessageSquare, accessKey: "c", path: "/dashboard/chat" },
-    { id: "playground", label: "Playground", icon: Code, accessKey: "p", path: "/dashboard/playground" },
-    // { id: "adaptive", label: "Adaptive Learning", icon: Brain, accessKey: "a", path: "/dashboard/adaptive" },
-    // { id: "analytics", label: "Learning Analytics", icon: TrendingUp, accessKey: "l", path: "/dashboard/analytics" },
-    // { id: "exercises", label: "Exercícios", icon: FileText, accessKey: "e", path: "/dashboard/exercises" },
-    // { id: "metrics", label: "Métricas", icon: BarChart3, accessKey: "m", path: "/dashboard/metrics" },
-    // Only show teacher dashboard for teachers and admins
+    // Removed invitations route from sidebar
     {
       id: "teacher",
-      label: "Professor",
+      label: "Turmas",
       icon: GraduationCap,
       accessKey: "t",
       path: "/dashboard/teacher",
       roles: ["teacher", "admin"],
     },
-    // Show student dashboard for students (can also be visible to teachers/admins)
     {
       id: "student",
       label: "Aluno",
@@ -73,22 +62,55 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
       path: "/dashboard/student",
       roles: ["student", "teacher", "admin"],
     },
-
-    
     { id: "whiteboard", label: "Quadro", icon: Presentation, accessKey: "w", path: "/dashboard/whiteboard" },
-    // { id: "mermaid", label: "Diagramas", icon: GitBranch, accessKey: "d", path: "/dashboard/mermaid" },
-    // { id: "flashcard", label: "Flashcards", icon: ClipboardEdit, accessKey: "f", path: "/dashboard/flashcard" },
+    // New: Profile button (accessible to all roles)
+    { id: "profile", label: "Perfil", icon: User, accessKey: "p", path: "/profile" },
   ];
 
-  // Filter items based on user role
-  const filteredNavItems = mainNavItems.filter(item => {
-    // If the item doesn't specify roles, show it to everyone
+  const filteredNavItems = mainNavItems.filter((item) => {
     if (!item.roles) return true;
-    // If we don't know the user role yet or there's an error, hide role-specific items
-    if (!userRole) return false;
-    // Show the item if the user's role is in the item's roles array
-    return item.roles.includes(userRole);
+    const normalizedUserRole = (userRole || "").toLowerCase().trim();
+    // Fallback: mostrar itens com controle de role mesmo se a role ainda não estiver carregada
+    if (!normalizedUserRole) return true;
+    const allowed = item.roles.map(r => r.toLowerCase().trim());
+    return allowed.includes(normalizedUserRole);
   });
+
+  // Mapa de atalhos Alt+<tecla>
+  const accessKeyMap = useMemo(() => {
+    const map = new Map<string, NavItem>();
+    for (const item of filteredNavItems) {
+      map.set(item.accessKey.toLowerCase(), item);
+    }
+    return map;
+  }, [filteredNavItems]);
+
+  // Listener global para atalhos (ignora campos de texto)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isEditable = !!target && (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable ||
+        (target.getAttribute && target.getAttribute("role") === "textbox")
+      );
+      if (isEditable) return;
+      if (!e.altKey) return;
+      const key = e.key.toLowerCase();
+      const item = accessKeyMap.get(key);
+      if (!item) return;
+      e.preventDefault();
+      onNavChange(item.id);
+      navigate(item.path);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [accessKeyMap, navigate, onNavChange]);
+
+  const isItemActive = (item: NavItem) => {
+    return currentNav === item.id || location.pathname.startsWith(item.path);
+  };
 
   if (isLoading) {
     return (
@@ -105,36 +127,37 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
-        <div className="flex flex-col items-center gap-2 p-2 border-b border-sidebar-border min-h-[72px]">
+        {/* Header com branding moderno (adapta para compacto) */}
+        <div
+          className={
+            "relative flex items-center gap-3 border-b border-sidebar-border/50 " +
+            (state === "collapsed"
+              ? "p-2 bg-transparent"
+              : "p-4 bg-gradient-to-br from-coderbot-purple/20 via-transparent to-transparent backdrop-blur-sm")
+          }
+        >
           <img
             src="/coderbot_colorfull.png"
             alt="Logo Coderbot"
-            className="w-12 aspect-square mb-1 rounded-full shadow-lg transition-all duration-500 opacity-90 hover:opacity-100 hover:scale-105 object-contain mx-auto"
-            style={{ animation: 'fadeInScale 0.7s' }}
+            className={(state === "collapsed" ? "w-9 h-9" : "w-10 h-10") + " rounded-xl shadow-sm ring-1 ring-black/5 object-contain"}
           />
-          <SidebarTrigger />
-          {/* {state === "expanded" && (
-            <span className="text-xl font-bold text-coderbot-purple truncate">Learn Code Bot</span>
-          )} */}
+          {state !== "collapsed" && (
+            <div>
+              <div className="font-semibold">CoderBot</div>
+              <div className="text-xs text-muted-foreground">Ambiente Educacional</div>
+            </div>
+          )}
         </div>
+
         <SidebarGroup>
-          <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
+          <SidebarGroupLabel>Navegação</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {filteredNavItems.map((item) => (
                 <SidebarMenuItem key={item.id}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={currentNav === item.id}
-                    tooltip={item.label}
-                    className="transition-all duration-200 group hover:scale-105 hover:bg-coderbot-purple/20 focus:scale-105"
-                  >
-                    <Link
-                      to={item.path}
-                      onClick={() => onNavChange(item.id)}
-                      className="flex items-center gap-2"
-                    >
-                      <item.icon className="h-5 w-5 transition-all duration-200 group-hover:text-coderbot-purple group-hover:scale-110" />
+                  <SidebarMenuButton asChild isActive={isItemActive(item)}>
+                    <Link to={item.path} onClick={() => onNavChange(item.id)}>
+                      <item.icon />
                       <span>{item.label}</span>
                     </Link>
                   </SidebarMenuButton>
@@ -145,31 +168,7 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={location.pathname === "/profile"}
-                  tooltip="Meu Perfil"
-                  className="flex items-center gap-2 transition-all duration-200 group hover:scale-105 hover:bg-coderbot-purple/20 focus:scale-105"
-                >
-                  <Link to="/profile" className="flex items-center gap-2 w-full">
-                    <User className="h-5 w-5 transition-all duration-200 group-hover:text-coderbot-purple group-hover:scale-110" />
-                    <span className={state === "collapsed" ? "sr-only" : ""}>Meu Perfil</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-            {state === "expanded" && (
-              <div className="mt-4 text-xs text-muted-foreground">
-                <p>Learn Code Bot v1.0</p>
-                <p>©2025 Educational Platform</p>
-              </div>
-            )}
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <SidebarTrigger />
       </SidebarFooter>
     </Sidebar>
   );

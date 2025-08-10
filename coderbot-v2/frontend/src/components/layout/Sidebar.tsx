@@ -22,10 +22,10 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, accessKey, to, isColl
     <Component
       to={to}
       className={cn(
-        "flex items-center gap-3 px-3 py-3 rounded-md text-sm font-medium w-full transition-all group relative",
+        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full transition-all group relative",
         active
-          ? "bg-coderbot-purple text-white"
-          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          ? "bg-coderbot-purple/20 text-foreground ring-1 ring-coderbot-purple/30"
+          : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
       )}
       onClick={onClick}
       accessKey={accessKey}
@@ -72,7 +72,7 @@ export const Sidebar = ({ onNavChange, currentNav }: SidebarProps) => {
       {isMobile && (
         <button 
           onClick={() => setIsOpen(!isOpen)}
-          className="fixed top-4 left-4 z-50 bg-coderbot-purple text-white p-2 rounded-md shadow-md"
+          className="fixed top-4 left-4 z-50 bg-coderbot-purple/90 text-white p-2 rounded-md shadow-md backdrop-blur"
           aria-label={isOpen ? "Close menu" : "Open menu"}
         >
           {isOpen ? <X size={24} /> : <Menu size={24} />}
@@ -81,16 +81,16 @@ export const Sidebar = ({ onNavChange, currentNav }: SidebarProps) => {
 
       <div 
         className={cn(
-          "h-screen bg-sidebar flex flex-col border-r border-sidebar-border transition-all duration-300",
+          "h-screen bg-sidebar flex flex-col border-r border-sidebar-border/60 transition-all duration-300",
           isMobile ? "fixed z-40 left-0 top-0" : "w-64",
           isMobile && !isOpen ? "-translate-x-full" : "translate-x-0",
-          isMobile && isOpen ? "w-[80%] max-w-[250px]" : "",
+          isMobile && isOpen ? "w-[80%] max-w-[260px]" : "",
           isCollapsed && !isMobile ? "w-16" : ""
         )}
       >
-        <div className="p-2 border-b border-sidebar-border">
+        <div className="p-3 border-b border-sidebar-border/60 bg-sidebar/60 backdrop-blur-sm">
           <div className="flex items-center justify-between gap-2">
-            {!isCollapsed && <h1 className="text-xl font-bold text-coderbot-purple truncate">Learn Code Bot</h1>}
+            {!isCollapsed && <h1 className="text-lg font-semibold text-foreground truncate">Learn Code Bot</h1>}
             {!isMobile && (
               <button
                 onClick={() => setIsCollapsed(!isCollapsed)}
@@ -121,7 +121,7 @@ export const Sidebar = ({ onNavChange, currentNav }: SidebarProps) => {
             ))}
           </nav>
         </div>
-        <div className="p-3 border-t border-sidebar-border">
+        <div className="p-3 border-t border-sidebar-border/60">
           <div className="mb-3">
             <SidebarItem
               icon={User}
@@ -135,13 +135,13 @@ export const Sidebar = ({ onNavChange, currentNav }: SidebarProps) => {
             />
           </div>
           {!isCollapsed && (
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-muted-foreground/80">
             <p>Learn Code Bot v1.0</p>
             <p>©2025 Educational Platform</p>
             </div>
           )}
-          </div>
         </div>
+      </div>
      
       {isMobile && isOpen && (
         <div 

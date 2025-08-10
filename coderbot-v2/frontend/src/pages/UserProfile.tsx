@@ -28,6 +28,7 @@ import {
   getComprehensiveAnalytics,
   type UserAnalytics 
 } from "@/services/analytics-service";
+import { StudentInvitations } from "@/components/student/StudentInvitations";
 
 const UserProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
@@ -154,13 +155,6 @@ const UserProfile = () => {
     }
   };
 
-  // const handleAdaptiveSetupComplete = (newProfile: LearningProfile, pathId: string) => {
-  //   // setLearningProfile(newProfile);
-  //   setShowAdaptiveSetup(false);
-  //   loadLearningData(); // Reload all data
-  //   toast.success('Learning profile setup completed!');
-  // };
-
   const calculateUserLevel = (studyHours: number) => {
     // Simple level calculation: 10 hours per level
     return Math.floor(studyHours / 10) + 1;
@@ -196,32 +190,6 @@ const UserProfile = () => {
     );
   }
 
-  // if (showAdaptiveSetup || ( !loadingLearningData)) {
-  //   return (
-  //     <div className="container mx-auto py-6">
-  //       <div className="flex items-center gap-2 mb-6">
-  //         <Button
-  //           variant="ghost"
-  //           size="icon"
-  //           onClick={() => navigate("/dashboard/chat")}
-  //           className="flex-shrink-0"
-  //         >
-  //           <ArrowLeft className="h-4 w-4" />
-  //         </Button>
-  //         <h1 className="text-2xl font-bold">Complete Your Learning Profile</h1>
-  //       </div>
-  //       <AdaptiveLearningSetup 
-  //         onComplete={handleAdaptiveSetupComplete}
-  //         className="min-h-screen"
-  //       />
-  //     </div>
-  //   );
-  // }
-
-  // const userLevel = learningProfile ? calculateUserLevel(learningProfile.total_study_time_hours) : 1;
-  // const levelProgress = learningProfile ? calculateLevelProgress(learningProfile.total_study_time_hours) : 0;
-  // const badges = learningProfile ? getAchievementBadges(learningProfile, analytics) : [];
-
   return (
     <div className="container mx-auto py-8 space-y-8 max-w-6xl">
       <div className="flex justify-between items-center">
@@ -238,15 +206,6 @@ const UserProfile = () => {
           <h1 className="text-2xl font-bold">Perfil & Learning Analytics</h1>
         </div>
         <div className="flex gap-2">
-          {/* <Button
-            variant="outline"
-            onClick={() => setShowAdaptiveSetup(true)}
-            className="flex items-center gap-2"
-            size="sm"
-          >
-            <Settings className="h-4 w-4" />
-            Setup Learning
-          </Button> */}
           <Button
             variant="outline"
             onClick={handleGithubConnect}
@@ -270,265 +229,10 @@ const UserProfile = () => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-5">
-          {/* <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="learning">Learning Progress</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger> */}
           <TabsTrigger value="profile">Profile Settings</TabsTrigger>
           <TabsTrigger value="api-keys">API Keys</TabsTrigger>
+          <TabsTrigger value="invites">Convites</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="overview" className="space-y-6">
-          {/* Learning Statistics Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Current Level</CardTitle>
-                <Trophy className="h-4 w-4 text-yellow-500" />
-              </CardHeader>
-              {/* <CardContent>
-                <div className="text-2xl font-bold">Level {userLevel}</div>
-                <Progress value={levelProgress} className="mt-2" />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {(10 - (learningProfile?.total_study_time_hours || 0) % 10).toFixed(1)}h to next level
-                </p>
-              </CardContent> */}
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Current Streak</CardTitle>
-                <Flame className="h-4 w-4 text-orange-500" />
-              </CardHeader>
-              {/* <CardContent>
-                <div className="text-2xl font-bold">{learningProfile?.current_streak || 0}</div>
-                <p className="text-xs text-muted-foreground">days</p>
-              </CardContent> */}
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Study Time</CardTitle>
-                <Clock className="h-4 w-4 text-blue-500" />
-              </CardHeader>
-              {/* <CardContent>
-                <div className="text-2xl font-bold">
-                  {learningProfile?.total_study_time_hours.toFixed(1) || 0}h
-                </div>
-                <p className="text-xs text-muted-foreground">total</p>
-              </CardContent> */}
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Learning Paths</CardTitle>
-                <BookOpen className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              {/* <CardContent>
-                <div className="text-2xl font-bold">{learningPaths.length}</div>
-                <p className="text-xs text-muted-foreground">active</p>
-              </CardContent> */}
-            </Card>
-          </div>
-
-          {/* Learning Profile Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Brain className="h-5 w-5 mr-2" />
-                  Learning Profile
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Learning Style:</span>
-                  {/* <Badge variant="secondary" className="capitalize">
-                    {learningProfile?.learning_style.replace('_', ' ') || 'Not set'}
-                  </Badge> */}
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Difficulty Level:</span>
-                  {/* <Badge variant="outline" className="capitalize">
-                    {learningProfile?.preferred_difficulty || 'Not set'}
-                  </Badge> */}
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Pace Preference:</span>
-                  {/* <Badge variant="outline" className="capitalize">
-                    {learningProfile?.pace_preference || 'Not set'}
-                  </Badge> */}
-                </div>
-                {analytics && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Performance:</span>
-                    <Badge variant="default">
-                      {(analytics.overview.average_performance * 100).toFixed(1)}%
-                    </Badge>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Achievements & Badges</CardTitle>
-              </CardHeader>
-              {/* <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {badges.map((badge, index) => (
-                    <Badge key={index} className={badge.color}>
-                      {badge.name}
-                    </Badge>
-                  ))}
-                  {badges.length === 0 && (
-                    <p className="text-muted-foreground text-sm">
-                      Continue learning to earn your first badges!
-                    </p>
-                  )}
-                </div>
-              </CardContent> */}
-            </Card>
-          </div>
-
-          {/* Active Challenges & Goals */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Target className="h-5 w-5 mr-2" />
-                Learning Goals & Recommendations
-              </CardTitle>
-            </CardHeader>
-            {/* <CardContent className="space-y-4">
-              {learningProfile?.learning_goals && learningProfile.learning_goals.length > 0 ? (
-                <div>
-                  <h4 className="font-medium mb-2">Current Goals:</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {learningProfile.learning_goals.map((goal, index) => (
-                      <Badge key={index} variant="outline">
-                        {goal}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <p className="text-muted-foreground">No learning goals set yet.</p>
-              )}
-
-              {recommendations.length > 0 && (
-                <div>
-                  <h4 className="font-medium mb-2">AI Recommendations:</h4>
-                  <div className="space-y-2">
-                    {recommendations.slice(0, 3).map((rec) => (
-                      <div key={rec.id} className="flex items-center justify-between p-2 rounded border">
-                        <span className="text-sm">{rec.title}</span>
-                        <Badge 
-                          variant={rec.priority >= 4 ? "destructive" : rec.priority >= 3 ? "default" : "secondary"}
-                          className="text-xs"
-                        >
-                          {rec.priority >= 4 ? 'High' : rec.priority >= 3 ? 'Medium' : 'Low'} Priority
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent> */}
-          </Card>
-
-          {/* Motivational Message */}
-          <div className="text-center text-blue-700 dark:text-blue-400 font-medium mt-6 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
-            <Zap className="h-6 w-6 mx-auto mb-2" />
-            Continue assim! Você está avançando no seu aprendizado 🚀
-            {/* {learningProfile?.current_streak && learningProfile.current_streak > 0 && (
-              <p className="text-sm mt-1">
-                {learningProfile.current_streak} days streak - Keep it up!
-              </p>
-            )} */}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="learning" className="space-y-6">
-          {/* Learning Paths Progress */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Learning Paths Progress</CardTitle>
-              <CardDescription>Your active learning journeys</CardDescription>
-            </CardHeader>
-            {/* <CardContent>
-              {learningPaths.length > 0 ? (
-                <div className="space-y-4">
-                  {learningPaths.map((path) => (
-                    <div key={path.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <h4 className="font-medium">Learning Path</h4>
-                        <Badge variant="secondary">
-                          {path.completion_percentage.toFixed(0)}% Complete
-                        </Badge>
-                      </div>
-                      <Progress value={path.completion_percentage} className="mb-2" />
-                      <div className="text-sm text-muted-foreground">
-                        {path.objectives.length} objectives • {path.estimated_completion_hours}h estimated
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-muted-foreground">No active learning paths</p>
-                  <Button className="mt-4" onClick={() => navigate('/dashboard/adaptive')}>
-                    Create Learning Path
-                  </Button>
-                </div>
-              )}
-            </CardContent> */}
-          </Card>
-
-          {/* Skills Assessment */}
-          {/* {learningProfile && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Strong Areas</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {learningProfile.strong_areas.map((area, index) => (
-                      <Badge key={index} variant="default">
-                        {area}
-                      </Badge>
-                    ))}
-                    {learningProfile.strong_areas.length === 0 && (
-                      <p className="text-muted-foreground text-sm">
-                        Complete assessments to identify your strengths
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Areas to Improve</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {learningProfile.weak_areas.map((area, index) => (
-                      <Badge key={index} variant="outline">
-                        {area}
-                      </Badge>
-                    ))}
-                    {learningProfile.weak_areas.length === 0 && (
-                      <p className="text-muted-foreground text-sm">
-                        No areas identified for improvement yet
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )} */}
-        </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">
           {analytics ? (
@@ -625,6 +329,10 @@ const UserProfile = () => {
               <div className="text-xs text-neutral-500 mt-2 text-center">Dica: Use chaves diferentes para cada serviço para maior segurança.<br/>Você pode atualizar suas chaves a qualquer momento.</div>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="invites" className="space-y-6">
+          <StudentInvitations />
         </TabsContent>
       </Tabs>
     </div>

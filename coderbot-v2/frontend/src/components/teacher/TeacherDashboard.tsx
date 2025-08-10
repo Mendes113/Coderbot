@@ -15,6 +15,7 @@ import {
   GraduationCap,
   ClipboardCheck,
 } from "lucide-react";
+import { ClassManager } from "@/components/teacher/ClassManager";
 
 export const TeacherDashboard = () => {
   return (
@@ -157,6 +158,17 @@ export const TeacherDashboard = () => {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+        <TabsContent value="classes" className="space-y-4">
+          <ClassManager />
+        </TabsContent>
+        <TabsContent value="students" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Gerenciamento de Alunos</CardTitle>
+              <CardDescription>Em breve: listar, adicionar e remover alunos por turma.</CardDescription>
+            </CardHeader>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

@@ -1,6 +1,20 @@
 // src/integrations/pocketbase/client.ts
 
 import PocketBase, { RecordModel as PBRecord} from 'pocketbase';
+import api from "@/lib/axios";
+
+// -----------------------------
+// Backend helpers (headers)
+// -----------------------------
+function getAuthHeaders() {
+  const user = pb.authStore.model as any;
+  const userId = user?.id ?? "";
+  const role = user?.role ?? "";
+  const headers: Record<string, string> = {};
+  if (userId) headers["X-User-Id"] = userId;
+  if (role) headers["X-User-Role"] = role;
+  return { headers };
+}
 
 // URL do seu servidor PocketBase, de preferência em variável de ambiente
 const POCKETBASE_URL = import.meta.env.VITE_POCKETBASE_URL || 'http://127.0.0.1:8090';
@@ -154,3 +168,104 @@ export const upsertUserApiKey = async (userId: string, provider: string, apiKey:
     return await pb.collection('user_api_keys').create({ user: userId, provider, api_key: apiKey });
   }
 };
+
+// ============================
+// Classes API (via backend)
+// ============================
+
+export type ClassSummary = { id: string; title?: string; name?: string; description?: string };
+export type ClassMember = { id: string; class: string; user: string; role: 'student'|'teacher'; expand?: any };
+export type Invitation = { id: string; class: string; email?: string; user?: string; token: string; status: string; expires_at: string };
+export type ClassEvent = { id: string; class: string; type: string; title: string; description?: string; starts_at?: string; ends_at?: string; visibility: string };
+
+// Classes
+export async function createClass(title: string, description?: string, code?: string) {
+  const res = await api.post("/classes", { title, description, code }, getAuthHeaders());
+  return res.data as ClassSummary;
+}
+
+export async function listTeachingClasses() {
+  const res = await api.get("/classes/teaching", getAuthHeaders());
+  return (res.data?.items ?? []) as ClassSummary[];
+}
+
+export async function listMyClasses() {
+  const res = await api.get("/classes/mine", getAuthHeaders());
+  return (res.data?.items ?? []) as any[]; // may include expand from backend when using class_members
+}
+
+export async function getClassDetails(classId: string) {
+  const res = await api.get(`/classes/${classId}`, getAuthHeaders());
+  return res.data as any;
+}
+
+export async function updateClass(classId: string, payload: { title?: string; description?: string; archived?: boolean }) {
+  const res = await api.put(`/classes/${classId}`, payload, getAuthHeaders());
+  return res.data;
+}
+
+export async function deleteClass(classId: string) {
+  const res = await api.delete(`/classes/${classId}`, getAuthHeaders());
+  return res.data;
+}
+
+// Members
+export async function listClassMembers(classId: string) {
+  const res = await api.get(`/classes/${classId}/members`, getAuthHeaders());
+  return (res.data?.items ?? []) as ClassMember[];
+}
+
+export async function addClassMember(classId: string, userId: string, role: 'student'|'teacher' = 'student') {
+  const cfg = { ...getAuthHeaders(), params: { user_id: userId, role } } as any;
+  const res = await api.post(`/classes/${classId}/members`, undefined, cfg);
+  return res.data;
+}
+
+export async function removeClassMember(classId: string, memberUserId: string) {
+  const res = await api.delete(`/classes/${classId}/members/${memberUserId}`, getAuthHeaders());
+  return res.data;
+}
+
+// Invites
+export async function createInvite(payload: { class_id: string; email?: string; user_id?: string; ttl_hours?: number }) {
+  const res = await api.post(`/classes/invites`, payload, getAuthHeaders());
+  return res.data as Invitation;
+}
+
+export async function acceptInvite(token: string) {
+  const res = await api.post(`/classes/invites/accept`, { token }, getAuthHeaders());
+  return res.data;
+}
+
+// Events
+export async function listClassEvents(classId: string, opts?: { since?: string; until?: string }) {
+  const cfg = { ...getAuthHeaders(), params: { since: opts?.since, until: opts?.until } } as any;
+  const res = await api.get(`/classes/${classId}/events`, cfg);
+  return (res.data?.items ?? []) as ClassEvent[];
+}
+
+export async function createClassEvent(classId: string, body: { type: string; title: string; description?: string; starts_at?: string; ends_at?: string; visibility?: string, is_online?: boolean, meeting_url?: string }) {
+  const res = await api.post(`/classes/${classId}/events`, body, getAuthHeaders());
+  return res.data as ClassEvent;
+}
+
+export async function updateClassEvent(classId: string, eventId: string, body: Partial<ClassEvent>) {
+  const res = await api.put(`/classes/${classId}/events/${eventId}`, body, getAuthHeaders());
+  return res.data;
+}
+
+export async function deleteClassEvent(classId: string, eventId: string) {
+  const res = await api.delete(`/classes/${classId}/events/${eventId}`, getAuthHeaders());
+  return res.data;
+}
+
+// Class API keys
+export async function setClassApiKey(classId: string, provider: 'openai'|'claude'|'deepseek'|'other', apiKey: string, active = true) {
+  const res = await api.post(`/classes/${classId}/api-keys`, { provider, api_key: apiKey, active }, getAuthHeaders());
+  return res.data;
+}
+
+export async function hasClassApiKey(classId: string, provider: 'openai'|'claude'|'deepseek'|'other') {
+  const res = await api.get(`/classes/${classId}/api-keys/${provider}`, getAuthHeaders());
+  return res.data as { hasKey: boolean; masked?: string };
+}

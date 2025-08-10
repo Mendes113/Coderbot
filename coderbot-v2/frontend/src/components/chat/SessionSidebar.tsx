@@ -89,12 +89,9 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
     try {
       await chatService.deleteSession(sessionId);
       setSessions(prev => prev.filter(session => session.id !== sessionId));
-      
-      // If the deleted session was the current one, create a new session
       if (sessionId === currentSessionId) {
         onNewSession();
       }
-      
       toast.success("Sessão excluída com sucesso");
       setSessionToDelete(null);
     } catch (error) {
@@ -105,7 +102,6 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
 
   const handleCreateNamedSession = () => {
     onNewSession();
-    // The title will be updated after the session is created
     setTimeout(() => {
       if (currentSessionId) {
         chatService.updateSessionTitle(currentSessionId, newSessionTitle);
@@ -125,32 +121,29 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   );
 
   return (
-    <div className="flex flex-col h-full border-r bg-background">
+    <div className="flex flex-col h-full border-r bg-background/70 backdrop-blur-sm">
       <div className="p-4 border-b">
-        <h2 className="text-lg font-semibold mb-2">{t('sidebar.yourConversations')}</h2>
-        
+        <h2 className="text-lg font-semibold mb-3">{t('sidebar.yourConversations')}</h2>
         <div className="relative mb-4">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={t('sidebar.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8"
+            className="pl-8 rounded-lg"
           />
         </div>
-        
         <div className="flex gap-2">
           <Button 
             onClick={onNewSession} 
-            className="flex-1 flex items-center justify-center gap-2"
+            className="flex-1 flex items-center justify-center gap-2 rounded-lg"
           >
             <MessageSquarePlus size={16} />
             {t('sidebar.newConversation')}
           </Button>
-          
           <Dialog open={showNewSessionDialog} onOpenChange={setShowNewSessionDialog}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="flex items-center justify-center">
+              <Button variant="outline" className="flex items-center justify-center rounded-lg">
                 <PenLine size={16} />
               </Button>
             </DialogTrigger>
@@ -179,7 +172,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="flex-1 overflow-y-auto p-3">
         {loading ? (
           <p className="text-center py-4 text-muted-foreground">{t('sidebar.loading')}</p>
         ) : filteredSessions.length === 0 ? (
@@ -187,18 +180,18 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
             {searchQuery ? t('sidebar.noneFound') : t('sidebar.noneYet')}
           </p>
         ) : (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <AnimatePresence initial={false}>
             {filteredSessions.map(session => (
               <motion.div
                 key={session.id} 
                 layout
-                initial={{ scale: 0.95, opacity: 0, y: 20 }}
-                animate={{ scale: 1, opacity: 1, y: 0, transition: { type: 'spring', bounce: 0.4, duration: 0.5 } }}
-                exit={{ scale: 0.9, opacity: 0, y: 30, transition: { duration: 0.2 } }}
-                transition={{ layout: { type: 'spring', bounce: 0.3, duration: 0.5 } }}
+                initial={{ scale: 0.98, opacity: 0, y: 10 }}
+                animate={{ scale: 1, opacity: 1, y: 0, transition: { type: 'spring', bounce: 0.3, duration: 0.45 } }}
+                exit={{ scale: 0.96, opacity: 0, y: 16, transition: { duration: 0.2 } }}
+                transition={{ layout: { type: 'spring', bounce: 0.25, duration: 0.45 } }}
                 onClick={() => onSessionChange(session.id)}
-                className={`p-2 rounded-md hover:bg-accent/50 cursor-pointer transition-colors group ${
+                className={`p-2.5 rounded-lg hover:bg-accent/60 cursor-pointer transition-colors group ${
                   session.id === currentSessionId ? 'bg-accent' : ''
                 }`}
               >
@@ -214,7 +207,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
                           handleEditTitle(session.id);
                         }
                       }}
-                      className="h-8 text-sm"
+                      className="h-8 text-sm rounded-lg"
                     />
                     <Button 
                       size="sm" 

@@ -1,0 +1,239 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # PocketBase Database (core profile)
+  pocketbase:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.pocketbase
+    container_name: coderbot-pocketbase
+    ports:
+      - "8090:8090"
+    volumes:
+      # - pocketbase_data:/pb/pb_data  # Comentado para usar dados do Dockerfile
+      - ./pocketbase_0.27.2_linux_amd64/pb_migrations:/pb/pb_migrations:ro
+    environment:
+      - POCKETBASE_ADMIN_EMAIL=${POCKETBASE_ADMIN_EMAIL}
+      - POCKETBASE_ADMIN_PASSWORD=${POCKETBASE_ADMIN_PASSWORD}
+    networks:
+      - coderbot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging: *default-logging
+    profiles: [core]
+    cpus: "0.50"
+    mem_limit: "256m"
+    ulimits:
+      nofile:
+        soft: 8192
+        hard: 65536
+    stop_grace_period: 10s
+
+  # Backend API (core profile) - otimizado
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.backend
+    container_name: coderbot-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DEEP_SEEK_API_KEY=${DEEP_SEEK_API_KEY}
+      - DEEP_SEEK_API_URL=${DEEP_SEEK_API_URL}
+      - OPEN_AI_API_KEY=${OPEN_AI_API_KEY}
+      - OPENAI_API_URL=${OPENAI_API_URL}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - RAPIDAPI_KEY=${RAPIDAPI_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - POCKETBASE_URL=http://pocketbase:8090
+      - POCKETBASE_USER_EMAIL=${POCKETBASE_USER_EMAIL}
+      - POCKETBASE_USER_PASSWORD=${POCKETBASE_USER_PASSWORD}
+      - POCKETBASE_ADMIN_EMAIL=${POCKETBASE_ADMIN_EMAIL}
+      - POCKETBASE_ADMIN_PASSWORD=${POCKETBASE_ADMIN_PASSWORD}
+      # Prefer local Judge0 only quando perfil judge estiver ativo
+      - LOCAL_JUDGE0_URL=http://judge0:2358
+      # PostHog (server-side opcional)
+      - POSTHOG_API_KEY=${POSTHOG_API_KEY}
+      - POSTHOG_HOST=${POSTHOG_HOST:-https://us.i.posthog.com}
+      # PDM cache em tmpfs para evitar I/O no container
+      - PDM_HOME=/tmp/pdm
+      # Workers do Uvicorn (ajuste conforme CPU disponível)
+      - UVICORN_WORKERS=${UVICORN_WORKERS:-1}
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+    networks:
+      - coderbot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging: *default-logging
+    profiles: [core]
+    # Usa init para reaper de processos filhos
+    init: true
+    # Comando leve: sem --reload e com workers controlados
+    command: ["sh", "-lc", "pdm run uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers=${UVICORN_WORKERS:-1} --log-level=info"]
+    # Recursos mais contidos para reduzir consumo
+    cpus: "1.00"
+    mem_limit: "768m"
+    ulimits:
+      nofile:
+        soft: 16384
+        hard: 65536
+    pids_limit: 256
+    # Evita I/O em disco e acelera PDM/uvicorn
+    tmpfs:
+      - /tmp
+    stop_grace_period: 10s
+
+  # Frontend React App (core profile) - preview leve
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.frontend
+    container_name: coderbot-frontend
+    ports:
+      - "3001:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - VITE_POCKETBASE_URL=http://localhost:8090
+      # PostHog (client-side)
+      - VITE_PUBLIC_POSTHOG_KEY=${VITE_PUBLIC_POSTHOG_KEY}
+      - VITE_PUBLIC_POSTHOG_HOST=${VITE_PUBLIC_POSTHOG_HOST:-https://us.i.posthog.com}
+      # Back-compat for older builds
+      - VITE_POSTHOG_KEY=${VITE_PUBLIC_POSTHOG_KEY}
+      - VITE_POSTHOG_HOST=${VITE_PUBLIC_POSTHOG_HOST:-https://us.i.posthog.com}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - coderbot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging: *default-logging
+    profiles: [core]
+    tmpfs:
+      - /tmp
+    cpus: "0.50"
+    mem_limit: "256m"
+    ulimits:
+      nofile:
+        soft: 8192
+        hard: 65536
+    stop_grace_period: 10s
+
+  # Judge0 - Execução de código (opcional - perfil judge)
+  judge0-db:
+    image: postgres:13
+    container_name: coderbot-judge0-db
+    environment:
+      - POSTGRES_USER=judge0
+      - POSTGRES_PASSWORD=judge0
+      - POSTGRES_DB=judge0
+    networks:
+      - coderbot-network
+    restart: unless-stopped
+    logging: *default-logging
+    profiles: [judge]
+    cpus: "0.50"
+    mem_limit: "512m"
+
+  judge0-redis:
+    image: redis:6-alpine
+    container_name: coderbot-judge0-redis
+    networks:
+      - coderbot-network
+    restart: unless-stopped
+    logging: *default-logging
+    profiles: [judge]
+    cpus: "0.25"
+    mem_limit: "128m"
+
+  judge0:
+    image: judge0/judge0:latest
+    container_name: coderbot-judge0
+    ports:
+      - "2358:2358"
+    environment:
+      - DATABASE_URL=postgresql://judge0:judge0@judge0-db:5432/judge0
+      - REDIS_URL=redis://judge0-redis:6379/0
+      - REDIS_HOST=judge0-redis
+      - REDIS_PORT=6379
+      - SIDEKIQ_REDIS_URL=redis://judge0-redis:6379/0
+      - QUEUE_REDIS_URL=redis://judge0-redis:6379/0
+      - CACHE_REDIS_URL=redis://judge0-redis:6379/0
+      - DISABLE_CACHE=false
+      - RAILS_ENV=production
+      - ALLOW_ORIGIN=*
+      - ENABLE_WAIT_RESULT=true
+      - ENABLE_COMPILER_OPTIONS=true
+    depends_on:
+      judge0-db:
+        condition: service_started
+      judge0-redis:
+        condition: service_started
+    networks:
+      - coderbot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2358/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging: *default-logging
+    profiles: [judge]
+    cpus: "1.00"
+    mem_limit: "1024m"
+    ulimits:
+      nofile:
+        soft: 16384
+        hard: 65536
+    stop_grace_period: 15s
+
+  judge0-worker:
+    image: judge0/judge0:latest
+    container_name: coderbot-judge0-worker
+    environment:
+      - DATABASE_URL=postgresql://judge0:judge0@judge0-db:5432/judge0
+      - REDIS_URL=redis://judge0-redis:6379/0
+      - RAILS_ENV=production
+      - ALLOW_ORIGIN=*
+    depends_on:
+      judge0-db:
+        condition: service_started
+      judge0-redis:
+        condition: service_started
+    networks:
+      - coderbot-network
+    restart: unless-stopped
+    command: /bin/sh -lc 'bundle exec rake jobs:work'
+    logging: *default-logging
+    profiles: [judge]
+    cpus: "0.50"
+    mem_limit: "512m"
+
+volumes:
+  pocketbase_data:
+    driver: local
+  # code_server_data:
+  #   driver: local
+
+networks:
+  coderbot-network:
+    driver: bridge

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Send, Sparkles, Heart, Smile, Zap, Star, ThumbsUp, Mic, MicOff, Bot, Command } from "lucide-react";
+import { Send, Sparkles, Heart, Smile, Zap, Star, ThumbsUp, Mic, MicOff, Bot, Command, Code2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
@@ -31,10 +31,10 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalo
   ];
 
   const smartSuggestions = [
-    "Como posso melhorar meu código?",
-    "Explique este conceito com analogias",
-    "Quais são as melhores práticas?",
-    "Me ajude a debugar este problema"
+    "Explique este conceito com worked example",
+    "Mostre o código em Python com um exemplo",
+    "Crie um quiz curto sobre esse tema",
+    "Quais são as melhores práticas?"
   ];
 
   // Atalhos de teclado para melhor UX
@@ -91,7 +91,6 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalo
     setLastMessageSent(true);
     setShowCelebration(true);
     
-    // Feedback háptico visual
     if (inputRef.current) {
       inputRef.current.style.transform = 'scale(0.98)';
       setTimeout(() => {
@@ -115,24 +114,23 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalo
 
   const toggleRecording = () => {
     setIsRecording(!isRecording);
-    // Aqui você implementaria a lógica de gravação de voz
   };
 
   return (
     <div className="relative w-full max-w-4xl mx-auto">
       {/* Sugestões inteligentes */}
       {showSmartSuggestions && !input && (
-        <div className="absolute -top-16 left-0 right-0 bg-white/95 backdrop-blur-sm border border-gray-100 rounded-xl p-3 shadow-lg animate-fade-in">
+        <div className="absolute -top-16 left-0 right-0 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-sm border border-gray-100 dark:border-neutral-800 rounded-xl p-3 shadow-lg animate-fade-in">
           <div className="flex items-center gap-2 mb-2">
             <Bot className="h-4 w-4 text-purple-600" />
-            <span className="text-sm font-medium text-gray-700">Sugestões para começar:</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Sugestões para começar:</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {smartSuggestions.map((suggestion, index) => (
               <button
                 key={index}
                 onClick={() => handleSuggestionClick(suggestion)}
-                className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-full text-sm font-medium transition-all duration-200 hover:scale-105 border border-purple-200"
+                className="px-3 py-1.5 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-sm font-medium transition-all duration-200 hover:scale-105 border border-purple-200 dark:border-purple-900/40"
               >
                 {suggestion}
               </button>
@@ -141,7 +139,7 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalo
         </div>
       )}
 
-      {/* Indicador de encorajamento emotivo - Versão melhorada */}
+      {/* Indicador de encorajamento */}
       {showEncouragement && (
         <div className={`absolute -top-14 left-4 bg-gradient-to-r ${encouragementMessages[encouragementType].color} ${encouragementMessages[encouragementType].textColor} text-sm px-4 py-2.5 rounded-xl shadow-lg border ${encouragementMessages[encouragementType].animation} backdrop-blur-sm`}>
           <div className="flex items-center gap-2">
@@ -151,14 +149,12 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalo
             })()}
             <span className="font-medium">{encouragementMessages[encouragementType].text}</span>
           </div>
-          {/* Seta indicativa */}
           <div className={`absolute -bottom-1 left-6 w-2 h-2 bg-gradient-to-r ${encouragementMessages[encouragementType].color} transform rotate-45 border-r border-b border-opacity-20`}></div>
         </div>
       )}
       
-      {/* Feedback após envio de mensagem - Melhorado */}
       {lastMessageSent && (
-        <div className="absolute -top-12 right-4 bg-green-50 text-green-700 text-sm px-3 py-2 rounded-xl shadow-md animate-fade-in-scale border border-green-200 backdrop-blur-sm">
+        <div className="absolute -top-12 right-4 bg-green-50 dark:bg-emerald-900/20 text-green-700 dark:text-emerald-300 text-sm px-3 py-2 rounded-xl shadow-md animate-fade-in-scale border border-green-200 dark:border-emerald-900/40 backdrop-blur-sm">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
             <Smile className="h-4 w-4" />
@@ -167,14 +163,14 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalo
         </div>
       )}
 
-      {/* Container principal do input - Design moderno */}
-      <div className="relative bg-white rounded-2xl shadow-lg border border-gray-200 hover:border-purple-300 transition-all duration-300 focus-within:border-purple-400 focus-within:shadow-xl focus-within:ring-4 focus-within:ring-purple-100">
+      {/* Container principal do input */}
+      <div className="relative bg-white dark:bg-neutral-900 rounded-2xl shadow-lg border border-gray-200 dark:border-neutral-800 hover:border-purple-300 dark:hover:border-purple-800 transition-all duration-300 focus-within:border-purple-400 dark:focus-within:border-purple-700 focus-within:shadow-xl focus-within:ring-4 focus-within:ring-purple-100 dark:focus-within:ring-purple-900/30">
         <form onSubmit={handleSubmit} className="flex items-center gap-3 p-2">
           <div className="relative flex-1">
             <input
               ref={inputRef}
               type="text"
-              placeholder={isLoading ? "CoderBot está pensando..." : "Como posso te ajudar hoje?"}
+              placeholder={isLoading ? "CoderBot está pensando..." : "Como posso te ajudar hoje? (dica: peça 'mostre o código em Python')"}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onFocus={() => setInputFocused(true)}
@@ -182,36 +178,21 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalo
               disabled={isLoading}
               aria-label="Mensagem"
               className={cn(
-                "w-full bg-transparent text-gray-900 placeholder:text-gray-500 px-4 py-3 text-base outline-none transition-all duration-300",
+                "w-full bg-transparent text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 px-4 py-3 text-base outline-none transition-all duration-300",
                 isLoading ? "opacity-60 cursor-not-allowed" : "",
                 "placeholder:font-medium"
               )}
               style={{ minWidth: 0 }}
               maxLength={3500}
             />
-            
-            {/* Contador de caracteres sutil */}
             {charCount > 0 && (
-              <div className="absolute right-4 bottom-1 text-xs text-gray-400 font-medium">
+              <div className="absolute right-4 bottom-1 text-xs text-gray-400 dark:text-gray-500 font-medium">
                 {charCount}/500
-              </div>
-            )}
-            
-            {/* Indicador de digitação elegante */}
-            {isTyping && input.length > 3 && (
-              <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                <div className="flex items-center space-x-1">
-                  <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce"></div>
-                  <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                </div>
               </div>
             )}
           </div>
           
-          {/* Botões de ação */}
           <div className="flex items-center gap-2">
-            {/* Botão de gravação de voz */}
             <button
               type="button"
               onClick={toggleRecording}
@@ -219,8 +200,8 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalo
               className={cn(
                 "p-2.5 rounded-xl transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-purple-400",
                 isRecording ? 
-                  "bg-red-100 text-red-600 hover:bg-red-200 animate-pulse" : 
-                  "bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-purple-600"
+                  "bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/30 animate-pulse" : 
+                  "bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 hover:text-purple-600"
               )}
             >
               {isRecording ? (
@@ -229,8 +210,7 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalo
                 <Mic className="h-5 w-5" />
               )}
             </button>
-            
-            {/* Botão de analogias */}
+
             {typeof setAnalogiesEnabled === "function" && (
               <button
                 type="button"
@@ -240,8 +220,8 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalo
                 className={cn(
                   "p-2.5 rounded-xl transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-purple-400",
                   analogiesEnabled ? 
-                    "bg-purple-100 text-purple-600 hover:bg-purple-200 ring-2 ring-purple-200" : 
-                    "bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-600"
+                    "bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/30 ring-2 ring-purple-200 dark:ring-purple-900/30" : 
+                    "bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 hover:bg-purple-100 dark:hover:bg-purple-900/20 hover:text-purple-600"
                 )}
               >
                 <Sparkles className={cn(
@@ -250,8 +230,13 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalo
                 )} />
               </button>
             )}
-            
-            {/* Botão de envio */}
+
+            {/* Dica de código */}
+            <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
+              <Code2 className="h-4 w-4" />
+              <span>Peça: "mostre o código"</span>
+            </div>
+
             <button
               type="submit"
               disabled={isLoading || !input.trim()}
@@ -273,23 +258,19 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalo
                     "h-5 w-5 transition-transform duration-200",
                     input.trim() ? "group-hover:translate-x-0.5 group-hover:-translate-y-0.5" : ""
                   )} />
-                  {/* Efeito de brilho sofisticado */}
                   <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 opacity-0 group-hover:opacity-100 group-hover:translate-x-full transition-all duration-500 -skew-x-12"></div>
                 </>
               )}
             </button>
           </div>
         </form>
-        
-        {/* Barra de progresso sutil */}
         {isLoading && (
-          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-100 rounded-b-2xl overflow-hidden">
+          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-100 dark:bg-neutral-800 rounded-b-2xl overflow-hidden">
             <div className="h-full bg-gradient-to-r from-purple-600 to-purple-400 animate-pulse"></div>
           </div>
         )}
       </div>
 
-      {/* Atalhos de teclado - Indicador discreto */}
       {inputFocused && (
         <div className="absolute -bottom-8 right-0 flex items-center gap-3 text-xs text-gray-400">
           <div className="flex items-center gap-1">

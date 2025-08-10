@@ -21,7 +21,16 @@ import { SessionSidebar } from "@/components/chat/SessionSidebar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { soundEffects } from "@/utils/sounds";
 import { agnoService, MethodologyType, METHODOLOGY_CONFIG } from "@/services/agnoService";
+import posthog from "posthog-js";
+import type { QuizAnswerEvent } from "@/components/chat/ChatMessage";
 // import { ProfileHeader } from "@/components/profile/ProfileHeader";
+
+// Small hash for stable ids (same as ChatMessage pattern)
+const simpleHash = (s: string) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return `${h}`;
+};
 
 // --- Componentes de Design Emocional ---
 
@@ -219,22 +228,27 @@ const EmotionalLoadingIndicator = ({ messages }: { messages: string[] }) => {
 
   return (
     <div className="flex flex-col items-center justify-center py-8 px-4">
-      {/* CodeBot pensando */}
-      <div className="mb-4">
+      <div className="mb-5">
         <CodeBotMascot emotion="thinking" size="large" />
       </div>
-      
-      {/* Mensagem dinâmica */}
-      <div className="text-center max-w-xs">
-        <p className="text-sm text-gray-600 font-medium animate-fade-in-out">
-          {messages[currentMessageIndex]}
-        </p>
-        
-        {/* Indicador de digitação tipo messenger */}
-        <div className="flex justify-center mt-3 space-x-1">
-          <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
-          <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-          <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+      <div className="w-full max-w-md">
+        <div className="relative overflow-hidden rounded-2xl border border-purple-100/60 bg-white/80 dark:bg-neutral-900/60 shadow-lg backdrop-blur-md">
+          <div className="absolute inset-0 pointer-events-none bg-gradient-to-br from-purple-50/60 to-fuchsia-50/40 dark:from-purple-900/20 dark:to-fuchsia-900/10"></div>
+          <div className="relative p-4">
+            <div className="flex items-center gap-3">
+              <div className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 bg-purple-50 text-purple-700">
+                <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
+                <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
+                <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+              </div>
+              <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                {messages[currentMessageIndex]}
+              </p>
+            </div>
+            <div className="mt-4 h-1.5 w-full bg-purple-100/60 dark:bg-purple-900/30 rounded-full overflow-hidden">
+              <div className="h-full w-2/3 bg-gradient-to-r from-purple-500 to-fuchsia-500 animate-pulse"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -446,7 +460,8 @@ const DesktopSettingsView: React.FC<SettingsProps> = (props) => (
         <SelectContent>
           <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
           <SelectItem value="gpt-4">GPT-4</SelectItem>
-          <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
+          <SelectItem value="claude-3-sonnet">Claude 3.5 Sonnet</SelectItem>
+          <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
         </SelectContent>
       </Select>
     </div>
@@ -475,7 +490,8 @@ const MobileSettingsDrawerView: React.FC<SettingsProps> = (props) => (
             <SelectContent>
               <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
               <SelectItem value="gpt-4">GPT-4</SelectItem>
-              <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
+              <SelectItem value="claude-3-sonnet">Claude 3.5 Sonnet</SelectItem>
+              <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -489,6 +505,15 @@ const MobileSettingsDrawerView: React.FC<SettingsProps> = (props) => (
     </DrawerContent>
   </Drawer>
 );
+
+// Analytics helper (privacy-safe)
+const trackEvent = (name: string, props?: Record<string, any>) => {
+  try {
+    posthog?.capture?.(name, props);
+  } catch (_e) {
+    // no-op
+  }
+};
 
 // --- Main Chat Interface Component ---
 
@@ -520,7 +545,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const [isLoading, setIsLoading] = useState(false);
   const [analogiesEnabled, setAnalogiesEnabled] = useState(false);
   const [knowledgeBase, setKnowledgeBase] = useState("");
-  const [aiModel, setAiModel] = useState<string>("gpt-3.5-turbo");
+  const [aiModel, setAiModel] = useState<string>("claude-3-sonnet");
   // Estados para compatibilidade com sistema antigo (fallback)
   const [methodologyState, setMethodology] = useState<string>("default");
   const [availableMethodologies, setAvailableMethodologies] = useState<MethodologyInfo[]>([]);
@@ -532,7 +557,81 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const isMobile = useIsMobile();
   const [showSidebar, setShowSidebar] = useState(!isMobile);
   const [showAnalogyDropdown, setShowAnalogyDropdown] = useState(false);
+  const [diagramsEnabled, setDiagramsEnabled] = useState(true);
+  const [diagramType, setDiagramType] = useState<'mermaid' | 'excalidraw'>("mermaid");
+  const [maxFinalCodeLines] = useState<number>(150);
+
+  // Session metrics (start/end)
+  const sessionStartRef = useRef<number | null>(null);
+  useEffect(() => {
+    sessionStartRef.current = Date.now();
+    posthog?.capture?.('edu_session_start', { route: 'dashboard/chat' });
+    return () => {
+      if (sessionStartRef.current) {
+        const durationMs = Date.now() - sessionStartRef.current;
+        posthog?.capture?.('edu_session_end', { route: 'dashboard/chat', durationMs });
+      }
+    };
+  }, []);
+
+  // Quiz correctness context
+  const [quizCorrectCount, setQuizCorrectCount] = useState(0);
+  const [quizWrongCount, setQuizWrongCount] = useState(0);
+  const [lastQuizAnswer, setLastQuizAnswer] = useState<QuizAnswerEvent | null>(null);
+  const quizAttemptsRef = useRef<Map<string, number>>(new Map());
+
+  const handleQuizAnswer = (evt: QuizAnswerEvent) => {
+    setLastQuizAnswer(evt);
+    const qid = simpleHash(evt.question || '');
+    // increment attempts
+    const prev = quizAttemptsRef.current.get(qid) || 0;
+    quizAttemptsRef.current.set(qid, prev + 1);
+    if (evt.correct) {
+      // attempts to mastery
+      const attempts = quizAttemptsRef.current.get(qid) || 1;
+      posthog?.capture?.('edu_quiz_attempts_to_mastery', { questionId: qid, attempts });
+      quizAttemptsRef.current.delete(qid);
+      setQuizCorrectCount((c) => c + 1);
+    } else {
+      setQuizWrongCount((c) => c + 1);
+    }
+    // aggregate accuracy
+    const corr = (evt.correct ? quizCorrectCount + 1 : quizCorrectCount);
+    const wrong = (evt.correct ? quizWrongCount : quizWrongCount + 1);
+    const total = corr + wrong;
+    const accuracy = total > 0 ? corr / total : 0;
+    posthog?.capture?.('edu_quiz_accuracy', { correctCount: corr, wrongCount: wrong, accuracy });
+  };
   
+  // Track settings changes (skip initial)
+  const prevAiModel = useRef(aiModel);
+  const prevAgno = useRef(agnoMethodology);
+  const prevDiagrams = useRef(diagramsEnabled);
+  const prevAnalogies = useRef(analogiesEnabled);
+  useEffect(() => {
+    if (prevAiModel.current !== aiModel) {
+      trackEvent('edu_chat_settings_change', { setting: 'aiModel', value: aiModel });
+      prevAiModel.current = aiModel;
+    }
+  }, [aiModel]);
+  useEffect(() => {
+    if (prevAgno.current !== agnoMethodology) {
+      trackEvent('edu_chat_settings_change', { setting: 'methodology', value: agnoMethodology });
+      prevAgno.current = agnoMethodology;
+    }
+  }, [agnoMethodology]);
+  useEffect(() => {
+    if (prevDiagrams.current !== diagramsEnabled) {
+      trackEvent('edu_chat_settings_change', { setting: 'diagramsEnabled', value: diagramsEnabled });
+      prevDiagrams.current = diagramsEnabled;
+    }
+  }, [diagramsEnabled]);
+  useEffect(() => {
+    if (prevAnalogies.current !== analogiesEnabled) {
+      trackEvent('edu_chat_settings_change', { setting: 'analogiesEnabled', value: analogiesEnabled });
+      prevAnalogies.current = analogiesEnabled;
+    }
+  }, [analogiesEnabled]);
   // Estados para controle das mensagens de boas-vindas
   const [showWelcomeMessages, setShowWelcomeMessages] = useState(true);
   const [welcomeComplete, setWelcomeComplete] = useState(false);
@@ -541,11 +640,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const [isFirstInteraction, setIsFirstInteraction] = useState(true);
   const [userEngagement, setUserEngagement] = useState<'low' | 'medium' | 'high'>('medium');
   const [loadingMessages] = useState([
-    "Analisando sua pergunta com carinho... 🤔",
-    "Buscando a melhor forma de explicar... 💡",
-    "Preparando uma resposta especial para você... ✨",
-    "Organizando os conceitos de forma clara... 📚",
-    "Quase pronto! Criando algo incrível... 🚀"
+    "Pensando na melhor explicação pra você... 💡",
+    "Organizando os passos de forma clara... 🧩",
+    "Ajustando detalhes pra ficar redondinho... 🔎",
+    "Deixando tudo simples e direto... ✨",
+    "Quase lá! Finalizando sua resposta... 🚀"
   ]);
   const [celebrationCount, setCelebrationCount] = useState(0);
   const [showAchievement, setShowAchievement] = useState(false);
@@ -560,11 +659,19 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const [sessionMessagesCount, setSessionMessagesCount] = useState(0);
   const [lastInteractionTime, setLastInteractionTime] = useState<Date | null>(null);
   
-  // Estados para idle/waiting
+  // Idle management
   const [isUserIdle, setIsUserIdle] = useState(false);
   const [idleTimer, setIdleTimer] = useState<NodeJS.Timeout | null>(null);
   const [idleShowSuggestions, setIdleShowSuggestions] = useState(false);
-  const [idleLevel, setIdleLevel] = useState<'none' | 'mild' | 'moderate' | 'high'>('none');
+  const [idleLevel, setIdleLevel] = useState<'none' | 'mild' | 'moderate' | 'high'>("none");
+  const idleStartRef = useRef<number | null>(null);
+
+  // Track idle changes (ignore 'none')
+  useEffect(() => {
+    if (idleLevel && idleLevel !== 'none') {
+      posthog?.capture?.('edu_chat_idle_level', { level: idleLevel });
+    }
+  }, [idleLevel]);
 
   // Funções de celebração profissionais usando canvas-confetti + sons
   const triggerBasicCelebration = () => {
@@ -735,6 +842,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const handleUserIdle = () => {
     setIsUserIdle(true);
     setIdleLevel('mild');
+    idleStartRef.current = Date.now();
     
     // Escalar o nível de idle ao longo do tempo
     setTimeout(() => {
@@ -749,6 +857,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
 
   // Detectar interação do usuário
   const handleUserInteraction = () => {
+    // if was idle, emit idle_to_active
+    if (isUserIdle && idleStartRef.current) {
+      const idleMs = Date.now() - idleStartRef.current;
+      posthog?.capture?.('edu_idle_to_active', { idleMs });
+      idleStartRef.current = null;
+    }
     resetIdleTimer();
     setLastInteractionTime(new Date());
   };
@@ -844,6 +958,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
         setSessionId(newSessionId);
         sessionStorage.setItem("coderbot_last_chat_session", newSessionId);
         
+        trackEvent('edu_chat_session_created', { sessionId: newSessionId });
+        
         console.log("New session created:", newSessionId); // Debug log
       } catch (error) {
         console.error("Error creating new chat session:", error);
@@ -879,6 +995,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
       setSessionId(newSessionId);
       sessionStorage.setItem("coderbot_last_chat_session", newSessionId);
       scrollToBottom();
+      
+      trackEvent('edu_chat_session_loaded', { sessionId: newSessionId, numMessages: sessionMessages?.length ?? 0 });
     } catch (error) {
       console.error("Error changing session:", error);
       toast.error("Erro ao carregar mensagens da sessão");
@@ -897,6 +1015,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
       const newSessionId = await chatService.createSession();
       setSessionId(newSessionId);
       sessionStorage.setItem("coderbot_last_chat_session", newSessionId);
+      trackEvent('edu_chat_session_created', { sessionId: newSessionId, source: 'manual' });
     } catch (error) {
       console.error("Error creating new chat session:", error);
       toast.error("Erro ao criar nova sessão de chat");
@@ -984,6 +1103,19 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     
     // Sistema emocional inspirado no Duolingo
     const now = new Date();
+    
+    // Track sent event & latency start
+    const startTs = Date.now();
+    let chosenProvider: string = 'claude';
+    let chosenModel: string = aiModel;
+    posthog?.capture?.('edu_chat_message_sent', {
+      length: input.length,
+      sessionId,
+      model: aiModel,
+      methodology: agnoMethodology,
+      diagramsEnabled,
+      analogiesEnabled,
+    });
     
     // Detectar primeiro uso e celebrar
     if (isFirstInteraction) {
@@ -1079,6 +1211,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
 
+    // Temp AI message id needs outer scope to be accessible in catch/finally
+    const tempId = (Date.now() + 1).toString();
+
     try {
       // Save user message
       const userMsgId = await chatService.saveMessage({
@@ -1097,7 +1232,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
       );
 
       // Create a temporary AI message
-      const tempId = (Date.now() + 1).toString();
       setMessages((prev) => [...prev, {
         id: tempId,
         content: "",
@@ -1124,11 +1258,28 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
           currentTopic: "", // Pode ser extraído do contexto
           difficultyLevel: userProfile.difficulty_level || "medium",
           learningProgress: userProfile.learning_progress || {},
+          quizStats: {
+            correctCount: quizCorrectCount,
+            wrongCount: quizWrongCount,
+            accuracy: (quizCorrectCount + quizWrongCount) > 0 ? quizCorrectCount / (quizCorrectCount + quizWrongCount) : 0,
+            lastAnswer: lastQuizAnswer ? { correct: lastQuizAnswer.correct, question: lastQuizAnswer.question } : null,
+          },
           previousInteractions: messages
             .filter(msg => !msg.isAi)
             .map(msg => msg.content)
             .slice(-5) // Últimas 5 interações
         };
+
+        // If last was wrong, mark remediation shown
+        if (lastQuizAnswer && lastQuizAnswer.correct === false) {
+          const qid = simpleHash(lastQuizAnswer.question || '');
+          posthog?.capture?.('edu_remediation_shown', { questionId: qid });
+        }
+
+        // Build context prompt influence when last answer was wrong
+        const extraContext = lastQuizAnswer && lastQuizAnswer.correct === false
+          ? `\nO aluno errou a questão anterior. Explique claramente o porquê do erro e como chegar na resposta correta. Pergunta: ${lastQuizAnswer.question}.`
+          : '';
 
         // Definir provedor baseado no modelo selecionado
         let provider: 'claude' | 'openai' = 'claude';
@@ -1139,22 +1290,28 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
         } else if (aiModel.includes('claude')) {
           provider = 'claude';
           // Mapear modelos do frontend para IDs corretos do backend
-          if (aiModel === 'claude-3-opus') {
-            modelId = 'claude-3-opus-20240229';
-          } else if (aiModel === 'claude-3-sonnet') {
+          if (aiModel === 'claude-3-sonnet') {
             modelId = 'claude-3-5-sonnet-20241022';
           } else if (aiModel === 'claude-3-haiku') {
             modelId = 'claude-3-haiku-20240307';
           }
         }
 
+        // Save chosen mapping for analytics
+        chosenProvider = provider;
+        chosenModel = modelId;
+
         const agnoResponse = await agnoService.askQuestion({
           methodology: agnoMethodology,
           userQuery: input,
-          context: whiteboardContext ? JSON.stringify(whiteboardContext) : `Contexto: ${knowledgeBase || 'Aprendizado geral de programação'}`,
+          context: (whiteboardContext ? JSON.stringify(whiteboardContext) : `Contexto: ${knowledgeBase || 'Aprendizado geral de programação'}`) + extraContext,
           userContext,
           provider,
-          modelId
+          modelId,
+          includeFinalCode: true,
+          includeDiagram: diagramsEnabled,
+          diagramType: diagramType,
+          maxFinalCodeLines
         });
 
         response = {
@@ -1165,6 +1322,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
         console.log(`✅ AGNO resposta recebida usando ${provider}/${modelId}: ${agnoResponse.response.length} caracteres`);
         
       } catch (error) {
+        // Analytics: failure in AGNO path (no sensitive data)
+        trackEvent('edu_chat_response_failed', {
+          kind: 'agno',
+          sessionId,
+          model: chosenModel,
+          provider: chosenProvider,
+          methodology: agnoMethodology,
+          latencyMs: Date.now() - startTs,
+        });
         console.error("Erro crítico no sistema AGNO:", error);
         toast.error("Erro no sistema educacional. Verifique a conexão.");
         
@@ -1201,9 +1367,29 @@ Obrigado pela paciência! 🤖✨`,
             : msg
         )
       );
+      
+      // Analytics: response received
+      trackEvent('edu_chat_response_received', {
+        sessionId,
+        responseLength: (response.content || '').length,
+        latencyMs: Date.now() - startTs,
+        model: chosenModel,
+        provider: chosenProvider,
+        methodology: agnoMethodology,
+      });
     } catch (error) {
       console.error("Error processing message:", error);
       toast.error("Error processing message. Please try again.");
+      
+      // Analytics: generic failure
+      trackEvent('edu_chat_response_failed', {
+        kind: 'generic',
+        sessionId,
+        model: chosenModel,
+        provider: chosenProvider,
+        methodology: agnoMethodology,
+        latencyMs: Date.now() - startTs,
+      });
       
       // Remove only the temporary AI message that was added for loading
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
@@ -1231,7 +1417,7 @@ Obrigado pela paciência! 🤖✨`,
       {/* Conteúdo principal */}
       <div className="flex-1 flex flex-col">
         {/* Header sempre visível */}
-      <div className="p-4 border-b shrink-0 sticky top-0 z-40 bg-background/80 backdrop-blur shadow-md">
+      <div className="px-4 py-3 border-b shrink-0 sticky top-0 z-40 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
           <div className="flex items-center gap-2">
             {isMobile && (
@@ -1280,7 +1466,8 @@ Obrigado pela paciência! 🤖✨`,
               <SelectContent>
                 <SelectItem value="gpt-3.5-turbo">GPT-3.5</SelectItem>
                 <SelectItem value="gpt-4">GPT-4</SelectItem>
-                <SelectItem value="claude-3-opus">Claude 3</SelectItem>
+                <SelectItem value="claude-3-sonnet">Claude 3.5 Sonnet</SelectItem>
+                <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
               </SelectContent>
             </Select>
             
@@ -1362,13 +1549,44 @@ Obrigado pela paciência! 🤖✨`,
                 </div>
               )}
             </div>
+            {/* Toggle de Diagramas */}
+            <div className="relative">
+              <button
+                type="button"
+                aria-label={diagramsEnabled ? "Desativar diagramas" : "Ativar diagramas"}
+                title={diagramsEnabled ? "Diagramas ativados" : "Diagramas desativados"}
+                onClick={() => setDiagramsEnabled((v) => !v)}
+                className={cn(
+                  "flex items-center gap-1 px-2 py-1 rounded-full border border-gray-200 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+                  diagramsEnabled
+                    ? "bg-[hsl(var(--education-purple)/0.12)] text-[hsl(var(--education-purple))] border-[hsl(var(--education-purple))]"
+                    : "bg-white text-gray-500 hover:text-[hsl(var(--education-purple))] hover:border-[hsl(var(--education-purple))]"
+                )}
+                tabIndex={0}
+                style={{ minHeight: 28 }}
+              >
+                <Sparkles className="h-4 w-4" />
+                <span>Diagramas</span>
+              </button>
+            </div>
+            {diagramsEnabled && (
+              <Select value={diagramType} onValueChange={(v) => setDiagramType(v as any)}>
+                <SelectTrigger className="w-[120px] h-8 text-xs">
+                  <SelectValue placeholder="Tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mermaid">Mermaid</SelectItem>
+                  <SelectItem value="excalidraw">Excalidraw</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
       </div>
       {/* Área de mensagens com scroll */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto px-4" 
+        className="flex-1 overflow-y-auto px-4 bg-gradient-to-b from-purple-50/30 to-transparent dark:from-purple-900/10" 
         style={{ 
           height: 0,
           scrollBehavior: 'smooth',
@@ -1377,7 +1595,7 @@ Obrigado pela paciência! 🤖✨`,
         }}
         tabIndex={0}
       >
-        <div className="flex flex-col space-y-4 max-w-3xl mx-auto py-4">
+        <div className="flex flex-col space-y-6 max-w-3xl mx-auto py-6">
           {/* Header com progresso e streak - inspirado no Duolingo */}
          
 
@@ -1403,6 +1621,7 @@ Obrigado pela paciência! 🤖✨`,
               content={message.content}
               isAi={message.isAi}
               timestamp={message.timestamp}
+              onQuizAnswer={handleQuizAnswer}
             />
           ))}
           
@@ -1415,36 +1634,17 @@ Obrigado pela paciência! 🤖✨`,
           )}
           
           {isLoading && (
-            <div className="flex flex-col items-center justify-center py-8 px-4">
-              {/* CodeBot pensando */}
-              <div className="mb-4">
-                <CodeBotMascot emotion="thinking" size="large" />
-              </div>
-              
-              {/* Enhanced typing indicator */}
-              <div className="bg-white/90 backdrop-blur-sm border border-purple-100 rounded-2xl p-4 shadow-lg max-w-md w-full">
-                <div className="flex items-center space-x-2">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  </div>
-                  <span className="text-sm text-gray-600 ml-2">
-                    {loadingMessages[Math.floor(Date.now() / 2000) % loadingMessages.length]}
-                  </span>
-                </div>
-              </div>
-            </div>
+            <EmotionalLoadingIndicator messages={loadingMessages} />
           )}
           <div ref={messagesEndRef} />
         </div>
       </div>
       {/* Input fixo no rodapé */}
       <div className={cn(
-        "border-t p-4 backdrop-blur-sm shrink-0",
+        "border-t p-4 backdrop-blur shrink-0 bg-background/70 supports-[backdrop-filter]:bg-background/60 sticky bottom-0",
         isMobile ? "pb-6" : ""
       )}>
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-3xl mx-auto rounded-2xl border bg-background/90 shadow-sm p-2">
           <ChatInput
             onSendMessage={handleSendMessage}
             isLoading={isLoading}
