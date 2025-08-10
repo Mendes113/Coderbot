@@ -1,247 +1,188 @@
-# CoderBot Frontend Analytics
+# CoderBot Frontend Analytics (Guia de Engenharia)
 
-Este documento descreve os eventos de analytics atualmente instrumentados no frontend, seus campos, onde são emitidos e exemplos de uso no PostHog para estudos acadêmicos (aprendizagem) e UX.
+Este documento descreve a arquitetura, convenções, catálogo de eventos, mapeamento de origem, práticas de privacidade, monitoramento e diretrizes de contribuição para o sistema de analytics do frontend.
 
-## Configuração
+## Visão Geral
 
-- Variáveis de ambiente (Vite):
+O sistema de analytics coleta métricas de:
+- Fluxos de aprendizagem (quiz, acurácia, remediação)
+- Interações com IA (latência, configuração pedagógica)
+- Sessões e engajamento (tempo de sessão, inatividade)
+- Execução de código (runs, sucesso/erro, duração)
+- Performance de plataforma (latência HTTP)
+
+Os eventos são enviados ao PostHog via SDK do frontend (posthog-js). Não capturamos conteúdo sensível (texto de mensagens/código); somente metadados.
+
+## Objetivos e Não-Objetivos
+- Objetivos
+  - Suportar estudos acadêmicos (aprendizagem, SRL, remediação) e UX (usabilidade, desempenho percebido)
+  - Fornecer eventos consistentes e estáveis para análises de coortes, funis e A/B testing
+  - Minimizar acoplamento com UI e garantir renderização robusta no frontend
+- Não-Objetivos
+  - Telemetria de conteúdo textual do usuário (PII/PHI)
+  - Instrumentação de baixo nível de componentes visuais sem valor analítico
+
+## Arquitetura de Telemetria
+- Fontes
+  - React Router (pageviews, dwell) e listeners (visibility)
+  - Componentes de chat/quiz/código
+  - Interceptadores HTTP (axios)
+- Camada de coleta
+  - SDK posthog-js inicializado em `src/App.tsx`
+  - Hook utilitário opcional em `src/hooks/useAnalytics.ts`
+- Transporte e armazenamento
+  - Host PostHog configurável por env (Vite)
+- Observabilidade
+  - Dashboards e queries no PostHog (trends, funis, coortes)
+
+## Configuração de Ambientes
+- Variáveis (Vite):
   - `VITE_PUBLIC_POSTHOG_KEY`
   - `VITE_PUBLIC_POSTHOG_HOST` (ex.: https://us.i.posthog.com)
-- Inicialização: feita em `src/App.tsx` (pageview, foco/blur e identify via PocketBase).
-- Privacidade: não enviamos conteúdo textual de mensagens/código; apenas metadados (comprimentos, ids, flags, tempos). Para eventos de alta frequência, considere amostragem.
+- Inicialização: `src/App.tsx` (pageview, foco/blur, identify por PocketBase)
+- Docker Compose: variáveis mapeadas em `docker-compose.optimized.yml`
+
+## Convenções e Padrões
+- Nome de evento: prefixo `edu_` para eventos educacionais; `$pageview` do PostHog permanece
+- Propriedades: snake_case/`camelCase` conforme código; evitar PII
+- Semântica estável: não renomear propriedades sem versionar
+- Versionamento (quando necessário): sufixos `_v2` para quebras de contrato
+- Sampling: considerar para eventos de alta frequência (ex.: `edu_api_latency`)
+
+## Esquema de Evento (contrato mínimo)
+- Campos comuns recomendados
+  - `questionId` (para quiz), `sessionId` (chat), `model`/`provider` (LLM), `methodology`
+  - Medidas: `timeMs`, `durationMs`, `latencyMs`, `attempts`, `accuracy`
+  - Flags: `success`, `error`, `diagramsEnabled`, `analogiesEnabled`
+- Campos reservados do PostHog: `$pageview`, `distinct_id`, timestamp
+
+## Mapa de Origem (event → arquivo)
+- App/Router: `src/App.tsx` → `$pageview`, `edu_app_focus`, `edu_app_blur`
+- Sessão/Chat: `src/components/chat/ChatInterface.tsx` → `edu_session_start`, `edu_session_end`, `edu_idle_to_active`, `edu_chat_*`, `edu_quiz_accuracy`, `edu_quiz_attempts_to_mastery`, `edu_remediation_shown`
+- Quiz: `src/components/chat/ChatMessage.tsx` → `edu_quiz_start`, `edu_quiz_time_spent`, `edu_quiz_answer`, `edu_code_*`
+- Plataforma: `src/lib/axios.ts` → `edu_api_latency`
 
 ## Catálogo de Eventos
 
 ### Engajamento / Rota
-- `$pageview`
-  - Quando: mudança de rota
-  - Propriedades: `path`
-  - Origem: `src/App.tsx` (AnalyticsTracker)
-
-- `edu_app_focus` / `edu_app_blur`
-  - Quando: visibilidade da aba muda
-  - Propriedades: —
-  - Origem: `src/App.tsx` (AnalyticsTracker)
+- `$pageview`: mudança de rota — props: `path` — origem: `App.tsx`
+- `edu_app_focus` / `edu_app_blur`: visibilidade de aba — origem: `App.tsx`
 
 ### Sessão (Chat)
-- `edu_session_start`
-  - Quando: entra no chat
-  - Propriedades: `route`
-  - Origem: `src/components/chat/ChatInterface.tsx`
-
-- `edu_session_end`
-  - Quando: sai do chat
-  - Propriedades: `route`, `durationMs`
-  - Origem: `src/components/chat/ChatInterface.tsx`
-
-- `edu_idle_to_active`
-  - Quando: volta da inatividade
-  - Propriedades: `idleMs`
-  - Origem: `src/components/chat/ChatInterface.tsx`
-
-- `edu_chat_idle_level`
-  - Quando: níveis de idle sobem
-  - Propriedades: `level`
-  - Origem: `src/components/chat/ChatInterface.tsx`
+- `edu_session_start`: entra no chat — props: `route` — origem: `ChatInterface.tsx`
+- `edu_session_end`: sai do chat — props: `route`, `durationMs` — origem: `ChatInterface.tsx`
+- `edu_idle_to_active`: volta da inatividade — props: `idleMs` — origem: `ChatInterface.tsx`
+- `edu_chat_idle_level`: nível de idle — props: `level` — origem: `ChatInterface.tsx`
 
 ### Chat / IA
-- `edu_chat_message_sent`
-  - Quando: enviar prompt
-  - Propriedades: `length`, `sessionId`, `model`, `methodology`, `diagramsEnabled`, `analogiesEnabled`
-  - Origem: `src/components/chat/ChatInterface.tsx`
-
-- `edu_chat_response_received`
-  - Quando: resposta chega
-  - Propriedades: `sessionId`, `responseLength`, `latencyMs`, `model`, `provider`, `methodology`
-  - Origem: `src/components/chat/ChatInterface.tsx`
-
-- `edu_chat_response_failed`
-  - Quando: falha (AGNO ou genérica)
-  - Propriedades: `kind`, `sessionId`, `model`, `provider`, `methodology`, `latencyMs`
-  - Origem: `src/components/chat/ChatInterface.tsx`
-
-- `edu_chat_settings_change`
-  - Quando: alterar AI/model/metodologia/diagramas/analogias
-  - Propriedades: `setting`, `value`
-  - Origem: `src/components/chat/ChatInterface.tsx`
-
-- `edu_remediation_shown`
-  - Quando: última questão foi errada e será exibida remediação
-  - Propriedades: `questionId`
-  - Origem: `src/components/chat/ChatInterface.tsx`
+- `edu_chat_message_sent`: prompt enviado — props: `length`, `sessionId`, `model`, `methodology`, `diagramsEnabled`, `analogiesEnabled`
+- `edu_chat_response_received`: resposta do LLM — props: `sessionId`, `responseLength`, `latencyMs`, `model`, `provider`, `methodology`
+- `edu_chat_response_failed`: falha — props: `kind`, `sessionId`, `model`, `provider`, `methodology`, `latencyMs`
+- `edu_chat_settings_change`: troca de configuração — props: `setting`, `value`
+- `edu_remediation_shown`: remediação após erro — props: `questionId`
 
 ### Quiz / Aprendizagem
-- `edu_quiz_start`
-  - Quando: quiz aparece
-  - Propriedades: `questionId`
-  - Origem: `src/components/chat/ChatMessage.tsx`
-
-- `edu_quiz_time_spent`
-  - Quando: clique na alternativa
-  - Propriedades: `questionId`, `timeMs`
-  - Origem: `src/components/chat/ChatMessage.tsx`
-
-- `edu_quiz_answer`
-  - Quando: marcar resposta
-  - Propriedades: `questionId`, `correct`
-  - Origem: `src/components/chat/ChatMessage.tsx`
-
-- `edu_quiz_accuracy`
-  - Quando: após cada resposta
-  - Propriedades: `correctCount`, `wrongCount`, `accuracy`
-  - Origem: `src/components/chat/ChatInterface.tsx`
-
-- `edu_quiz_attempts_to_mastery`
-  - Quando: acerto da questão
-  - Propriedades: `questionId`, `attempts`
-  - Origem: `src/components/chat/ChatInterface.tsx`
+- `edu_quiz_start`: exibição do quiz — props: `questionId`
+- `edu_quiz_time_spent`: tempo até resposta — props: `questionId`, `timeMs`
+- `edu_quiz_answer`: resposta marcada — props: `questionId`, `correct`
+- `edu_quiz_accuracy`: agregação por sessão — props: `correctCount`, `wrongCount`, `accuracy`
+- `edu_quiz_attempts_to_mastery`: tentativas até acerto — props: `questionId`, `attempts`
 
 ### Código / Execução
-- `edu_code_copied`
-  - Quando: copiar bloco de código
-  - Propriedades: `size`
-  - Origem: `src/components/chat/ChatMessage.tsx`
-
-- `edu_code_run`
-  - Quando: executar código (via backend proxy)
-  - Propriedades: `lang`, `path`, `durationMs`, `status`, `success`
-  - Origem: `src/components/chat/ChatMessage.tsx`
-
-- `edu_code_downloaded`
-  - Quando: baixar código final
-  - Propriedades: `lang`, `size`
-  - Origem: `src/components/chat/ChatMessage.tsx`
+- `edu_code_copied`: cópia de bloco — props: `size`
+- `edu_code_run`: execução (backend proxy) — props: `lang`, `path`, `durationMs`, `status`, `success`
+- `edu_code_downloaded`: download do código final — props: `lang`, `size`
 
 ### Plataforma / Performance
-- `edu_api_latency`
-  - Quando: toda resposta HTTP
-  - Propriedades: `method`, `path`, `status`, `durationMs`, `error?`
-  - Origem: `src/lib/axios.ts`
+- `edu_api_latency`: resposta HTTP — props: `method`, `path`, `status`, `durationMs`, `error?`
 
-## Como usar no PostHog
+## Lifecycles Principais
+- Quiz
+  1) `edu_quiz_start` → 2) `edu_quiz_time_spent` + `edu_quiz_answer` → 3) `edu_quiz_accuracy` (agregado) → 4) `edu_quiz_attempts_to_mastery` (no acerto)
+- Remediação
+  - `edu_quiz_answer(correct=false)` → `edu_remediation_shown` → próxima `edu_quiz_answer`
+- Chat/LLM
+  - `edu_chat_message_sent` → `edu_chat_response_received`/`edu_chat_response_failed`
+- Sessões
+  - `edu_session_start` → atividades → `edu_session_end`
 
-### Estudos de Aprendizagem
-- Acurácia e tempo em tarefa por questão:
-  - Trend de `edu_quiz_accuracy` (média de `accuracy`) ao longo do tempo.
-  - Trend de `edu_quiz_time_spent` (média de `timeMs`) por `questionId`.
-- Domínio por tentativas:
-  - Trend de `edu_quiz_attempts_to_mastery` (média de `attempts`) por `questionId`.
-- Efeito de remediação:
-  - Funil: `edu_quiz_answer (correct=false)` → `edu_remediation_shown` → próxima `edu_quiz_answer (correct=true)` (janela X min).
+## Como Usar no PostHog
+- Estudos de aprendizagem
+  - Trends de acurácia (`edu_quiz_accuracy.accuracy`) e tempo por questão (`edu_quiz_time_spent.timeMs`)
+  - Funil de remediação: `answer(false)` → `edu_remediation_shown` → `answer(true)`
+- UX/Engajamento
+  - Duração de sessão (`edu_session_end.durationMs`) e inatividade (`edu_idle_to_active.idleMs`)
+  - Latência LLM/API vs métricas de estudo
+- Coortes
+  - Alta acurácia (>= 0.8) vs baixa — comparar `latencyMs`, `timeMs`
+- Dashboards
+  - Aprendizagem, Chat/IA, Sessão/Engajamento
 
-### UX e Engajamento
-- Sessões:
-  - Trend de `edu_session_end` (média de `durationMs`).
-  - Distribuição de `edu_idle_to_active.idleMs` para detectar fricção.
-- Desempenho do chat/LLM:
-  - Trend de `edu_chat_response_received.latencyMs` com breakdown por `model`/`methodology`.
+## Privacidade e Compliance
+- Sem PII/conteúdo textual de mensagens/código; apenas metadados
+- Amostragem para eventos muito frequentes
+- Considere consentimento/TCLE quando necessário; retenção mínima
 
-### Coortes / Segmentação
-- Criar coortes de alta acurácia (ex.: `accuracy >= 0.8` em `edu_quiz_accuracy`).
-- Comparar latência de IA e tempo de quiz entre coortes.
+## Testes e Validação
+- Local
+  - DevTools Network: checar requests a `.../e/` com eventos `edu_*`
+  - Console: `posthog.debug(true)`; `posthog.capture('edu_smoke')`
+- QA
+  - Verificação cruzada de trends vs logs de aplicação
+  - Ensaios de fluxo (quiz, remediação, execução de código)
 
-### Dashboards sugeridos
-- “Aprendizagem”: acurácia média, tempo médio por questão, tentativas até domínio, taxa de acerto pós-remediação.
-- “Chat/IA”: latência média por modelo/metodologia, comprimento médio de resposta.
-- “Sessão/Engajamento”: duração média de sessão, inatividade média, número de sessões/dia.
+## Diretrizes de Contribuição (Como adicionar um evento)
+1. Defina objetivo e propriedades (sem PII)
+2. Emita o evento no componente/serviço correto
+3. Atualize este documento (evento, propriedades, origem)
+4. Crie queries/dashboards de validação no PostHog
+5. Faça roll-out controlado (se necessário, via flag) e monitore
+
+## Extensões Futuras
+- `edu_nav_click` e `route_dwell` (tempo por rota)
+- Tags de conceito em eventos de quiz
+- Exposição/Conversão de experimentos (`edu_experiment_exposure`/`edu_experiment_conversion`)
+
+---
+
+## Apêndice: Exemplos de Análises para Publicação
+
+### RQs e desenhos sugeridos
+- Remediação orientada por IA: pré–pós/A-B com `remediation_shown`
+- Curvas de aprendizagem: `attempts_to_mastery` e `timeMs` por tentativa
+- SRL/Engajamento: duração/inatividade predizendo `accuracy`
+- Latência: impacto de `latencyMs` em `accuracy` e engajamento
+
+### Modelagem
+- Efeitos mistos (aluno/questão), sobrevivência, regressões, clustering
 
 ### Boas práticas
-- Nomeclatura: prefixo `edu_` para eventos educacionais.
-- Sem PII/conteúdo: apenas metadados.
-- Amostragem: considerar para eventos muito frequentes (ex.: `edu_api_latency`).
-- Experimentos: ao habilitar feature flags no PostHog, registrar a variante via `posthog.register`/`identify` e incluir `variant` nos eventos relevantes para comparação.
+- Pré-registro, OECs, ICs/tamanhos de efeito, reprodutibilidade e limitações
 
-## Manutenção / Extensões
-- Para novos eventos, seguir padrão: Quando, Propriedades, Origem.
-- Possíveis extensões:
-  - `edu_nav_click` no sidebar; `route_dwell` (tempo por rota).
-  - Tags de conceito por questão/exercício para análises por conceito.
-  - Exposição/Conversão de experimentos (`edu_experiment_exposure` / `edu_experiment_conversion`).
+## Tabela de Métricas (ID x Utilidade)
 
-## Contextos e análises para publicações acadêmicas
-
-Abaixo estão sugestões de questões de pesquisa (RQs), hipóteses e estratégias analíticas que podem ser respondidas com as métricas instrumentadas. São exemplos que podem compor seções de Método/Resultados em artigos científicos.
-
-### 1) Eficácia de remediação orientada por IA
-- RQ: Exibir remediação após erro melhora a taxa de acertos subsequentes e reduz tempo por questão?
-- Métricas: `edu_quiz_answer` (correct=false → true), `edu_remediation_shown`, `edu_quiz_time_spent`, `edu_quiz_accuracy`.
-- Desenho: análise intra-sujeito (pré- vs pós-remediação) e/ou A/B (flag ativando remediação).
-- Análises:
-  - Regressão logística de efeitos mistos (acerto ~ remediação + (1|aluno) + (1|questão)).
-  - Diferença de médias de `timeMs` (pré vs pós) com modelos lineares de efeitos mistos.
-- Relatos: Odds ratio com IC95%, redução média de `timeMs`, tamanho de efeito (Cohen’s d) e p-valores.
-
-### 2) Curvas de aprendizagem por conceito
-- RQ: Quantas tentativas são necessárias até a maestria? Como evolui o tempo por questão?
-- Métricas: `edu_quiz_attempts_to_mastery`, `edu_quiz_time_spent`, (opcional: tags de conceito).
-- Desenho: séries temporais por estudante/questão; comparar conceitos.
-- Análises:
-  - Ajuste de power-law/exponencial para tempo por tentativa.
-  - Modelos de sobrevivência até a maestria (evento = acerto; tempo = tentativas).
-- Relatos: mediana de tentativas, hazard ratios por conceito, gráficos de Kaplan-Meier.
-
-### 3) Engajamento e autorregulação (SRL)
-- RQ: Padrões de engajamento (duração, inatividade) predizem acurácia?
-- Métricas: `edu_session_end.durationMs`, `edu_idle_to_active.idleMs`, `edu_chat_idle_level`, `edu_quiz_accuracy`.
-- Desenho: coletas longitudinais por sessão; clustering de perfis de engajamento.
-- Análises:
-  - Regressão (accuracy ~ duration + idleMs + nível de idle) com efeitos mistos.
-  - Clusterização (k-means/HDBSCAN) de vetores [duration, idleMs, mensagens] e comparação de acurácia entre clusters.
-- Relatos: perfis de estudo, diferenças de acurácia entre perfis, gráficos de densidade/boxplots.
-
-### 4) Impacto de latência de IA na experiência e no desempenho
-- RQ: Latências maiores (LLM/API) degradam o desempenho/engajamento?
-- Métricas: `edu_chat_response_received.latencyMs`, `edu_api_latency.durationMs`, `edu_session_end.durationMs`, `edu_quiz_accuracy`.
-- Desenho: observacional com controle de confundidores (modelo, metodologia, coorte).
-- Análises:
-  - Modelos lineares/generalizados com efeitos mistos; termos de interação (latência × modelo).
-  - Binning de latência e comparação de métricas (acurácia, duração de sessão) por faixas.
-- Relatos: coeficientes padronizados, intervalos de confiança, gráficos de resposta parcial.
-
-### 5) Prática de código e resultados
-- RQ: Quantas execuções até sucesso e qual o custo temporal?
-- Métricas: `edu_code_run` (success, durationMs, status), `edu_code_downloaded`.
-- Desenho: sequência de execuções por bloco/linguagem.
-- Análises:
-  - Regressão de contagem para runs até sucesso; análise de sobrevivência até sucesso.
-  - Comparações por linguagem (efeitos fixos/aleatórios).
-- Relatos: média de runs até sucesso, distribuição de `durationMs` e taxa de sucesso por linguagem.
-
-### 6) Retenção e continuidade
-- RQ: Intervenções aumentam tempo de estudo e retornos?
-- Métricas: `edu_session_end.durationMs`, `$pageview`, (opcional: dias ativos por usuário).
-- Desenho: séries temporais/segmento experimental (feature flag).
-- Análises:
-  - DAU/WAU, tempo médio por sessão; diferença-em-diferenças em rollouts graduais.
-- Relatos: variação percentual, ICs, gráficos de tendência.
-
-### 7) UX/usabilidade
-- RQ: Quais fluxos geram mais fricção e inatividade?
-- Métricas: `edu_idle_to_active.idleMs`, `edu_api_latency`, (opcional: `edu_flow_completion`).
-- Desenho: mapeamento por fluxo/tela (rota).
-- Análises:
-  - Heatmaps de inatividade por rota; correlações latência×abandono.
-- Relatos: hotspots de UX, recomendações de melhoria.
-
-## Mapeamento de construtos → métricas → modelos
-- Engajamento: `durationMs`, `idleMs`, `$pageview` → modelos lineares/mistos; clustering de perfis.
-- Desempenho: `accuracy`, `attempts`, `timeMs` → regressão logística/lineares; sobrevivência.
-- Eficácia da intervenção: `remediation_shown` → pré-pós e A/B; mixed-effects.
-- Desempenho técnico: `latencyMs` (LLM/API) → regressões com controles.
-
-## Desenhos experimentais e validade
-- A/B via feature flags do PostHog: registrar `variant` nos eventos relevantes e definir OECs (ex.: `accuracy`, `timeMs`).
-- Controle de confundidores: papel (aluno/professor), classe/coorte, modelo, dificuldade.
-- Ameaças à validade: viés de seleção, não-independência (efeitos por aluno/questão), missing data; usar efeitos mistos e múltiplas imputações quando aplicável.
-- Ética/privacidade: consentimento/TCLE quando necessário, anonimização e retenção mínima.
-
-## Exemplos de consultas/análises no PostHog
-- Tendências: média de `edu_quiz_accuracy.accuracy` por semana; breakdown por `methodology`.
-- Funis: `edu_quiz_answer(correct=false)` → `edu_remediation_shown` → `edu_quiz_answer(correct=true)` (janela 30 min).
-- Coortes: estudantes com `accuracy ≥ 0.8` nas últimas 4 semanas; comparar `latencyMs` entre coortes.
-
-## Boas práticas para artigos
-- Pré-registro de hipóteses e OECs; cálculo de poder amostral.
-- Reportar tamanhos de efeito e ICs (não apenas p-valores).
-- Reprodutibilidade: descrever mapeamento evento→variável e passos de pré-processamento.
-- Transparência: discutir limitações (ex.: proxies de carga cognitiva) e validade externa.
+| ID                           | Utilidade                                                                                   |
+|------------------------------|----------------------------------------------------------------------------------------------|
+| $pageview                    | Medir navegação entre rotas para análise de fluxo e engajamento por página                   |
+| edu_app_focus                | Detectar retomada de atenção à aba para estimar engajamento ativo                            |
+| edu_app_blur                 | Detectar perda de foco/atenção para entender interrupções                                    |
+| edu_session_start            | Delimitar início da sessão no chat para métricas de sessão                                   |
+| edu_session_end              | Calcular duração da sessão e encerrar janelas de análise                                     |
+| edu_idle_to_active           | Medir tempo de inatividade e retomada (fricção/pausas)                                       |
+| edu_chat_idle_level          | Classificar intensidade de inatividade (mild/moderate/high)                                  |
+| edu_chat_session_created     | Rastrear criação de sessão de chat (nova conversa)                                           |
+| edu_chat_session_loaded      | Rastrear carregamento/retomada de sessão existente                                           |
+| edu_chat_message_sent        | Contabilizar prompts enviados e suas configurações pedagógicas                               |
+| edu_chat_response_received   | Medir latência/resposta do LLM e relacionar com metodologia/modelo                           |
+| edu_chat_response_failed     | Diagnosticar falhas (AGNO/genérica) e seus tempos                                            |
+| edu_chat_settings_change     | Auditar mudanças de configuração pedagógica (modelo, metodologia, diagramas, analogias)      |
+| edu_remediation_shown        | Marcar exibição de remediação após erro para avaliar impacto                                 |
+| edu_quiz_start               | Início do ciclo de uma questão (delimitar tempo em tarefa)                                   |
+| edu_quiz_time_spent          | Tempo até resposta por questão (carga/fluência)                                              |
+| edu_quiz_answer              | Resultado por questão (acerto/erro) para análises pontuais                                   |
+| edu_quiz_accuracy            | Acurácia agregada da sessão (correto/errado/accuracy)                                        |
+| edu_quiz_attempts_to_mastery | Tentativas até acerto (curva de aprendizagem/maestria)                                       |
+| edu_code_copied              | Medir interesse/uso de trechos de código                                                     |
+| edu_code_run                 | Desempenho de execução (duração, status, sucesso) por linguagem                              |
+| edu_code_downloaded          | Exportação de solução final (adoção/prontidão)                                               |
+| edu_api_latency              | Latência e status de chamadas HTTP para diagnóstico de performance                           |
