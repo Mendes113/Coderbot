@@ -264,8 +264,8 @@ class AgnoService {
         context: request.context,
         user_context: userContextConverted,
         include_final_code: request.includeFinalCode ?? true,
-        include_diagram: request.includeDiagram ?? true,
-        diagram_type: request.diagramType || 'mermaid',
+        include_diagram: false,
+        diagram_type: undefined,
         max_final_code_lines: request.maxFinalCodeLines ?? 150
       };
 

@@ -51,7 +51,7 @@ class AgnoMethodologyService:
         self.model_id = model_id
         self.provider = provider or self._detect_provider(model_id)
         self.logger = logger
-        self.xml_validation_enabled = True
+        self.xml_validation_enabled = False  # XML desabilitado; usamos markdown-only
         
         # Carregar configuração de modelos
         self.model_config = self._load_model_config()
@@ -204,7 +204,7 @@ class AgnoMethodologyService:
             return Agent(
                 model=model,
                 description=config["description"],
-                instructions=[self._build_xml_prompt(config)],
+                instructions=[self._build_markdown_instructions(config)],
                 markdown=True
             )
         except Exception as e:
@@ -271,7 +271,7 @@ class AgnoMethodologyService:
 
     def _build_xml_prompt(self, config: Dict[str, Any]) -> str:
         """
-        Constrói o prompt do agente usando pseudo-tags XML para modularidade e clareza.
+        (Deprecado) Antes usava pseudo-tags XML. Mantido por compatibilidade.
         """
         # Exemplo de estrutura baseada em melhores práticas (EduPlanner, AgentInstruct, etc.)
         return f"""
@@ -284,6 +284,19 @@ class AgnoMethodologyService:
   <personalization>Adapte a resposta ao perfil e progresso do estudante.</personalization>
 </agent>
 """
+
+    def _build_markdown_instructions(self, config: Dict[str, Any]) -> str:
+        """Instruções puras em Markdown (sem XML) para agentes AGNO."""
+        steps = "\n".join([f"- {instr}" for instr in config["instructions"]])
+        return (
+            "Você é um tutor educacional. Siga as instruções abaixo em linguagem natural/Markdown, "
+            "evitando XML/HTML bruto e fences inválidos.\n\n"
+            f"Descrição: {config['description']}\n\n"
+            "Diretrizes:\n"
+            f"{steps}\n"
+            "- Responda APENAS em Markdown limpo.\n"
+            "- Use fenced blocks apenas quando necessário (ex.: ```python).\n"
+        )
 
     def ask(self, methodology: MethodologyType, user_query: str, context: Optional[str] = None) -> str:
         """
@@ -562,18 +575,11 @@ DIRETRIZES:
         # Remove espaços extras
         formatted_response = response.strip()
         
-        # Validação específica para metodologias XML
-        if methodology in [MethodologyType.WORKED_EXAMPLES, MethodologyType.SOCRATIC, MethodologyType.SCAFFOLDING]:
-            if self.xml_validation_enabled:
-                is_valid, error_msg = self._validate_xml_response(formatted_response)
-                if not is_valid:
-                    self.logger.warning(f"XML inválido: {error_msg}")
-                    # Tenta corrigir problemas simples de XML
-                    formatted_response = self._fix_common_xml_issues(formatted_response)
+        # XML desabilitado: não validar nem tentar corrigir XML
         
         return formatted_response
     
-    def _validate_xml_response(self, response: str) -> tuple[bool, str]:
+    def _validate_xml_response(self, response: str) -> tuple[bool, str]:  # mantido por compat
         """
         Valida se a resposta está em formato XML válido.
         
@@ -590,7 +596,7 @@ DIRETRIZES:
         except ET.ParseError as e:
             return False, str(e)
     
-    def _fix_common_xml_issues(self, response: str) -> str:
+    def _fix_common_xml_issues(self, response: str) -> str:  # mantido por compat
         """
         Corrige problemas comuns de XML na resposta.
         
