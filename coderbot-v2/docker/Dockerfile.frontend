@@ -20,6 +20,7 @@ RUN --mount=type=cache,target=/root/.pnpm-store pnpm install --frozen-lockfile -
 COPY . .
 
 # Garantir remoção de artefatos não usados
+
 RUN rm -rf src-tauri temp-tauri supabase 2>/dev/null || true
 
 # Definir variáveis de ambiente para build
@@ -28,7 +29,7 @@ ENV VITE_API_URL=http://localhost:8000
 ENV VITE_POCKETBASE_URL=http://localhost:8090
 
 # Build da aplicação para produção (falha se build falhar)
-RUN pnpm run build:dev || pnpm run build
+RUN pnpm run build
 
 # Garante que o diretório dist foi criado
 RUN test -d dist

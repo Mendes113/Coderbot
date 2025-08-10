@@ -1,0 +1,62 @@
+from pydantic import BaseModel, ConfigDict
+from typing import List, Optional, Union, Dict, Any
+
+class ChatMessageInput(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+        validate_assignment=True,
+        str_strip_whitespace=True
+    )
+    
+    role: str  # "user", "system", "assistant"
+    content: str
+    knowledge_level: Optional[str] = "beginner"  # "beginner", "intermediate", "advanced"
+    subject_focus: Optional[str] = "examples"  # Ex: "concepts", "examples", "applications"
+    context: Optional[str] = "teaching"  # "teaching", "informal", "explanation-focused"
+
+class ChatCompletionRequest(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+        validate_assignment=True
+    )
+    
+    model: str = "deepseek-chat"  # Ou o modelo específico que você quer usar
+    messages: List[Union[ChatMessageInput, Dict[str, Any]]]
+    max_tokens: Optional[int] = 12048  # Aumentado para permitir respostas mais longas
+    temperature: Optional[float] = 0.7
+    difficulty_level: Optional[str] = "medium"  # Ex: "easy", "medium", "hard"
+    subject_area: Optional[str] = "programing"  # Ex: "math", "programming", "history"
+    style_preference: Optional[str] = "concise"  # "concise", "detailed", "analogies"
+    learning_progress: Optional[dict] = {"questions_answered": 0, "correct_answers": 0}  # Acompanhamento de progresso do estudante
+    baseKnowledge: Optional[str] = "basic"  # "basic", "intermediate", "advanced"
+    methodology: Optional[str] = "default"  # "default", "analogy", "sequential", etc.
+    user_profile: Optional[dict] = None  # Perfil do usuário
+
+class ChatCompletionResponse(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',  # API responses may have extra fields
+        validate_assignment=True
+    )
+    
+    id: str
+    object: str
+    created: int
+    model: str
+    choices: List[dict]  # Cada 'choice' pode ter uma estrutura detalhada, com diferentes formas de resposta
+    usage: dict
+    feedback: Optional[dict]  # Para coletar feedback do aluno, pode incluir métricas de sucesso
+
+
+
+ # Adicionando baseKnowledge diretamente ao corpo da requisição
+    def build_payload(self):
+        """
+        Adiciona baseKnowledge diretamente ao payload para ser enviado.
+        """
+        payload = self.dict(exclude_none=True)
+        
+        # Inclui a base de conhecimento no payload
+        if self.baseKnowledge:
+            payload['baseKnowledge'] = self.baseKnowledge
+        
+        return payload
