@@ -25,6 +25,13 @@ import posthog from "posthog-js";
 import type { QuizAnswerEvent } from "@/components/chat/ChatMessage";
 // import { ProfileHeader } from "@/components/profile/ProfileHeader";
 
+// Small hash for stable ids (same as ChatMessage pattern)
+const simpleHash = (s: string) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return `${h}`;
+};
+
 // --- Componentes de Design Emocional ---
 
 // Componente do mascote CodeBot (inspirado no Duo)
@@ -554,19 +561,46 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const [diagramType, setDiagramType] = useState<'mermaid' | 'excalidraw'>("mermaid");
   const [maxFinalCodeLines] = useState<number>(150);
 
+  // Session metrics (start/end)
+  const sessionStartRef = useRef<number | null>(null);
+  useEffect(() => {
+    sessionStartRef.current = Date.now();
+    posthog?.capture?.('edu_session_start', { route: 'dashboard/chat' });
+    return () => {
+      if (sessionStartRef.current) {
+        const durationMs = Date.now() - sessionStartRef.current;
+        posthog?.capture?.('edu_session_end', { route: 'dashboard/chat', durationMs });
+      }
+    };
+  }, []);
+
   // Quiz correctness context
   const [quizCorrectCount, setQuizCorrectCount] = useState(0);
   const [quizWrongCount, setQuizWrongCount] = useState(0);
   const [lastQuizAnswer, setLastQuizAnswer] = useState<QuizAnswerEvent | null>(null);
+  const quizAttemptsRef = useRef<Map<string, number>>(new Map());
 
   const handleQuizAnswer = (evt: QuizAnswerEvent) => {
     setLastQuizAnswer(evt);
-    if (evt.correct) setQuizCorrectCount((c) => c + 1);
-    else setQuizWrongCount((c) => c + 1);
-    // Optional aggregate metric
-    const total = (evt.correct ? quizCorrectCount + 1 : quizCorrectCount) + (evt.correct ? quizWrongCount : quizWrongCount + 1);
-    const accuracy = total > 0 ? ((evt.correct ? quizCorrectCount + 1 : quizCorrectCount) / total) : 0;
-    posthog?.capture?.('edu_quiz_accuracy', { correctCount: evt.correct ? quizCorrectCount + 1 : quizCorrectCount, wrongCount: evt.correct ? quizWrongCount : quizWrongCount + 1, accuracy });
+    const qid = simpleHash(evt.question || '');
+    // increment attempts
+    const prev = quizAttemptsRef.current.get(qid) || 0;
+    quizAttemptsRef.current.set(qid, prev + 1);
+    if (evt.correct) {
+      // attempts to mastery
+      const attempts = quizAttemptsRef.current.get(qid) || 1;
+      posthog?.capture?.('edu_quiz_attempts_to_mastery', { questionId: qid, attempts });
+      quizAttemptsRef.current.delete(qid);
+      setQuizCorrectCount((c) => c + 1);
+    } else {
+      setQuizWrongCount((c) => c + 1);
+    }
+    // aggregate accuracy
+    const corr = (evt.correct ? quizCorrectCount + 1 : quizCorrectCount);
+    const wrong = (evt.correct ? quizWrongCount : quizWrongCount + 1);
+    const total = corr + wrong;
+    const accuracy = total > 0 ? corr / total : 0;
+    posthog?.capture?.('edu_quiz_accuracy', { correctCount: corr, wrongCount: wrong, accuracy });
   };
   
   // Track settings changes (skip initial)
@@ -625,15 +659,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const [sessionMessagesCount, setSessionMessagesCount] = useState(0);
   const [lastInteractionTime, setLastInteractionTime] = useState<Date | null>(null);
   
-  // Estados para idle/waiting
+  // Idle management
   const [isUserIdle, setIsUserIdle] = useState(false);
   const [idleTimer, setIdleTimer] = useState<NodeJS.Timeout | null>(null);
   const [idleShowSuggestions, setIdleShowSuggestions] = useState(false);
-  const [idleLevel, setIdleLevel] = useState<'none' | 'mild' | 'moderate' | 'high'>('none');
+  const [idleLevel, setIdleLevel] = useState<'none' | 'mild' | 'moderate' | 'high'>("none");
+  const idleStartRef = useRef<number | null>(null);
+
   // Track idle changes (ignore 'none')
   useEffect(() => {
     if (idleLevel && idleLevel !== 'none') {
-      trackEvent('edu_chat_idle_level', { level: idleLevel });
+      posthog?.capture?.('edu_chat_idle_level', { level: idleLevel });
     }
   }, [idleLevel]);
 
@@ -806,6 +842,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const handleUserIdle = () => {
     setIsUserIdle(true);
     setIdleLevel('mild');
+    idleStartRef.current = Date.now();
     
     // Escalar o nível de idle ao longo do tempo
     setTimeout(() => {
@@ -820,6 +857,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
 
   // Detectar interação do usuário
   const handleUserInteraction = () => {
+    // if was idle, emit idle_to_active
+    if (isUserIdle && idleStartRef.current) {
+      const idleMs = Date.now() - idleStartRef.current;
+      posthog?.capture?.('edu_idle_to_active', { idleMs });
+      idleStartRef.current = null;
+    }
     resetIdleTimer();
     setLastInteractionTime(new Date());
   };
@@ -1065,7 +1108,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     const startTs = Date.now();
     let chosenProvider: string = 'claude';
     let chosenModel: string = aiModel;
-    trackEvent('edu_chat_message_sent', {
+    posthog?.capture?.('edu_chat_message_sent', {
       length: input.length,
       sessionId,
       model: aiModel,
@@ -1219,13 +1262,19 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
             correctCount: quizCorrectCount,
             wrongCount: quizWrongCount,
             accuracy: (quizCorrectCount + quizWrongCount) > 0 ? quizCorrectCount / (quizCorrectCount + quizWrongCount) : 0,
-            lastAnswer: lastQuizAnswer ? { correct: lastQuizAnswer.correct, question: lastQuizAnswer.question, selectedId: lastQuizAnswer.selectedId } : null,
+            lastAnswer: lastQuizAnswer ? { correct: lastQuizAnswer.correct, question: lastQuizAnswer.question } : null,
           },
           previousInteractions: messages
             .filter(msg => !msg.isAi)
             .map(msg => msg.content)
             .slice(-5) // Últimas 5 interações
         };
+
+        // If last was wrong, mark remediation shown
+        if (lastQuizAnswer && lastQuizAnswer.correct === false) {
+          const qid = simpleHash(lastQuizAnswer.question || '');
+          posthog?.capture?.('edu_remediation_shown', { questionId: qid });
+        }
 
         // Build context prompt influence when last answer was wrong
         const extraContext = lastQuizAnswer && lastQuizAnswer.correct === false

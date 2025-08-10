@@ -147,11 +147,18 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
 
   // Quiz timing: measure time from render to answer click
   const quizStartRef = useRef<number | null>(null);
+  const quizStartedEmittedRef = useRef<boolean>(false);
   useEffect(() => {
     if (quizData && selectedOption === null) {
+      if (!quizStartedEmittedRef.current) {
+        const questionId = simpleHash(quizData.question || '');
+        posthog?.capture?.('edu_quiz_start', { questionId });
+        quizStartedEmittedRef.current = true;
+      }
       quizStartRef.current = Date.now();
     } else if (!quizData) {
       quizStartRef.current = null;
+      quizStartedEmittedRef.current = false;
     }
   }, [quizData, selectedOption]);
 
