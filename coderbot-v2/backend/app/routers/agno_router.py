@@ -87,6 +87,11 @@ class AgnoResponse(BaseModel):
         default=None,
         description="Dados extras como código final extraído da resposta"
     )
+    # Novo: segmentos estruturados para navegação passo a passo no frontend
+    segments: Optional[List["ResponseSegment"]] = Field(
+        default=None,
+        description="Lista de segmentos estruturados (intro, steps, exemplos, reflexão, final_code)"
+    )
 
 class MethodologyInfo(BaseModel):
     """Informações sobre uma metodologia educacional."""
@@ -108,6 +113,14 @@ class HealthResponse(BaseModel):
     status: str = "healthy"
     service: str = "agno"
     timestamp: float
+
+class ResponseSegment(BaseModel):
+    """Um segmento estruturado da resposta para navegação passo a passo no frontend."""
+    id: str = Field(description="Identificador estável do segmento")
+    title: str = Field(description="Título curto do segmento")
+    type: str = Field(description="Tipo do segmento (intro, steps, correct_example, incorrect_example, reflection, final_code)")
+    content: str = Field(description="Conteúdo em Markdown do segmento. Para final_code, apenas um bloco de código")
+    language: Optional[str] = Field(default=None, description="Linguagem do bloco de código quando type=final_code")
 
 # --- Dependências ---
 
@@ -203,15 +216,18 @@ async def ask_question(
             if base_context:
                 context_parts.append(str(base_context))
             instructions = [
-                "FORMATAÇÃO: Responda em Markdown claro, com passos do exemplo trabalhado.",
-                "Inclua DOIS pequenos exemplos:",
-                "- Exemplo Correto: mostre a abordagem correta em poucas linhas, com breve explicação.",
-                "- Exemplo Incorreto: mostre um erro comum, explique por que está errado e como corrigir.",
-                "No FINAL da resposta inclua:",
+                "FORMATAÇÃO GERAL (Markdown, seções claras):",
+                "1) Introdução: detalhe o problema em linguagem acessível, objetivos de aprendizagem, por que é importante e como funciona o tema. Dê um panorama simples do que será estudado.",
+                "2) Reflexão guiada: antes de mostrar a solução, apresente 3 a 5 perguntas curtas que induzam o aluno a pensar sobre o problema (ex.: 'O que está sendo pedido?', 'Que informações temos?', 'Que estratégia eu tentaria primeiro?').",
+                "3) Passo a passo: explique o raciocínio em etapas claras e numeradas.",
+                "4) Exemplos: inclua dois exemplos pequenos:",
+                "   - Exemplo Correto: abordagem correta em poucas linhas, com breve explicação.",
+                "   - Exemplo Incorreto: erro comum, por que está errado e como corrigir.",
+                "5) Código final: bloco único pronto para executar (ver regra abaixo).",
             ]
             if req.include_final_code:
                 instructions.append(
-                    f"1) Uma seção 'Código final' contendo UM ÚNICO bloco de código completo, pronto para executar, com no máximo {req.max_final_code_lines} linhas, usando a linguagem adequada (ex.: ```python, ```javascript, etc.)."
+                    f"REGRA DE CÓDIGO FINAL: inclua ao final uma seção 'Código final' contendo UM ÚNICO bloco de código completo, pronto para executar, com no máximo {req.max_final_code_lines} linhas, usando a linguagem adequada (ex.: ```python, ```javascript, etc.)."
                 )
             instructions.append("Mantenha o código final conciso e funcional. Evite trechos enormes.")
             context_parts.append("\n".join(instructions))
@@ -285,16 +301,123 @@ async def ask_question(
                 }
             return None
 
+        def _build_segments(md: str, final_code_obj: Optional[Dict[str, Any]]) -> List["ResponseSegment"]:
+            """Constrói segmentos estruturados a partir do markdown e do código final detectado.
+
+            Estratégia pragmática e tolerante a variações:
+            - intro: primeiro parágrafo(s) antes do primeiro heading
+            - steps: linhas de lista (1., -, *) agregadas
+            - exemplos: seções com cabeçalhos contendo "Exemplo Correto/Incorreto" ou similares
+            - reflexão: parágrafo(s) contendo palavras-chave de reflexão/dica
+            - final_code: bloco único a partir do objeto final_code
+            """
+            segments: List[ResponseSegment] = []
+            safe_md = (md or "").strip()
+            text = safe_md.replace("\r\n", "\n")
+
+            heading_pattern = re.compile(r"^(##{1,2})\s+(.+)$", re.MULTILINE)
+            headings = list(heading_pattern.finditer(text))
+
+            def make_id(prefix: str, idx: int) -> str:
+                return f"{prefix}_{idx}"
+
+            # Intro (ou Análise do Problema se a resposta já vier com headings)
+            intro_end = headings[0].start() if headings else len(text)
+            intro_chunk = text[:intro_end].strip()
+            intro_chunk = re.sub(r"```[\s\S]*?```", "", intro_chunk).strip()
+            if intro_chunk:
+                segments.append(ResponseSegment(
+                    id=make_id("intro", 1),
+                    title="Análise do Problema" if re.search(r"^##+\s+An[áa]lise do Problema", text, re.IGNORECASE | re.MULTILINE) else "Introdução",
+                    type="intro",
+                    content=intro_chunk
+                ))
+
+            # Reflexão (logo após introdução, se existir)
+            reflection_pat = re.compile(r"(^|\n)\s*(?:###+\s*)?(?:Reflex|Reflexão|Dica|Reflexive)\b[\s\S]*", re.IGNORECASE)
+            reflection_match = reflection_pat.search(text)
+            if reflection_match:
+                reflection_content = reflection_match.group(0).strip()
+                segments.append(ResponseSegment(
+                    id=make_id("reflection", 1),
+                    title="Reflexão",
+                    type="reflection",
+                    content=reflection_content
+                ))
+
+            # Steps
+            step_lines: List[str] = []
+            for line in text.split("\n"):
+                if re.match(r"^\s*(?:\d+\.|[-*+])\s+", line):
+                    step_lines.append(line)
+            if step_lines:
+                steps_md = "\n".join(step_lines)
+                segments.append(ResponseSegment(
+                    id=make_id("steps", 1),
+                    title="Passo a passo",
+                    type="steps",
+                    content=steps_md
+                ))
+
+            # Examples
+            def extract_section_by_keyword(keyword: str) -> Optional[str]:
+                pat = re.compile(rf"^###?\s+.*{keyword}.*$", re.IGNORECASE | re.MULTILINE)
+                m = pat.search(text)
+                if not m:
+                    return None
+                start = m.end()
+                next_m = heading_pattern.search(text, pos=start)
+                end = next_m.start() if next_m else len(text)
+                return text[start:end].strip()
+
+            correct_sec = extract_section_by_keyword("exemplo\s*corr(e|é)to|correto")
+            if correct_sec:
+                segments.append(ResponseSegment(
+                    id=make_id("correct", 1),
+                    title="Exemplo Correto",
+                    type="correct_example",
+                    content=correct_sec
+                ))
+
+            incorrect_sec = extract_section_by_keyword("exemplo\s*incorr(e|é)to|incorreto|erro")
+            if incorrect_sec:
+                segments.append(ResponseSegment(
+                    id=make_id("incorrect", 1),
+                    title="Exemplo Incorreto",
+                    type="incorrect_example",
+                    content=incorrect_sec
+                ))
+
+            # (Reflexão já adicionada acima, priorizada após Introdução)
+
+            # Código final
+            if final_code_obj and (final_code_obj.get('code') or '').strip():
+                lang = (final_code_obj.get('language') or 'text').lower()
+                code = final_code_obj.get('code') or ''
+                code_block = f"```{lang}\n{code}\n```"
+                segments.append(ResponseSegment(
+                    id=make_id("final_code", 1),
+                    title="Código final",
+                    type="final_code",
+                    content=code_block,
+                    language=lang
+                ))
+
+            return segments
+
         blocks = _extract_fenced_blocks(response)
         extras: Dict[str, Any] = {}
         if team_extras:
             extras.update(team_extras)
+        # Guarda código final para segmentação
+        final_code_for_segments: Optional[Dict[str, Any]] = None
         if request.include_final_code:
             final_code = _pick_final_code(blocks, request.max_final_code_lines or 150)
             if final_code:
                 extras['final_code'] = final_code
                 metadata['final_code_lines'] = final_code.get('line_count')
                 metadata['final_code_truncated'] = final_code.get('truncated')
+                final_code_for_segments = final_code
 
         # Adiciona sugestões de próximos passos para worked examples
         if methodology_enum == MethodologyType.WORKED_EXAMPLES:
@@ -304,12 +427,15 @@ async def ask_question(
                 "Pratique com variações do exemplo"
             ]
         
+        segments = _build_segments(response, final_code_for_segments)
+
         return AgnoResponse(
             response=response,
             methodology=request.methodology,
             is_xml_formatted=False,  # Sempre False - agora geramos markdown diretamente
             metadata=metadata,
-            extras=extras or None
+            extras=extras or None,
+            segments=segments or None
         )
         
     except ValueError as e:

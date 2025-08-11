@@ -469,6 +469,26 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
           )}
         </div>
         <span className={cn("ml-2 font-semibold text-sm", isAi ? "text-white" : "text-gray-100")}>{isAi ? "Assistente IA" : "Você"}</span>
+        {/* Segment chip (detect from markdown heading) */}
+        {(() => {
+          // Captura primeira linha do tipo ### Título
+          const m = (content || '').match(/^\s{0,3}#{3}\s+([^\n]+)/);
+          if (!m) return null;
+          const title = (m[1] || '').trim();
+          const lower = title.toLowerCase();
+          let cls = 'bg-[#21262d] text-[#9ca3af] border-[#30363d]';
+          if (/introdu\u00e7\u00e3o|introducao/.test(lower)) cls = 'bg-[#1f1533] text-[#c4b5fd] border-[#7c3aed]';
+          else if (/passo a passo|passo/.test(lower)) cls = 'bg-[#0d1b2a] text-[#93c5fd] border-[#3b82f6]';
+          else if (/exemplo\s+correr|exemplo correto|correto|\u2705/.test(lower)) cls = 'bg-[#0c1a10] text-[#86efac] border-[#16a34a]';
+          else if (/exemplo\s+incorreto|incorreto|erro|\u26a0/.test(lower)) cls = 'bg-[#1a0c0c] text-[#fca5a5] border-[#ef4444]';
+          else if (/reflex/.test(lower)) cls = 'bg-[#1a1033] text-[#c084fc] border-[#a855f7]';
+          else if (/c\u00f3digo final|codigo final|c\u00f3digo|codigo|final/.test(lower)) cls = 'bg-[#0b1020] text-[#93c5fd] border-[#3b82f6]';
+          return (
+            <span className={cn("ml-2 px-2 py-0.5 rounded-full text-[10px] font-medium border", cls)}>
+              {title}
+            </span>
+          );
+        })()}
         <span className="ml-auto text-xs text-muted-foreground">
           {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
