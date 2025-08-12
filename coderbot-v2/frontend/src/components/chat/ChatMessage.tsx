@@ -4,7 +4,6 @@ import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useMemo, useState, useEffect, useRef } from "react";
-import mermaid from "mermaid";
 import api from "@/lib/axios";
 import Editor from "@monaco-editor/react";
 import posthog from "posthog-js";
@@ -36,68 +35,7 @@ export type QuizAnswerEvent = {
 };
 
 const MermaidView = ({ code, id }: { code: string; id: string }) => {
-  const [svg, setSvg] = useState<string>("");
-  const [error, setError] = useState<string>("");
-
-  const sanitize = (src: string) => {
-    let c = (src || "").trim();
-    // Remove cercas acidentais
-    c = c.replace(/^```mermaid\s*/i, "");
-    c = c.replace(/```\s*$/i, "");
-    // Se não começar com diretiva conhecida, prefixar um grafo simples
-    const startsOk = /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|journey|gantt|pie)\b/.test(c);
-    if (!startsOk) {
-      c = `graph TD\n${c}`;
-    }
-    return c;
-  };
-
-  useEffect(() => {
-    let cancelled = false;
-    const render = async () => {
-      try {
-        mermaid.initialize({ startOnLoad: false, theme: "dark" });
-        const uniqueId = `mmd_${id}`;
-        const primary = sanitize(code);
-        try {
-          const result = await mermaid.render(uniqueId, primary);
-          if (!cancelled) {
-            setSvg(result.svg || "");
-            setError("");
-          }
-          return;
-        } catch (e1: any) {
-          // Segunda tentativa: encapsular em um grafo mínimo
-          const fallback = `graph TD\nA[Diagrama]-->B[Conteúdo]\n`;
-          const result2 = await mermaid.render(uniqueId + "_fb", fallback);
-          if (!cancelled) {
-            setSvg(result2.svg || "");
-            setError("Diagrama original inválido; exibindo fallback.");
-          }
-        }
-      } catch (e: any) {
-        if (!cancelled) {
-          setSvg("");
-          setError("Falha ao renderizar diagrama.");
-        }
-      }
-    };
-    render();
-    return () => { cancelled = true; };
-  }, [code, id]);
-
-  return (
-    <div className="bg-white p-4">
-      {svg ? (
-        <>
-          {error && <div className="text-xs text-red-500 mb-2">{error}</div>}
-          <div className="overflow-auto" dangerouslySetInnerHTML={{ __html: svg }} />
-        </>
-      ) : (
-        <div className="text-sm text-[#7d8590]">Não foi possível renderizar o diagrama.</div>
-      )}
-    </div>
-  );
+  return null;
 };
 
 type ChatMessageProps = {
@@ -447,10 +385,14 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
   return (
     <div
       className={cn(
-        "py-5 px-5 rounded-2xl mb-3 shadow-sm transition-all duration-200 border",
+        // layout and common bubble styling
+        "py-5 px-5 rounded-2xl mb-3 shadow-sm transition-all duration-200 border max-w-[85%]",
+        // side alignment: AI left, User right
+        isAi ? "mr-auto" : "ml-auto",
+        // distinct background, border and text colors + asymmetric corners
         isAi
-          ? "bg-[hsl(var(--education-bot-bg))] border-white/10 text-white"
-          : "bg-[hsl(var(--education-user-bg))] border-black/10 text-gray-900"
+          ? "bg-[#0b1220] border-[#334155] text-[#e5e7eb] rounded-bl-none"
+          : "bg-[#1d4ed8] border-[#1e40af] text-white rounded-br-none"
       )}
     >
       <div className="flex items-center mb-2">
@@ -458,17 +400,17 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
           className={cn(
             "icon-container h-8 w-8 rounded-full flex items-center justify-center shadow-sm border transition-all duration-300 hover:scale-105",
             isAi
-              ? "bg-[hsl(var(--education-purple))] border-white/10 hover:bg-[hsl(var(--education-purple-dark))]"
-              : "bg-[hsl(var(--education-user))] border-black/10 hover:bg-[hsl(var(--education-user-dark))]"
+              ? "bg-[#1d4ed8] border-white/10 hover:bg-[#1e40af]"
+              : "bg-white/15 border-white/20 hover:bg-white/20"
           )}
         >
           {isAi ? (
             <Bot className="icon-bot h-4 w-4 text-white animate-subtle-pulse hover:animate-gentle-float transition-all duration-300" />
           ) : (
-            <User className="icon-user h-4 w-4 text-gray-100 hover:text-white transition-all duration-300 hover:scale-110 animate-rotate-gently" />
+            <User className="icon-user h-4 w-4 text-white transition-all duration-300 hover:scale-110" />
           )}
         </div>
-        <span className={cn("ml-2 font-semibold text-sm", isAi ? "text-white" : "text-gray-100")}>{isAi ? "Assistente IA" : "Você"}</span>
+        <span className={cn("ml-2 font-semibold text-sm", isAi ? "text-white" : "text-white")}>{isAi ? "Assistente IA" : "Você"}</span>
         {/* Segment chip (detect from markdown heading) */}
         {(() => {
           // Captura primeira linha do tipo ### Título
@@ -497,30 +439,34 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
         {isAi ? (
           <div className="markdown-content prose prose-invert max-w-none">
             {/* Tabs */}
-            {finalBlock && (
+            {(finalBlock) && (
               <div className="mb-3 flex items-center gap-2">
                 <button
                   type="button"
                   className={cn(
                     "px-3 py-1.5 rounded-full text-xs border transition-colors",
-                    selectedView === 'explanation' ? 'bg-[#7c3aed] text-white border-[#a78bfa]' : 'bg-transparent border-[#6b7280] text-[#cbd5e1] hover:bg-white/10'
+                    selectedView === 'explanation' ? 'bg-[#2563eb] text-white border-[#93c5fd]' : 'bg-transparent border-[#6b7280] text-[#cbd5e1] hover:bg-white/10'
                   )}
                   onClick={() => setSelectedView('explanation')}
                 >
                   Explicação
                 </button>
-                {finalBlock && (
+                  {finalBlock && (
+                  <>
+                  {/* Código final */}
                   <button
                     type="button"
                     className={cn(
                       "px-3 py-1.5 rounded-full text-xs border transition-colors",
-                      selectedView === 'final' ? 'bg-[#7c3aed] text-white border-[#a78bfa]' : 'bg-transparent border-[#6b7280] text-[#cbd5e1] hover:bg-white/10'
+                      selectedView === 'final' ? 'bg-[#2563eb] text-white border-[#93c5fd]' : 'bg-transparent border-[#6b7280] text-[#cbd5e1] hover:bg-white/10'
                     )}
                     onClick={() => setSelectedView('final')}
                   >
                     Código final
                   </button>
+                  </>
                 )}
+                {/* Diagramas removed */}
               </div>
             )}
 
@@ -551,7 +497,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
                       <div className="my-3 rounded-md overflow-hidden bg-[#0d1117] border border-[#30363d]">
                         <div className="flex items-center justify-between px-3 py-2 border-b border-[#30363d]">
                           <span className="text-xs text-[#9ca3af] font-mono">{effectiveLang}</span>
-                          <button 
+                          <button
                             onClick={() => copyToClipboard(code)}
                             className="opacity-90 hover:opacity-100 transition-opacity duration-200 bg-[#21262d] hover:bg-[#30363d] rounded px-2 py-1 text-[#7d8590] hover:text-[#c9d1d9] text-xs flex items-center gap-1"
                             aria-label="Copy code"
@@ -584,7 +530,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
                       </div>
                     );
                   }
-                  
+
                   return (
                     <code className="bg-[#262626] text-[#e6edf3] px-1.5 py-0.5 rounded text-sm font-mono border border-[#30363d]" {...props}>
                       {children}
@@ -592,10 +538,10 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
                   );
                 },
                 a: ({ node, ...props }) => (
-                  <a 
-                    {...props} 
-                    className="text-blue-400 hover:text-blue-300 underline hover:no-underline transition-colors" 
-                    target="_blank" 
+                  <a
+                    {...props}
+                    className="text-blue-400 hover:text-blue-300 underline hover:no-underline transition-colors"
+                    target="_blank"
                     rel="noopener noreferrer"
                   />
                 ),
@@ -637,7 +583,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
                     <div key={blockKey} className="rounded-md overflow-hidden bg-[#0d1117] border border-[#30363d]">
                       <div className="flex items-center justify-between px-3 py-2 border-b border-[#30363d]">
                         <span className="text-xs text-[#9ca3af] font-mono">{lang || 'text'}</span>
-                        <button 
+                        <button
                           onClick={() => copyToClipboard(code)}
                           className="opacity-90 hover:opacity-100 transition-opacity duration-200 bg-[#21262d] hover:bg-[#30363d] rounded px-2 py-1 text-[#7d8590] hover:text-[#c9d1d9] text-xs flex items-center gap-1"
                           aria-label="Copy code"
@@ -886,7 +832,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
               </div>
             )}
 
-            {/* Diagram view removido */}
+
           </div>
         ) : (
           <div className={cn("text-base whitespace-pre-wrap leading-relaxed", "text-white")}>{content}</div>

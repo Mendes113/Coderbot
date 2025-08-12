@@ -557,7 +557,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const isMobile = useIsMobile();
   const [showSidebar, setShowSidebar] = useState(!isMobile);
   const [showAnalogyDropdown, setShowAnalogyDropdown] = useState(false);
-  const [diagramsEnabled, setDiagramsEnabled] = useState(true);
+  // Diagrams disabled: hide UI and force off
+  const [diagramsEnabled] = useState(false);
   const [diagramType, setDiagramType] = useState<'mermaid' | 'excalidraw'>("mermaid");
   const [maxFinalCodeLines] = useState<number>(150);
   
@@ -1353,8 +1354,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
           provider,
           modelId,
           includeFinalCode: true,
-          includeDiagram: diagramsEnabled,
-          diagramType: diagramType,
+          includeDiagram: false,
+          diagramType,
           maxFinalCodeLines
         });
         
@@ -1680,37 +1681,9 @@ Obrigado pela paciência! 🤖✨`,
                 </div>
               )}
             </div>
-            {/* Toggle de Diagramas */}
-            <div className="relative">
-              <button
-                type="button"
-                aria-label={diagramsEnabled ? "Desativar diagramas" : "Ativar diagramas"}
-                title={diagramsEnabled ? "Diagramas ativados" : "Diagramas desativados"}
-                onClick={() => setDiagramsEnabled((v) => !v)}
-                className={cn(
-                  "flex items-center gap-1 px-2 py-1 rounded-full border border-gray-200 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-                  diagramsEnabled
-                    ? "bg-[hsl(var(--education-purple)/0.12)] text-[hsl(var(--education-purple))] border-[hsl(var(--education-purple))]"
-                    : "bg-white text-gray-500 hover:text-[hsl(var(--education-purple))] hover:border-[hsl(var(--education-purple))]"
-                )}
-                tabIndex={0}
-                style={{ minHeight: 28 }}
-              >
-                <Sparkles className="h-4 w-4" />
-                <span>Diagramas</span>
-              </button>
-            </div>
-            {diagramsEnabled && (
-              <Select value={diagramType} onValueChange={(v) => setDiagramType(v as any)}>
-                <SelectTrigger className="w-[120px] h-8 text-xs">
-                  <SelectValue placeholder="Tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="mermaid">Mermaid</SelectItem>
-                  <SelectItem value="excalidraw">Excalidraw</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
+            {/* Diagram UI removed */}
+         
+          
           </div>
         </div>
       </div>
