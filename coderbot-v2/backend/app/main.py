@@ -46,7 +46,7 @@ app.add_middleware(
     allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin", "User-Agent", "DNT", "Cache-Control", "Keep-Alive"],
+    allow_headers=["*"],
     expose_headers=["Content-Disposition"],
 )
 

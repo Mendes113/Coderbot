@@ -64,16 +64,21 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
       const jsonStr = match[1].trim();
       const data = JSON.parse(jsonStr) as {
         question: string;
-        options: { id?: string; text: string; correct?: boolean }[];
+        options: { id?: string; text: string; correct?: boolean; reason?: string; explanation?: string }[];
         explanation?: string;
       };
       const normalized = (data.options || []).slice(0, 3).map((opt, idx) => ({
         id: opt.id || ["A", "B", "C"][idx],
         text: opt.text,
         correct: Boolean(opt.correct),
+        reason: (opt as any)?.reason || (opt as any)?.explanation || undefined,
       }));
       if (normalized.length === 3 && normalized.some(o => o.correct)) {
-        return { question: data.question, options: normalized, explanation: data.explanation };
+        return { question: data.question, options: normalized, explanation: data.explanation } as {
+          question: string;
+          options: { id: string; text: string; correct: boolean; reason?: string }[];
+          explanation?: string;
+        };
       }
       return null;
     } catch {
@@ -664,15 +669,19 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
                     );
                   })}
                 </div>
-                {selectedOption !== null && (
-                  <div className={cn("mt-2 text-xs", isCorrect ? "text-green-400" : "text-red-400")}
-                  >
-                    {isCorrect ? "Resposta correta!" : "Resposta incorreta."}
-                    {quizData.explanation ? (
-                      <span className="block text-[#9ca3af] mt-1">{quizData.explanation}</span>
-                    ) : null}
-                  </div>
-                )}
+                {selectedOption !== null && (() => {
+                  const selected = quizData.options.find(o => o.id === selectedOption);
+                  const reason = selected?.reason || quizData.explanation;
+                  return (
+                    <div className={cn("mt-2 text-xs", isCorrect ? "text-green-400" : "text-red-400")}
+                    >
+                      {isCorrect ? "Resposta correta!" : "Resposta incorreta."}
+                      {reason ? (
+                        <span className="block text-[#9ca3af] mt-1">{reason}</span>
+                      ) : null}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

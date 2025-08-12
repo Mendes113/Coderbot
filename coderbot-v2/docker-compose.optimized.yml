@@ -19,7 +19,7 @@ services:
     environment:
       - POCKETBASE_ADMIN_EMAIL=${POCKETBASE_ADMIN_EMAIL}
       - POCKETBASE_ADMIN_PASSWORD=${POCKETBASE_ADMIN_PASSWORD}
-    command: ["sh","-lc","/pb/pocketbase migrate up --dir /pb/pb_migrations && exec /pb/pocketbase serve --http 0.0.0.0:8090"]
+    command: ["sh","-lc","exec /pb/pocketbase serve --http 0.0.0.0:8090 --dir /pb/pb_data --migrationsDir /pb/pb_migrations"]
     networks:
       - coderbot-network
     restart: unless-stopped
@@ -30,7 +30,7 @@ services:
       retries: 3
     logging: *default-logging
     cpus: "0.50"
-    mem_limit: "256m"
+    mem_limit: "512m"
     ulimits:
       nofile:
         soft: 8192

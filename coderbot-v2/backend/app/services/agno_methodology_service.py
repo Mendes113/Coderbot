@@ -410,8 +410,8 @@ ESTRUTURA OBRIGATÓRIA DA RESPOSTA (em markdown limpo):
 - Explique claramente o que o problema pede, contexto mínimo necessário e objetivos de aprendizagem.
 - Diga "como funciona" o tema central em linguagem acessível.
 
-## Reflexão guiada
-- Liste 3 a 5 perguntas breves para induzir o aluno ao pensamento antes da solução (ex.: "O que está sendo pedido?", "Que informações temos?", "Qual estratégia tentaria primeiro?").
+## Reflexão
+- Escreva um breve texto expositivo (1–2 parágrafos) que induza o aluno a pensar sobre o problema antes da solução. Explique como abordar o tema, que aspectos observar e como organizar o raciocínio, sem perguntas diretas.
 
 ## Exemplo Trabalhado (Passo a passo)
 - Demonstre a solução em passos numerados, com foco no raciocínio e decisões.
@@ -431,22 +431,24 @@ ESTRUTURA OBRIGATÓRIA DA RESPOSTA (em markdown limpo):
 
 ---
 Quiz (3 alternativas, exatamente 1 correta)
-- Ao final, inclua EXATAMENTE UM bloco fenced denominado quiz contendo JSON no formato abaixo:
+- Ao final, inclua EXATAMENTE UM bloco fenced denominado quiz contendo JSON no formato abaixo.
+- Cada alternativa DEVE conter um campo "reason" (1–2 frases) explicando por que está correta ou incorreta.
 
 ```quiz
 {
   "question": "[sua pergunta curta e objetiva]",
   "options": [
-    { "id": "A", "text": "[opção A]", "correct": true },
-    { "id": "B", "text": "[opção B]", "correct": false },
-    { "id": "C", "text": "[opção C]", "correct": false }
+    { "id": "A", "text": "[opção A]", "correct": true,  "reason": "Correta porque …" },
+    { "id": "B", "text": "[opção B]", "correct": false, "reason": "Incorreta porque …" },
+    { "id": "C", "text": "[opção C]", "correct": false, "reason": "Incorreta porque …" }
   ],
-  "explanation": "[explicação breve da resposta correta]"
+  "explanation": "[síntese breve reforçando o porquê da resposta correta]"
 }
 ```
 
 Diretrizes gerais:
 - Use linguagem acessível e foco educacional, explicando o porquê das escolhas.
+- Inclua o campo "reason" em TODAS as alternativas do quiz, mantendo-o conciso.
 - Evite código longo fora do bloco "Código final" (gerado em outra etapa).
 """
         

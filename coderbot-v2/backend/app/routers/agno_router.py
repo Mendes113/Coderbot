@@ -9,6 +9,7 @@ Este router expõe endpoints para:
 """
 
 from fastapi import APIRouter, Depends, Query, HTTPException, BackgroundTasks, status
+import logging
 from typing import Optional, Dict, Any, List, Tuple
 from pydantic import BaseModel, Field
 import uuid
@@ -23,6 +24,8 @@ router = APIRouter(
     tags=["agno"],
     responses={404: {"description": "Not found"}},
 )
+
+logger = logging.getLogger(__name__)
 
 # --- Modelos Pydantic para validação e documentação ---
 
@@ -72,6 +75,15 @@ class AgnoRequest(BaseModel):
         description="Limite de linhas para o código final (para usabilidade)."
     )
 
+# Definido antes para evitar problemas de forward-ref em respostas
+class ResponseSegment(BaseModel):
+    """Um segmento estruturado da resposta para navegação passo a passo no frontend."""
+    id: str = Field(description="Identificador estável do segmento")
+    title: str = Field(description="Título curto do segmento")
+    type: str = Field(description="Tipo do segmento (intro, steps, correct_example, incorrect_example, reflection, final_code)")
+    content: str = Field(description="Conteúdo em Markdown do segmento. Para final_code, apenas um bloco de código")
+    language: Optional[str] = Field(default=None, description="Linguagem do bloco de código quando type=final_code")
+
 class AgnoResponse(BaseModel):
     """Modelo de resposta do sistema AGNO."""
     response: str = Field(description="Resposta gerada pelo sistema AGNO")
@@ -88,7 +100,7 @@ class AgnoResponse(BaseModel):
         description="Dados extras como código final extraído da resposta"
     )
     # Novo: segmentos estruturados para navegação passo a passo no frontend
-    segments: Optional[List["ResponseSegment"]] = Field(
+    segments: Optional[List[ResponseSegment]] = Field(
         default=None,
         description="Lista de segmentos estruturados (intro, steps, exemplos, reflexão, final_code)"
     )
@@ -114,13 +126,7 @@ class HealthResponse(BaseModel):
     service: str = "agno"
     timestamp: float
 
-class ResponseSegment(BaseModel):
-    """Um segmento estruturado da resposta para navegação passo a passo no frontend."""
-    id: str = Field(description="Identificador estável do segmento")
-    title: str = Field(description="Título curto do segmento")
-    type: str = Field(description="Tipo do segmento (intro, steps, correct_example, incorrect_example, reflection, final_code)")
-    content: str = Field(description="Conteúdo em Markdown do segmento. Para final_code, apenas um bloco de código")
-    language: Optional[str] = Field(default=None, description="Linguagem do bloco de código quando type=final_code")
+# (classe ResponseSegment movida acima de AgnoResponse para evitar forward-ref)
 
 # --- Dependências ---
 
@@ -301,7 +307,7 @@ async def ask_question(
                 }
             return None
 
-        def _build_segments(md: str, final_code_obj: Optional[Dict[str, Any]]) -> List["ResponseSegment"]:
+        def _build_segments(md: str, final_code_obj: Optional[Dict[str, Any]], user_query_text: Optional[str]) -> List["ResponseSegment"]:
             """Constrói segmentos estruturados a partir do markdown e do código final detectado.
 
             Estratégia pragmática e tolerante a variações:
@@ -333,17 +339,64 @@ async def ask_question(
                     content=intro_chunk
                 ))
 
-            # Reflexão (logo após introdução, se existir)
-            reflection_pat = re.compile(r"(^|\n)\s*(?:###+\s*)?(?:Reflex|Reflexão|Dica|Reflexive)\b[\s\S]*", re.IGNORECASE)
+            # Reflexão (sempre presente; se não vier, sintetiza texto expositivo)
+            reflection_pat = re.compile(r"(^|\n)\s*(?:###+\s*)?(?:Reflex|Reflexão guiada|Reflexão|Dica|Reflexive)\b[\s\S]*", re.IGNORECASE)
             reflection_match = reflection_pat.search(text)
             if reflection_match:
                 reflection_content = reflection_match.group(0).strip()
+                # Converte listas em parágrafo expositivo
+                if re.search(r"^\s*[-*+]\s+", reflection_content, re.MULTILINE):
+                    bullets = re.sub(r"^\s*[-*+]\s+", "", reflection_content, flags=re.MULTILINE)
+                    reflection_content = (
+                        "### Reflexão\n\n"
+                        "Antes da solução, foque em compreender o objetivo, organizar informações e escolher uma estratégia inicial. "
+                        "Observe relações importantes e critérios para validar sua resposta.\n\n"
+                        + bullets
+                    )
                 segments.append(ResponseSegment(
                     id=make_id("reflection", 1),
                     title="Reflexão",
                     type="reflection",
                     content=reflection_content
                 ))
+            else:
+                uq = (user_query_text or "o problema proposto").strip()
+                synthesized_reflection = (
+                    "### Reflexão\n\n"
+                    "Antes de partir para a solução, alinhe o pensamento: esclareça o que o problema pede, "
+                    "liste os dados relevantes e imagine uma estratégia inicial. Considere como verificará o resultado "
+                    f"no contexto de: \"{uq}\". Foque na lógica por trás das decisões, não nos detalhes de código."
+                )
+                segments.append(ResponseSegment(
+                    id=make_id("reflection", 1),
+                    title="Reflexão",
+                    type="reflection",
+                    content=synthesized_reflection
+                ))
+
+            # Etapa de Pergunta (sempre presente; se não vier, sintetiza uma pergunta aberta)
+            question_segment: Optional[ResponseSegment] = None
+            question_pat = re.compile(r"(^|\n)\s*##+\s+(Pergunta|Perguntas|Pergunta ao aluno)\b[\s\S]*", re.IGNORECASE)
+            qm = question_pat.search(text)
+            if qm:
+                question_content = qm.group(0).strip()
+                question_segment = ResponseSegment(
+                    id=make_id("question", 1),
+                    title="Pergunta",
+                    type="question",
+                    content=question_content
+                )
+            else:
+                uq = (user_query_text or "o problema").strip()
+                question_segment = ResponseSegment(
+                    id=make_id("question", 1),
+                    title="Pergunta",
+                    type="question",
+                    content=(
+                        "### Pergunta\n\n"
+                        f"Como você explicaria, em poucas linhas, qual seria sua primeira abordagem para resolver \"{uq}\"?"
+                    )
+                )
 
             # Steps
             step_lines: List[str] = []
@@ -370,7 +423,8 @@ async def ask_question(
                 end = next_m.start() if next_m else len(text)
                 return text[start:end].strip()
 
-            correct_sec = extract_section_by_keyword("exemplo\s*corr(e|é)to|correto")
+            # Usa strings raw nos padrões para evitar escapes inválidos
+            correct_sec = extract_section_by_keyword(r"exemplo\s*corr(e|é)to|correto")
             if correct_sec:
                 segments.append(ResponseSegment(
                     id=make_id("correct", 1),
@@ -379,7 +433,7 @@ async def ask_question(
                     content=correct_sec
                 ))
 
-            incorrect_sec = extract_section_by_keyword("exemplo\s*incorr(e|é)to|incorreto|erro")
+            incorrect_sec = extract_section_by_keyword(r"exemplo\s*incorr(e|é)to|incorreto|erro")
             if incorrect_sec:
                 segments.append(ResponseSegment(
                     id=make_id("incorrect", 1),
@@ -388,7 +442,7 @@ async def ask_question(
                     content=incorrect_sec
                 ))
 
-            # (Reflexão já adicionada acima, priorizada após Introdução)
+            # (Reflexão e Pergunta já adicionadas acima)
 
             # Código final
             if final_code_obj and (final_code_obj.get('code') or '').strip():
@@ -403,7 +457,33 @@ async def ask_question(
                     language=lang
                 ))
 
-            return segments
+            # Quiz (se existir fenced block ```quiz ... ```)
+            quiz_match = re.search(r"```quiz\s*([\s\S]*?)```", text, re.IGNORECASE)
+            if quiz_match:
+                quiz_block = quiz_match.group(0)
+                segments.append(ResponseSegment(
+                    id=make_id("quiz", 1),
+                    title="Quiz",
+                    type="quiz",
+                    content=quiz_block
+                ))
+
+            # Ordenação final: Reflexão -> Pergunta -> Intro/Análise -> Passos -> Exemplos -> Código final -> Quiz
+            ordered: List[ResponseSegment] = []
+            # Já inserimos reflexão no início; vamos reordenar explicitamente
+            ref = [s for s in segments if s.type == "reflection"]
+            ques = [question_segment] if question_segment else []
+            intro = [s for s in segments if s.type == "intro"]
+            steps = [s for s in segments if s.type == "steps"]
+            ex_ok = [s for s in segments if s.type == "correct_example"]
+            ex_bad = [s for s in segments if s.type == "incorrect_example"]
+            codef = [s for s in segments if s.type == "final_code"]
+            quizs = [s for s in segments if s.type == "quiz"]
+            for group in (ref, ques, intro, steps, ex_ok, ex_bad, codef, quizs):
+                for s in group:
+                    if s:
+                        ordered.append(s)
+            return ordered
 
         blocks = _extract_fenced_blocks(response)
         extras: Dict[str, Any] = {}
@@ -427,7 +507,12 @@ async def ask_question(
                 "Pratique com variações do exemplo"
             ]
         
-        segments = _build_segments(response, final_code_for_segments)
+        try:
+            segments = _build_segments(response, final_code_for_segments, request.user_query)
+        except Exception as seg_err:
+            # Fallback seguro se algo falhar na segmentação
+            logger.error(f"Falha ao construir segmentos: {seg_err}")
+            segments = None
 
         return AgnoResponse(
             response=response,
