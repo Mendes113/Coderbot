@@ -58,12 +58,17 @@ class AgnoMethodologyService:
         
         # Garante que o SDK oficial da Anthropic (usado pelo AGNO) receba a chave correta
         if self.provider == "claude":
-            key = settings.claude_api_key
+            # Prioriza CLAUDE_API_KEY (config), faz fallback para ANTHROPIC_API_KEY
+            env_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+            key = (settings.claude_api_key or "").strip() or env_key
             if key:
                 os.environ["ANTHROPIC_API_KEY"] = key
-                self.logger.info("ANTHROPIC_API_KEY injetado a partir de settings para o provedor Claude")
-            elif not os.environ.get("ANTHROPIC_API_KEY"):
-                self.logger.warning("CLAUDE_API_KEY/ANTHROPIC_API_KEY não configurado; chamadas ao Claude podem falhar (401).")
+                masked = (f"{key[:6]}...{key[-4:]}" if len(key) >= 12 else "***")
+                self.logger.info(f"Chave Claude detectada e injetada (mascarada): {masked}")
+            else:
+                self.logger.warning(
+                    "CLAUDE_API_KEY/ANTHROPIC_API_KEY não configurado; chamadas ao Claude podem falhar (401)."
+                )
 
         
         # Carregar configuração de modelos
