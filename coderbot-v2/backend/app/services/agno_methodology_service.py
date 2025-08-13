@@ -211,7 +211,10 @@ class AgnoMethodologyService:
             if self.provider == "claude":
                 # Usar modelo oficial do Agno para Claude
                 from agno.models.anthropic import Claude
-                model = Claude(id=self.model_id)
+                # Resolve key the same way as during injection
+                env_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+                key = (settings.claude_api_key or "").strip() or env_key
+                model = Claude(id=self.model_id, api_key=key)  # passa a chave explicitamente
                 self.logger.info(f"Modelo Claude oficial {self.model_id} criado com sucesso")
             else:
                 # Usar OpenAI para modelos OpenAI
