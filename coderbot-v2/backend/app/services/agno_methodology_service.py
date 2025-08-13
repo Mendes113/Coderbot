@@ -23,6 +23,8 @@ import xml.etree.ElementTree as ET
 import re
 import json
 from pathlib import Path
+import os
+from app.config import settings
 
 # Import do nosso modelo customizado
 from .agno_models import create_model, get_available_models
@@ -50,6 +52,16 @@ class AgnoMethodologyService:
         """
         self.model_id = model_id
         self.provider = provider or self._detect_provider(model_id)
+
+        # Garante que o SDK oficial da Anthropic (usado pelo AGNO) receba a chave correta
+        if self.provider == "claude":
+            key = settings.claude_api_key
+            if key:
+                os.environ["ANTHROPIC_API_KEY"] = key
+                self.logger.info("ANTHROPIC_API_KEY injetado a partir de settings para o provedor Claude")
+            elif not os.environ.get("ANTHROPIC_API_KEY"):
+                self.logger.warning("CLAUDE_API_KEY/ANTHROPIC_API_KEY não configurado; chamadas ao Claude podem falhar (401).")
+
         self.logger = logger
         self.xml_validation_enabled = False  # XML desabilitado; usamos markdown-only
         
@@ -363,7 +375,8 @@ class AgnoMethodologyService:
         if len(user_query.strip()) < 3:
             return False
             
-        if context and len(context) > 2000:  # Limita o contexto
+        # Permite contextos maiores para incluir instruções pedagógicas completas
+        if context and len(context) > 12000:
             return False
             
         return True
