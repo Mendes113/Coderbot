@@ -29,6 +29,17 @@ from app.config import settings
 # Import do nosso modelo customizado
 from .agno_models import create_model, get_available_models
 
+def _sanitize_api_key(raw: Optional[str]) -> str:
+    """Remove aspas, quebras de linha e espaços de uma API key."""
+    if not raw:
+        return ""
+    key = str(raw).replace("\r", "").replace("\n", "").strip()
+    if key and (key[0] == '"' and key[-1] == '"'):
+        key = key[1:-1]
+    if key and (key[0] == "'" and key[-1] == "'"):
+        key = key[1:-1]
+    return key.strip()
+
 class MethodologyType(Enum):
     SEQUENTIAL_THINKING = "sequential_thinking"
     ANALOGY = "analogy"
@@ -59,8 +70,9 @@ class AgnoMethodologyService:
         # Garante que o SDK oficial da Anthropic (usado pelo AGNO) receba a chave correta
         if self.provider == "claude":
             # Prioriza CLAUDE_API_KEY (config), faz fallback para ANTHROPIC_API_KEY
-            env_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-            key = (settings.claude_api_key or "").strip() or env_key
+            raw_env_key = os.environ.get("ANTHROPIC_API_KEY", "")
+            raw_settings_key = settings.claude_api_key
+            key = _sanitize_api_key(raw_settings_key) or _sanitize_api_key(raw_env_key)
             if key:
                 os.environ["ANTHROPIC_API_KEY"] = key
                 masked = (f"{key[:6]}...{key[-4:]}" if len(key) >= 12 else "***")
@@ -212,8 +224,9 @@ class AgnoMethodologyService:
                 # Usar modelo oficial do Agno para Claude
                 from agno.models.anthropic import Claude
                 # Resolve key the same way as during injection
-                env_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-                key = (settings.claude_api_key or "").strip() or env_key
+                raw_env_key = os.environ.get("ANTHROPIC_API_KEY", "")
+                raw_settings_key = settings.claude_api_key
+                key = _sanitize_api_key(raw_settings_key) or _sanitize_api_key(raw_env_key)
                 model = Claude(id=self.model_id, api_key=key)  # passa a chave explicitamente
                 self.logger.info(f"Modelo Claude oficial {self.model_id} criado com sucesso")
             else:
