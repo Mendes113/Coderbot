@@ -53,6 +53,9 @@ class AgnoMethodologyService:
         self.model_id = model_id
         self.provider = provider or self._detect_provider(model_id)
 
+        self.logger = logger
+        self.xml_validation_enabled = False  # XML desabilitado; usamos markdown-only
+        
         # Garante que o SDK oficial da Anthropic (usado pelo AGNO) receba a chave correta
         if self.provider == "claude":
             key = settings.claude_api_key
@@ -62,8 +65,6 @@ class AgnoMethodologyService:
             elif not os.environ.get("ANTHROPIC_API_KEY"):
                 self.logger.warning("CLAUDE_API_KEY/ANTHROPIC_API_KEY não configurado; chamadas ao Claude podem falhar (401).")
 
-        self.logger = logger
-        self.xml_validation_enabled = False  # XML desabilitado; usamos markdown-only
         
         # Carregar configuração de modelos
         self.model_config = self._load_model_config()
