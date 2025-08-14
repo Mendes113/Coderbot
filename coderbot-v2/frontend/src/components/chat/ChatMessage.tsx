@@ -9,7 +9,7 @@ import Editor from "@monaco-editor/react";
 import posthog from "posthog-js";
 
 const JUDGE0_URL = ""; // force proxy path
-const API_URL = (import.meta as any)?.env?.VITE_API_URL || "http://localhost:8000";
+const API_URL = (import.meta as any)?.env?.VITE_API_URL || "/api";
 
 // Small stable hash for block keys
 const simpleHash = (s: string) => {
