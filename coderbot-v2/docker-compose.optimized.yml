@@ -105,6 +105,11 @@ services:
     build:
       context: ./frontend
       dockerfile: ../docker/Dockerfile.frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_POCKETBASE_URL: ${VITE_POCKETBASE_URL:-/pb}
+        VITE_PUBLIC_POSTHOG_KEY: ${VITE_PUBLIC_POSTHOG_KEY:-}
+        VITE_PUBLIC_POSTHOG_HOST: ${VITE_PUBLIC_POSTHOG_HOST:-https://us.i.posthog.com}
     container_name: coderbot-frontend
     ports:
       - "3001:3000"
