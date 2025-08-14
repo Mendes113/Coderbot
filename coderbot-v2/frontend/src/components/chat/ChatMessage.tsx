@@ -253,6 +253,13 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
   // Remove the raw ```quiz block from markdown before rendering
   const contentWithoutQuiz = useMemo(() => content.replace(/```quiz[\s\S]*?```/gi, '').trim(), [content]);
 
+  // Determine if there is explanatory content besides headings and fenced code blocks
+  const hasExplanationContent = useMemo(() => {
+    const withoutCode = contentWithoutQuiz.replace(/```[\s\S]*?```/g, '');
+    const withoutHeadings = withoutCode.replace(/^\s{0,3}#{1,6}\s+[^\n]+\n?/gm, '');
+    return withoutHeadings.trim().length > 0;
+  }, [contentWithoutQuiz]);
+
   // Fallback: parse fenced code blocks if ReactMarkdown doesn't render any (e.g., formatting quirks)
   const fencedBlocks = useMemo(() => {
     const blocks: { lang: string; code: string; blockKey: string }[] = [];
@@ -446,10 +453,9 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
       <div className="ml-10">
         {isAi ? (
           <div className="markdown-content prose prose-invert max-w-none">
-            {/* Auto: render explanation if exists (non-empty after removing quiz and final code); otherwise render final code */}
+            {/* Auto: render explanation (non-empty after removing headings and code); otherwise show final code editor */}
             {(() => {
-              const explainHasContent = (contentWithoutQuiz || '').trim().length > 0;
-              if (explainHasContent) {
+              if (hasExplanationContent) {
                 return (
             <ReactMarkdown
               components={{
@@ -556,7 +562,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
             })()}
 
             {/* Fallback runner when no explanation content exists: show code blocks (non-diagram) */}
-            {((contentWithoutQuiz || '').trim().length === 0) && codeBlockCounter < 0 && fencedBlocks.length > 0 && (
+            {(!hasExplanationContent) && codeBlockCounter < 0 && fencedBlocks.length > 0 && !finalBlock && (
               <div className="mt-4 space-y-4">
                 {fencedBlocks.map(({ lang, code, blockKey }) => {
                   // hide in explanation if this is final or diagram
@@ -663,7 +669,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
             )}
 
             {/* Final code view: only when no explanation content exists and we detected a final block */}
-            {((contentWithoutQuiz || '').trim().length === 0) && finalBlock && (
+            {(!hasExplanationContent) && finalBlock && (
               <div className="rounded-lg overflow-hidden bg-[#0d1117] border border-[#30363d]">
                 <div className="flex items-center justify-between bg-[#161b22] px-4 py-2.5 border-b border-[#30363d]">
                   <div className="text-sm text-[#7d8590] font-mono">{finalLang || 'javascript'}</div>
