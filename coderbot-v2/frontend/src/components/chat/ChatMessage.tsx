@@ -63,21 +63,25 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
       if (!match) return null;
       const jsonStr = match[1].trim();
       const data = JSON.parse(jsonStr) as {
-        question: string;
-        options: { id?: string; text: string; correct?: boolean; reason?: string; explanation?: string }[];
+        question?: string;
+        options?: { id?: string; text?: string; correct?: boolean; reason?: string; explanation?: string }[];
         explanation?: string;
       };
-      const normalized = (data.options || []).slice(0, 3).map((opt, idx) => ({
-        id: opt.id || ["A", "B", "C"][idx],
-        text: opt.text,
-        correct: Boolean(opt.correct),
-        reason: (opt as any)?.reason || (opt as any)?.explanation || undefined,
-      }));
-      if (normalized.length === 3 && normalized.some(o => o.correct)) {
-        return { question: data.question, options: normalized, explanation: data.explanation } as {
-          question: string;
-          options: { id: string; text: string; correct: boolean; reason?: string }[];
-          explanation?: string;
+      const opts = Array.isArray(data.options) ? data.options : [];
+      const normalized = opts
+        .map((opt, idx) => ({
+          id: opt?.id || String.fromCharCode(65 + idx),
+          text: (opt?.text ?? "").toString(),
+          correct: Boolean((opt as any)?.correct),
+          reason: (opt as any)?.reason || (opt as any)?.explanation || undefined,
+        }))
+        .filter(o => o.text.trim().length > 0)
+        .slice(0, 3);
+      if (normalized.length >= 2) {
+        return {
+          question: (data.question || '').toString(),
+          options: normalized as { id: string; text: string; correct: boolean; reason?: string }[],
+          explanation: data.explanation,
         };
       }
       return null;
@@ -277,7 +281,6 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
     return null as null | { lang: string; code: string; blockKey: string };
   }, [fencedBlocks]);
 
-  const [selectedView, setSelectedView] = useState<'explanation' | 'final'>('explanation');
   const [editedFinalCode, setEditedFinalCode] = useState<string>(finalBlock?.code || '');
   const [finalLang, setFinalLang] = useState<string>(finalBlock?.lang || 'javascript');
   const [finalStdin, setFinalStdin] = useState<string>("");
@@ -443,39 +446,11 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
       <div className="ml-10">
         {isAi ? (
           <div className="markdown-content prose prose-invert max-w-none">
-            {/* Tabs */}
-            {(finalBlock) && (
-              <div className="mb-3 flex items-center gap-2">
-                <button
-                  type="button"
-                  className={cn(
-                    "px-3 py-1.5 rounded-full text-xs border transition-colors",
-                    selectedView === 'explanation' ? 'bg-[#2563eb] text-white border-[#93c5fd]' : 'bg-transparent border-[#6b7280] text-[#cbd5e1] hover:bg-white/10'
-                  )}
-                  onClick={() => setSelectedView('explanation')}
-                >
-                  Explicação
-                </button>
-                  {finalBlock && (
-                  <>
-                  {/* Código final */}
-                  <button
-                    type="button"
-                    className={cn(
-                      "px-3 py-1.5 rounded-full text-xs border transition-colors",
-                      selectedView === 'final' ? 'bg-[#2563eb] text-white border-[#93c5fd]' : 'bg-transparent border-[#6b7280] text-[#cbd5e1] hover:bg-white/10'
-                    )}
-                    onClick={() => setSelectedView('final')}
-                  >
-                    Código final
-                  </button>
-                  </>
-                )}
-                {/* Diagramas removed */}
-              </div>
-            )}
-
-            {selectedView === 'explanation' && (
+            {/* Auto: render explanation if exists (non-empty after removing quiz and final code); otherwise render final code */}
+            {(() => {
+              const explainHasContent = (contentWithoutQuiz || '').trim().length > 0;
+              if (explainHasContent) {
+                return (
             <ReactMarkdown
               components={{
                 code({ node, className, children, inline, ...props }: any) {
@@ -575,14 +550,16 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
             >
               {contentWithoutQuiz}
             </ReactMarkdown>
-            )}
+                );
+              }
+              return null;
+            })()}
 
-            {/* Fallback runner when markdown produced no code blocks - only in explanation view */}
-            {selectedView === 'explanation' && codeBlockCounter < 0 && fencedBlocks.length > 0 && (
+            {/* Fallback runner when no explanation content exists: show code blocks (non-diagram) */}
+            {((contentWithoutQuiz || '').trim().length === 0) && codeBlockCounter < 0 && fencedBlocks.length > 0 && (
               <div className="mt-4 space-y-4">
                 {fencedBlocks.map(({ lang, code, blockKey }) => {
                   // hide in explanation if this is final or diagram
-                  if (finalBlock && blockKey === finalBlock.blockKey) return null;
                   if (lang === 'mermaid' || lang === 'excalidraw') return null; // sempre ocultar diagramas
                   return (
                     <div key={blockKey} className="rounded-md overflow-hidden bg-[#0d1117] border border-[#30363d]">
@@ -623,8 +600,8 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
               </div>
             )}
 
-            {/* Quiz options render in explanation view */}
-            {selectedView === 'explanation' && quizData && (
+            {/* Quiz options render when present */}
+            {quizData && (
               <div className="mt-4 p-3 rounded-xl border border-[#30363d] bg-[#0f1420]">
                 <div className="text-sm text-white font-medium mb-2">{quizData.question || 'Quiz'}</div>
                 <div className="flex gap-2 flex-wrap">
@@ -685,8 +662,8 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
               </div>
             )}
 
-            {/* Final code view */}
-            {selectedView === 'final' && finalBlock && (
+            {/* Final code view: only when no explanation content exists and we detected a final block */}
+            {((contentWithoutQuiz || '').trim().length === 0) && finalBlock && (
               <div className="rounded-lg overflow-hidden bg-[#0d1117] border border-[#30363d]">
                 <div className="flex items-center justify-between bg-[#161b22] px-4 py-2.5 border-b border-[#30363d]">
                   <div className="text-sm text-[#7d8590] font-mono">{finalLang || 'javascript'}</div>
@@ -772,72 +749,6 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
                     />
                   </div>
                 </div>
-                {(() => {
-                  const key = simpleHash(`${(finalLang || 'javascript').toLowerCase()}::${editedFinalCode}`);
-                  const status = execStates[key]?.status;
-                  return (
-                    <div className="border-t border-[#30363d] bg-[#0f1420] px-4 py-3 text-sm text-[#c9d1d9]">
-                      <div className="flex items-center gap-2 mb-2">
-                        <TerminalSquare size={16} />
-                        <span className="text-[#7d8590]">Saída da execução</span>
-                      </div>
-                      {status === 'running' && <div className="text-[#7d8590]">Executando...</div>}
-                      {status === 'done' && (
-                        (() => {
-                          const summary = buildSummary(finalLang || 'javascript', execStates[key]?.data);
-                          const open = Boolean(detailsOpen[key]);
-                          return (
-                            <div className="space-y-2">
-                              <div className={cn(
-                                "px-3 py-2 rounded-md text-sm flex items-start gap-2",
-                                summary.level === 'success' && 'bg-[#0c1a10] text-[#c9d1d9] border border-[#1f6f3e]',
-                                summary.level === 'info' && 'bg-[#0d1726] text-[#c9d1d9] border border-[#1f3b6f]',
-                                summary.level === 'warn' && 'bg-[#1b150c] text-[#c9d1d9] border border-[#6f531f]',
-                                summary.level === 'error' && 'bg-[#1a0c0c] text-[#c9d1d9] border border-[#6f1f1f]'
-                              )}>
-                                <div className="pt-0.5">
-                                  {summary.level === 'success' ? <CheckCheck size={14} className="text-[#3fb950]"/> : summary.level === 'warn' ? <AlertTriangle size={14} className="text-[#f59e0b]"/> : summary.level === 'error' ? <AlertTriangle size={14} className="text-[#ef4444]"/> : <TerminalSquare size={14} className="text-[#60a5fa]"/>}
-                                </div>
-                                <div className="flex-1">{summary.text}</div>
-                                <button
-                                  type="button"
-                                  className="text-xs text-[#7d8590] hover:text[#c9d1d9] underline ml-2"
-                                  onClick={() => toggleDetails(key)}
-                                >
-                                  {open ? 'Ocultar detalhes' : 'Mostrar detalhes'}
-                                </button>
-                              </div>
-                              {open && (
-                                <div className="space-y-2">
-                                  <pre className="whitespace-pre-wrap text-[#c9d1d9]">{execStates[key]?.output}</pre>
-                                  {execStates[key]?.meta && (
-                                    <div className="mt-2 text-xs text-[#7d8590]">
-                                      <div>Executado via: {execStates[key]?.meta?.path}</div>
-                                      <div>HTTP: {execStates[key]?.meta?.status} • endpoint: {execStates[key]?.meta?.endpoint}</div>
-                                      {execStates[key]?.meta?.token && (<div>token: {execStates[key]?.meta?.token}</div>)}
-                                      {execStates[key]?.meta?.message && (<div>mensagem: {execStates[key]?.meta?.message}</div>)}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()
-                      )}
-                      {status === 'error' && (
-                        <div className="text-red-400 flex flex-col gap-1">
-                          <div className="flex items-center gap-2"><AlertTriangle size={14} /> {execStates[key]?.error}</div>
-                          {execStates[key]?.meta && (
-                            <div className="text-xs text-[#fca5a5]">
-                              <div>via: {execStates[key]?.meta?.path} • endpoint: {execStates[key]?.meta?.endpoint}</div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {!status && <div className="text-[#7d8590]">Edite e clique em Executar para ver a saída.</div>}
-                    </div>
-                  );
-                })()}
               </div>
             )}
 
