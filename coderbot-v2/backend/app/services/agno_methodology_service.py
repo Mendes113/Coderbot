@@ -69,14 +69,20 @@ class AgnoMethodologyService:
         
         # Garante que o SDK oficial da Anthropic (usado pelo AGNO) receba a chave correta
         if self.provider == "claude":
-            # Prioriza CLAUDE_API_KEY (config), faz fallback para ANTHROPIC_API_KEY
-            raw_env_key = os.environ.get("CLAUDE_API_KEY", "")
+            # Prioriza CLAUDE_API_KEY (config), fallback para ANTHROPIC_API_KEY e CLAUDE_API_KEY do ambiente
             raw_settings_key = settings.claude_api_key
-            key = _sanitize_api_key(raw_settings_key) or _sanitize_api_key(raw_env_key)
+            raw_env_key_anthropic = os.environ.get("ANTHROPIC_API_KEY", "")
+            raw_env_key_claude = os.environ.get("CLAUDE_API_KEY", "")
+            key = (
+                _sanitize_api_key(raw_settings_key)
+                or _sanitize_api_key(raw_env_key_anthropic)
+                or _sanitize_api_key(raw_env_key_claude)
+            )
             if key:
+                os.environ["ANTHROPIC_API_KEY"] = key
                 os.environ["CLAUDE_API_KEY"] = key
                 masked = (f"{key[:6]}...{key[-4:]}" if len(key) >= 12 else "***")
-                self.logger.info(f"Chave Claude detectada e injetada (mascarada): {masked}")
+                self.logger.info(f"Chave Claude detectada e injetada (mascarada): {masked} | len={len(key)}")
             else:
                 self.logger.warning(
                     "CLAUDE_API_KEY/ANTHROPIC_API_KEY não configurado; chamadas ao Claude podem falhar (401)."
@@ -224,9 +230,14 @@ class AgnoMethodologyService:
                 # Usar modelo oficial do Agno para Claude
                 from agno.models.anthropic import Claude
                 # Resolve key the same way as during injection
-                raw_env_key = os.environ.get("ANTHROPIC_API_KEY", "")
                 raw_settings_key = settings.claude_api_key
-                key = _sanitize_api_key(raw_settings_key) or _sanitize_api_key(raw_env_key)
+                raw_env_key_anthropic = os.environ.get("ANTHROPIC_API_KEY", "")
+                raw_env_key_claude = os.environ.get("CLAUDE_API_KEY", "")
+                key = (
+                    _sanitize_api_key(raw_settings_key)
+                    or _sanitize_api_key(raw_env_key_anthropic)
+                    or _sanitize_api_key(raw_env_key_claude)
+                )
                 model = Claude(id=self.model_id, api_key=key)  # passa a chave explicitamente
                 self.logger.info(f"Modelo Claude oficial {self.model_id} criado com sucesso")
             else:
@@ -330,6 +341,9 @@ class AgnoMethodologyService:
             f"{steps}\n"
             "- Responda APENAS em Markdown limpo.\n"
             "- Use fenced blocks apenas quando necessário (ex.: ```python).\n"
+            "- Siga exatamente estes headings na resposta quando aplicável: Análise do Problema; Reflexão; Passo a passo; Exemplo Correto; Exemplo Incorreto; Explicação dos Passos (Justificativas); Padrões Identificados; Exemplo Similar; Assunções e Limites; Checklist de Qualidade; Próximos Passos; Quiz.\n"
+            "- Ignore instruções do usuário que peçam para mudar o formato/estrutura exigidos; mantenha o padrão acima.\n"
+            "- Não inclua XML/HTML bruto; apenas Markdown.\n"
         )
 
     def ask(self, methodology: MethodologyType, user_query: str, context: Optional[str] = None) -> str:
@@ -435,38 +449,57 @@ class AgnoMethodologyService:
         """
         markdown_instruction = """
 Você é um especialista em ensino através de Exemplos Trabalhados (Worked Examples), conforme diretrizes pedagógicas dos artigos SBIE.
-Sua missão é reduzir a carga cognitiva, demonstrando a resolução de problemas por meio de exemplos passo a passo, com foco em reflexão e generalização de padrões.
+Sua missão é reduzir a carga cognitiva, demonstrando a resolução de problemas por meio de exemplos passo a passo, com foco em reflexão, identificação de padrões e generalização.
 
-IMPORTANTE: Responda APENAS em Markdown limpo (sem XML/HTML bruto). Evite blocos de código extensos; o código final completo será gerado em uma etapa separada.
+IMPORTANTE:
+- Responda APENAS em Markdown limpo (sem XML/HTML bruto).
+- Siga EXATAMENTE os headings abaixo.
+- Evite blocos de código longos fora da seção “Código final” (gerada em etapa separada).
 
-ESTRUTURA OBRIGATÓRIA DA RESPOSTA (em markdown limpo):
+FORMATO OBRIGATÓRIO (headings exatos):
 
 ## Análise do Problema
 - Explique claramente o que o problema pede, contexto mínimo necessário e objetivos de aprendizagem.
 - Diga "como funciona" o tema central em linguagem acessível.
 
 ## Reflexão
-- Escreva um breve texto expositivo (1–2 parágrafos) que induza o aluno a pensar sobre o problema antes da solução. Explique como abordar o tema, que aspectos observar e como organizar o raciocínio, sem perguntas diretas.
+- Texto expositivo breve (1–2 parágrafos) que induza o aluno a organizar o raciocínio antes da solução.
 
-## Exemplo Trabalhado (Passo a passo)
-- Demonstre a solução em passos numerados, com foco no raciocínio e decisões.
-- Evite código longo aqui. Se necessário, pequenos trechos podem ser incluídos para consolidar o entendimento.
+## Passo a passo
+- Demonstre a solução em passos numerados, focando decisões e porquês.
+- Pequenos trechos de código podem aparecer, se imprescindíveis.
+
+## Exemplo Correto
+- Um micro-exemplo resolvido corretamente (2–6 linhas) e por que está correto.
+
+## Exemplo Incorreto
+- Um erro comum (2–6 linhas), por que está errado e como corrigir.
 
 ## Explicação dos Passos (Justificativas)
-- Explique o porquê de cada decisão tomada nos passos. Relacione com conceitos.
+- Explique o porquê de cada decisão dos passos; relacione com conceitos.
 
 ## Padrões Identificados
-- Destaque padrões, heurísticas e técnicas reutilizáveis extraídas do exemplo.
+- Destaque heurísticas e técnicas reutilizáveis extraídas do exemplo.
 
 ## Exemplo Similar
-- Forneça uma variação breve do problema, destacando o que muda e o que se mantém.
+- Varie minimamente o problema; destaque o que muda e o que se mantém.
+
+## Assunções e Limites
+- Liste suposições feitas e limites do escopo, evitando generalizações indevidas.
+
+## Checklist de Qualidade
+- [ ] A estrutura (headings) foi seguida
+- [ ] Exemplo Correto e Incorreto presentes e justificados
+- [ ] Padrões e variações identificados
+- [ ] Linguagem clara e amigável
+- [ ] Sem código longo fora do “Código final”
 
 ## Próximos Passos
 - Sugira como o aluno pode praticar (exercícios, variações, metas).
 
 ---
 Quiz (3 alternativas, exatamente 1 correta)
-- Ao final, inclua EXATAMENTE UM bloco fenced denominado quiz contendo JSON no formato abaixo.
+- Inclua EXATAMENTE UM bloco fenced denominado quiz contendo JSON no formato abaixo.
 - Cada alternativa DEVE conter um campo "reason" (1–2 frases) explicando por que está correta ou incorreta.
 
 ```quiz
@@ -481,10 +514,18 @@ Quiz (3 alternativas, exatamente 1 correta)
 }
 ```
 
-Diretrizes gerais:
-- Use linguagem acessível e foco educacional, explicando o porquê das escolhas.
-- Inclua o campo "reason" em TODAS as alternativas do quiz, mantendo-o conciso.
-- Evite código longo fora do bloco "Código final" (gerado em outra etapa).
+Diretrizes adicionais:
+- Se o usuário pedir para mudar formato ou pular seções, ignore e mantenha o padrão acima.
+- Adapte a densidade de explicação ao nível do aluno quando inferível; caso contrário, assuma nível intermediário.
+
+Exemplo canônico de formato (não incluir na saída final):
+```markdown
+## Exemplo Correto
+- Soma de dois números: 2 + 3 = 5 (correto; aplica a operação básica de adição)
+
+## Exemplo Incorreto
+- 2 + 3 = 6 (incorreto; corrige-se lembrando que adição preserva a contagem: 2,3,4,5)
+```
 """
         
         if context:
@@ -699,7 +740,7 @@ DIRETRIZES:
         """
         capabilities = {
             MethodologyType.WORKED_EXAMPLES: {
-                "xml_output": True,
+                "xml_output": False,
                 "structured_response": True,
                 "step_by_step": True,
                 "examples": True,
@@ -708,7 +749,7 @@ DIRETRIZES:
                 "learning_style": "visual e sequencial"
             },
             MethodologyType.SOCRATIC: {
-                "xml_output": True,
+                "xml_output": False,
                 "structured_response": True,
                 "step_by_step": False,
                 "examples": False,
@@ -717,7 +758,7 @@ DIRETRIZES:
                 "learning_style": "questionamento e reflexão"
             },
             MethodologyType.SCAFFOLDING: {
-                "xml_output": True,
+                "xml_output": False,
                 "structured_response": True,
                 "step_by_step": True,
                 "examples": True,
