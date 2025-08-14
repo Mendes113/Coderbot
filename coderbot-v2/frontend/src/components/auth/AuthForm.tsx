@@ -94,12 +94,21 @@ export default function AuthForm({ isLoading, setIsLoading }: AuthFormProps) {
         // Type assertion to access RegisterData properties
         const registerData = data as RegisterData;
         
+        // Derivar username obrigatório no PocketBase
+        const baseUser = (registerData.name?.trim() || registerData.email.split('@')[0] || 'user')
+          .toLowerCase()
+          .replace(/[^a-z0-9_\-]+/g, '_')
+          .slice(0, 24);
+        const username = baseUser || `user_${Math.random().toString(36).slice(2, 8)}`;
+
         // Cadastro no PocketBase
         await pb.collection('users').create({
+          username,
           email: registerData.email,
+          emailVisibility: true,
           password: registerData.password,
           passwordConfirm: registerData.passwordConfirm,
-          nome: registerData.name,
+          name: registerData.name,
           role: role,
         });
         

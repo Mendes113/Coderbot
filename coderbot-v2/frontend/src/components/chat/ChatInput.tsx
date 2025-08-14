@@ -193,23 +193,7 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalo
           </div>
           
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={toggleRecording}
-              aria-label={isRecording ? "Parar gravação" : "Gravar mensagem"}
-              className={cn(
-                "p-2.5 rounded-xl transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-purple-400",
-                isRecording ? 
-                  "bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/30 animate-pulse" : 
-                  "bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 hover:text-purple-600"
-              )}
-            >
-              {isRecording ? (
-                <MicOff className="h-5 w-5" />
-              ) : (
-                <Mic className="h-5 w-5" />
-              )}
-            </button>
+            
 
             {typeof setAnalogiesEnabled === "function" && (
               <button
