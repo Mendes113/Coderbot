@@ -466,7 +466,7 @@ Use EXATAMENTE os headings a seguir e, dentro de cada seção, inicie diretament
 
 ## Passo a passo
 - Demonstre a solução em passos numerados, focando decisões e porquês.
-- Pequenos trechos de código podem aparecer, se imprescindíveis.
+- Para cada passo relevante, inclua um pequeno trecho de código ilustrativo (quando fizer sentido) dentro de fences curtos (3–8 linhas). Evite blocos extensos aqui; o código completo ficará em “Código final”.
 
 ## Exemplo Correto
 - Um micro-exemplo resolvido corretamente (2–6 linhas) e por que está correto.
@@ -486,8 +486,8 @@ Use EXATAMENTE os headings a seguir e, dentro de cada seção, inicie diretament
 ## Assunções e Limites
 - Liste suposições feitas e limites do escopo, evitando generalizações indevidas.
 
-## Checklist de Qualidade
-- [ ] A estrutura (headings) foi seguida
+## Checklist de Qualidade (uso interno — não explique para o usuário)
+- [ ] Estrutura (headings) seguida
 - [ ] Exemplo Correto e Incorreto presentes e justificados
 - [ ] Padrões e variações identificados
 - [ ] Linguagem clara e amigável

@@ -470,16 +470,18 @@ async def ask_question(
                     content=intro_chunk
                 ))
 
-            # Reflexão (sempre presente; se não vier, sintetiza texto expositivo)
-            reflection_pat = re.compile(r"(^|\n)\s*(?:###+\s*)?(?:Reflex|Reflexão guiada|Reflexão|Dica|Reflexive)\b[\s\S]*", re.IGNORECASE)
-            reflection_match = reflection_pat.search(text)
-            if reflection_match:
-                reflection_content = reflection_match.group(0).strip()
-                # Converte listas em parágrafo expositivo
+            # Reflexão (sempre presente; se não vier, sintetiza texto expositivo ao estudante)
+            reflection_heading_pat = re.compile(r"^##+\s+(Reflex[aã]o guiada|Reflex[aã]o|Dica)\b.*$", re.IGNORECASE | re.MULTILINE)
+            rm = reflection_heading_pat.search(text)
+            if rm:
+                start = rm.end()
+                next_m = heading_pattern.search(text, pos=start)
+                end = next_m.start() if next_m else len(text)
+                reflection_content = text[start:end].strip()
+                # Converte listas em parágrafo expositivo endereçado ao estudante
                 if re.search(r"^\s*[-*+]\s+", reflection_content, re.MULTILINE):
                     bullets = re.sub(r"^\s*[-*+]\s+", "", reflection_content, flags=re.MULTILINE)
                     reflection_content = (
-                        "### Reflexão\n\n"
                         "Antes da solução, foque em compreender o objetivo, organizar informações e escolher uma estratégia inicial. "
                         "Observe relações importantes e critérios para validar sua resposta.\n\n"
                         + bullets
@@ -493,7 +495,6 @@ async def ask_question(
             else:
                 uq = (user_query_text or "o problema proposto").strip()
                 synthesized_reflection = (
-                    "### Reflexão\n\n"
                     "Antes de partir para a solução, alinhe o pensamento: esclareça o que o problema pede, "
                     "liste os dados relevantes e imagine uma estratégia inicial. Considere como verificará o resultado "
                     f"no contexto de: \"{uq}\". Foque na lógica por trás das decisões, não nos detalhes de código."
@@ -507,10 +508,13 @@ async def ask_question(
 
             # Etapa de Pergunta (sempre presente; se não vier, sintetiza uma pergunta aberta)
             question_segment: Optional[ResponseSegment] = None
-            question_pat = re.compile(r"(^|\n)\s*##+\s+(Pergunta|Perguntas|Pergunta ao aluno)\b[\s\S]*", re.IGNORECASE)
-            qm = question_pat.search(text)
+            question_heading_pat = re.compile(r"^##+\s+(Pergunta|Perguntas|Pergunta ao aluno)\b.*$", re.IGNORECASE | re.MULTILINE)
+            qm = question_heading_pat.search(text)
             if qm:
-                question_content = qm.group(0).strip()
+                start = qm.end()
+                next_m = heading_pattern.search(text, pos=start)
+                end = next_m.start() if next_m else len(text)
+                question_content = text[start:end].strip()
                 question_segment = ResponseSegment(
                     id=make_id("question", 1),
                     title="Pergunta",
@@ -524,24 +528,47 @@ async def ask_question(
                     title="Pergunta",
                     type="question",
                     content=(
-                        "### Pergunta\n\n"
                         f"Como você explicaria, em poucas linhas, qual seria sua primeira abordagem para resolver \"{uq}\"?"
                     )
                 )
 
-            # Steps
-            step_lines: List[str] = []
-            for line in text.split("\n"):
-                if re.match(r"^\s*(?:\d+\.|[-*+])\s+", line):
-                    step_lines.append(line)
-            if step_lines:
-                steps_md = "\n".join(step_lines)
+            # Steps — extrai SOMENTE o conteúdo da seção "Passo a passo" (ou "Exemplo Trabalhado") mantendo listas e blocos de código
+            def extract_section_strict(heading_keywords_regex: str) -> Optional[str]:
+                pat = re.compile(rf"^##+\s+(?:{heading_keywords_regex})\b.*$", re.IGNORECASE | re.MULTILINE)
+                m = pat.search(text)
+                if not m:
+                    return None
+                start = m.end()
+                next_m = heading_pattern.search(text, pos=start)
+                end = next_m.start() if next_m else len(text)
+                return text[start:end].strip()
+
+            steps_sec = (
+                extract_section_strict(r"Passo\s*a\s*passo")
+                or extract_section_strict(r"Exemplo\s*Trabalhado(?:\s*\(Passo\s*a\s*passo\))?")
+            )
+
+            if steps_sec and steps_sec.strip():
                 segments.append(ResponseSegment(
                     id=make_id("steps", 1),
                     title="Passo a passo",
                     type="steps",
-                    content=steps_md
+                    content=steps_sec.strip()
                 ))
+            else:
+                # Fallback: coleta apenas listas numeradas do início da resposta até o próximo heading relevante
+                step_lines: List[str] = []
+                for line in text.split("\n"):
+                    if re.match(r"^\s*(?:\d+\.|[-*+])\s+", line):
+                        step_lines.append(line)
+                if step_lines:
+                    steps_md = "\n".join(step_lines)
+                    segments.append(ResponseSegment(
+                        id=make_id("steps", 1),
+                        title="Passo a passo",
+                        type="steps",
+                        content=steps_md
+                    ))
 
             # Examples
             def extract_section_by_keyword(keyword: str) -> Optional[str]:
