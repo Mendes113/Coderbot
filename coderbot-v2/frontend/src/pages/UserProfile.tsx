@@ -228,7 +228,7 @@ const UserProfile = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="profile">Profile Settings</TabsTrigger>
           <TabsTrigger value="api-keys">API Keys</TabsTrigger>
           <TabsTrigger value="invites">Convites</TabsTrigger>
@@ -272,20 +272,20 @@ const UserProfile = () => {
 
         <TabsContent value="api-keys" className="space-y-6">
           <div className="max-w-md mx-auto">
-            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-8 mt-6 shadow-lg flex flex-col gap-6 items-center">
+            <div className="bg-background/90 border border-border rounded-2xl p-8 mt-6 shadow-xl flex flex-col gap-6 items-center">
               <div className="flex flex-col items-center mb-2">
-                <span className="text-2xl text-neutral-100 mb-1">🔑</span>
-                <h2 className="text-xl font-bold mb-1 text-neutral-100">Gerencie suas API Keys</h2>
-                <p className="text-sm text-neutral-400 text-center max-w-xs">Salve suas chaves de API para integrações avançadas. Só você pode ver e editar suas chaves.<br/><span className='text-blue-400'>Segurança e privacidade garantidas.</span></p>
+                <span className="text-2xl text-foreground mb-1">🔑</span>
+                <h2 className="text-xl font-bold mb-1 text-foreground">Gerencie suas API Keys</h2>
+                <p className="text-sm text-muted-foreground text-center max-w-xs">Salve suas chaves de API para integrações avançadas. Só você pode ver e editar suas chaves.<br/><span className='text-violet-400'>Segurança e privacidade garantidas.</span></p>
               </div>
               <form className="w-full flex flex-col gap-4" onSubmit={e => { e.preventDefault(); handleSaveApiKeys(); }}>
                 <div className="flex flex-col gap-1">
-                  <label className="font-semibold text-neutral-200" htmlFor="chatgpt-key">ChatGPT</label>
+                  <label className="font-semibold text-foreground" htmlFor="chatgpt-key">ChatGPT</label>
                   <input
                     id="chatgpt-key"
                     type="text"
                     autoComplete="off"
-                    className="w-full border border-neutral-700 rounded px-3 py-2 bg-neutral-800 text-neutral-100 focus:ring-2 focus:ring-blue-600 transition placeholder:text-neutral-500"
+                    className="w-full border border-border rounded px-3 py-2 bg-background text-foreground focus:ring-2 focus:ring-violet-500 transition placeholder:text-muted-foreground"
                     placeholder="Cole sua chave ChatGPT..."
                     value={apiKeys.chatgpt}
                     onChange={e => { setApiKeys(a => ({ ...a, chatgpt: e.target.value })); setApiKeySaved(false); }}
@@ -293,12 +293,12 @@ const UserProfile = () => {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="font-semibold text-neutral-200" htmlFor="deepseek-key">DeepSeek</label>
+                  <label className="font-semibold text-foreground" htmlFor="deepseek-key">DeepSeek</label>
                   <input
                     id="deepseek-key"
                     type="text"
                     autoComplete="off"
-                    className="w-full border border-neutral-700 rounded px-3 py-2 bg-neutral-800 text-neutral-100 focus:ring-2 focus:ring-purple-600 transition placeholder:text-neutral-500"
+                    className="w-full border border-border rounded px-3 py-2 bg-background text-foreground focus:ring-2 focus:ring-violet-500 transition placeholder:text-muted-foreground"
                     placeholder="Cole sua chave DeepSeek..."
                     value={apiKeys.deepseek}
                     onChange={e => { setApiKeys(a => ({ ...a, deepseek: e.target.value })); setApiKeySaved(false); }}
@@ -306,12 +306,12 @@ const UserProfile = () => {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="font-semibold text-neutral-200" htmlFor="openrouter-key">OpenRouter</label>
+                  <label className="font-semibold text-foreground" htmlFor="openrouter-key">OpenRouter</label>
                   <input
                     id="openrouter-key"
                     type="text"
                     autoComplete="off"
-                    className="w-full border border-neutral-700 rounded px-3 py-2 bg-neutral-800 text-neutral-100 focus:ring-2 focus:ring-green-600 transition placeholder:text-neutral-500"
+                    className="w-full border border-border rounded px-3 py-2 bg-background text-foreground focus:ring-2 focus:ring-violet-500 transition placeholder:text-muted-foreground"
                     placeholder="Cole sua chave OpenRouter..."
                     value={apiKeys.openrouter}
                     onChange={e => { setApiKeys(a => ({ ...a, openrouter: e.target.value })); setApiKeySaved(false); }}
@@ -320,13 +320,13 @@ const UserProfile = () => {
                 </div>
                 <button
                   type="submit"
-                  className="w-full mt-2 py-2 rounded-lg text-lg font-semibold shadow bg-neutral-800 text-neutral-100 border border-neutral-700 hover:bg-neutral-700 hover:text-white transition focus:ring-2 focus:ring-blue-600"
+                  className="w-full mt-2 py-2 rounded-lg text-lg font-semibold shadow bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white border-0 hover:from-violet-500/90 hover:to-fuchsia-600/90 transition focus:ring-2 focus:ring-violet-500/50"
                   disabled={apiKeyLoading}
                 >{apiKeyLoading ? 'Salvando...' : 'Salvar Todas as API Keys'}</button>
               </form>
               {apiKeyError && <div className="text-red-400 text-sm mt-2">{apiKeyError}</div>}
               {apiKeySaved && <div className="text-green-400 text-sm mt-2">API Keys salvas! 🎉</div>}
-              <div className="text-xs text-neutral-500 mt-2 text-center">Dica: Use chaves diferentes para cada serviço para maior segurança.<br/>Você pode atualizar suas chaves a qualquer momento.</div>
+              <div className="text-xs text-muted-foreground mt-2 text-center">Dica: Use chaves diferentes para cada serviço para maior segurança.<br/>Você pode atualizar suas chaves a qualquer momento.</div>
             </div>
           </div>
         </TabsContent>
