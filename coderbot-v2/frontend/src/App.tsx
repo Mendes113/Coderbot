@@ -24,6 +24,7 @@ const FlashCardPage = React.lazy(() => import("./pages/FlashCardPage"));
 const AdaptiveLearning = React.lazy(() => import("./pages/AdaptiveLearning"));
 // Removed StudentInvitations route and import
 const Analytics = React.lazy(() => import("./pages/Analytics"));
+const AboutProject = React.lazy(() => import("./pages/AboutProject"));
 
 const queryClient = new QueryClient();
 
@@ -132,6 +133,7 @@ const App = () => {
             <Suspense fallback={<div className="flex items-center justify-center h-screen text-xl">Carregando...</div>}>
               <Routes>
                 <Route path="/" element={<Home />} />
+                <Route path="/about" element={<AboutProject />} />
                 <Route path="dashboard" element={<RequireAuth><Index /></RequireAuth>}>
                   <Route path="chat" element={<ChatInterface />} />
                   <Route path="adaptive" element={<AdaptiveLearning />} />

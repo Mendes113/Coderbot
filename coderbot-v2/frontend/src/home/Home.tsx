@@ -642,6 +642,7 @@ export default function Home() {
           <span className="text-sm font-semibold tracking-tight text-slate-800 dark:text-white">CoderBot</span>
         </a>
         <div className="hidden gap-2 sm:flex">
+          <a href="/about" className="text-sm text-slate-600 hover:text-slate-900 dark:text-white/70 dark:hover:text-white">Sobre</a>
           <a href="/auth" className="text-sm text-slate-600 hover:text-slate-900 dark:text-white/70 dark:hover:text-white">Entrar</a>
           <a href="/dashboard" className="text-sm text-slate-600 hover:text-slate-900 dark:text-white/70 dark:hover:text-white">Dashboard</a>
         </div>

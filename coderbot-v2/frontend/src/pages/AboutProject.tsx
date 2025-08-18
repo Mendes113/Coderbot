@@ -1,0 +1,370 @@
+import * as React from "react";
+import { Calendar, Bot, Brain, Sparkles, BookOpen, CheckCircle2, Link as LinkIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import LightRays from "@/Backgrounds/LightRays/LightRays";
+import ScrambledText from "@/TextAnimations/ScrambledText/ScrambledText";
+
+function Background() {
+  return (
+    <div aria-hidden className="absolute inset-0 -z-10 overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-[#0e0a1f] via-[#161132] to-[#1f0e3a]" />
+      <LightRays
+        className="absolute inset-0 opacity-15 sm:opacity-20"
+        raysOrigin="top-left"
+        raysColor="#b372ff"
+        raysSpeed={0.3}
+        lightSpread={1.1}
+        rayLength={1.2}
+        pulsating
+        fadeDistance={0.9}
+        saturation={1.0}
+        followMouse={false}
+        mouseInfluence={0}
+        noiseAmount={0.02}
+        distortion={0.03}
+      />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.06]
+                    [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]
+                    bg-[linear-gradient(0deg,transparent_24%,rgba(0,0,0,.35)_25%,rgba(0,0,0,.35)_26%,transparent_27%,transparent_74%,rgba(0,0,0,.35)_75%,rgba(0,0,0,.35)_76%,transparent_77%),linear-gradient(90deg,transparent_24%,rgba(0,0,0,.35)_25%,rgba(0,0,0,.35)_26%,transparent_27%,transparent_74%,rgba(0,0,0,.35)_75%,rgba(0,0,0,.35)_76%,transparent_77%)]
+                    bg-[length:38px_38px]" />
+    </div>
+  );
+}
+
+function Hero() {
+  return (
+    <section className="container mx-auto flex flex-col items-center px-4 pt-[clamp(1rem,6vh,3rem)] pb-[clamp(1.25rem,8vh,5rem)] text-center">
+      <h1 className="max-w-[22ch] text-[clamp(2.2rem,6.8vw,3.4rem)] font-extrabold leading-[1.1] tracking-tight text-white">
+        Entenda a nossa <span className="bg-gradient-to-r from-indigo-400 via-fuchsia-400 to-rose-400 bg-clip-text text-transparent drop-shadow">pesquisa em Educação + IA</span>
+      </h1>
+      <p className="mt-4 max-w-[80ch] text-[clamp(1rem,2.2vw,1.15rem)] leading-relaxed text-white/80">
+        O CoderBot nasce de estudos contínuos sobre exemplos trabalhados (worked examples), scaffolding, método socrático e
+        adaptação pedagógica. Aqui está uma linha do tempo com marcos que guiaram a evolução do projeto.
+      </p>
+      <div className="mt-6 flex gap-3">
+        <Button asChild size="lg" className="gap-2">
+          <a href="/auth" aria-label="Criar conta e começar a usar">
+            Começar agora
+          </a>
+        </Button>
+        <Button asChild variant="secondary" size="lg" className="gap-2">
+          <a href="/" aria-label="Voltar à página inicial">
+            Página inicial
+          </a>
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+type Item = {
+  year: string;
+  title: string;
+  desc: string;
+  icon: React.ReactNode;
+  explainTitle: string;
+  explainBody: string;
+};
+
+function Timeline() {
+  const items: Item[] = [
+    {
+      year: "2023",
+      title: "Worked Examples em foco (SBIE)",
+      desc: "Estruturamos respostas com análise do problema, passo a passo, exemplos corretos/incorretos e padrões.",
+      icon: <BookOpen className="h-4 w-4" />,
+      explainTitle: "Worked Examples",
+      explainBody:
+        "Mostrar soluções passo a passo antes da prática reduz carga extrínseca e acelera a formação de esquemas. Prompts de autoexplicação aumentam retenção e transferência.",
+    },
+    {
+      year: "2024",
+      title: "Scaffolding + Método Socrático",
+      desc: "Passamos a alternar explicações guiadas e perguntas para promover reflexão, reduzindo carga cognitiva.",
+      icon: <Brain className="h-4 w-4" />,
+      explainTitle: "Scaffolding & Fading",
+      explainBody:
+        "Apoio temporário com retirada gradual (ZDP). Usamos perguntas abertas para estimular metacognição e pensamento crítico enquanto o apoio diminui.",
+    },
+    {
+      year: "2025.1",
+      title: "AGNO + Segmentação pedagógica",
+      desc: "Segmentos (Reflexão, Passos, Exemplos, Código final) e preferências por nível/tom/idioma.",
+      icon: <Bot className="h-4 w-4" />,
+      explainTitle: "Chatbot pedagógico",
+      explainBody:
+        "Tutor sempre disponível que combina segmentos, perguntas socráticas e avaliação formativa (quiz) com feedback imediato e captura de flashcards.",
+    },
+    {
+      year: "2025.2",
+      title: "Engajamento no chat",
+      desc: "Quiz em JSON como UI, respostas rápidas, analogias por domínio e flashcards em um clique.",
+      icon: <Sparkles className="h-4 w-4" />,
+      explainTitle: "Engajamento + avaliação",
+      explainBody:
+        "Integramos quick replies, quizzes com justificativas e pistas visuais; respostas alimentam recomendações e construção de flashcards pessoais.",
+    },
+  ];
+
+  const sectionRef = React.useRef<HTMLDivElement>(null);
+  const listRef = React.useRef<HTMLUListElement>(null);
+  const [activeIndex, setActiveIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!listRef.current) return;
+    const elements = Array.from(listRef.current.querySelectorAll<HTMLLIElement>('li[data-index]'));
+    if (elements.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        let bestIdx = activeIndex;
+        let bestRatio = 0;
+        entries.forEach((e) => {
+          const idxAttr = (e.target as HTMLElement).getAttribute('data-index');
+          const idx = idxAttr ? parseInt(idxAttr, 10) : 0;
+          if (e.intersectionRatio > bestRatio) {
+            bestRatio = e.intersectionRatio;
+            bestIdx = idx;
+          }
+        });
+        if (bestIdx !== activeIndex) setActiveIndex(bestIdx);
+      },
+      { threshold: [0.2, 0.33, 0.5, 0.66, 0.85, 1] }
+    );
+
+    elements.forEach((el) => observer.observe(el));
+    return () => {
+      elements.forEach((el) => observer.unobserve(el));
+      observer.disconnect();
+    };
+  }, [activeIndex]);
+
+  return (
+    <section className="container mx-auto px-4 pb-[clamp(1rem,8vh,5rem)]">
+      <div ref={sectionRef} className="relative mx-auto max-w-6xl">
+        <div className="pointer-events-none absolute left-1/2 top-0 hidden h-full w-px -translate-x-1/2 bg-white/10 md:block" />
+
+        {/* Sticky section-wide title (static) */}
+        <div className="sticky top-[72px] z-10 mb-4">
+          <h2 className="text-center md:text-left font-extrabold text-white/90 tracking-tight drop-shadow text-[clamp(2.2rem,7vw,4.2rem)]">
+            Linha do tempo da pesquisa
+          </h2>
+        </div>
+        <ul ref={listRef} className="space-y-10">
+          {items.map((it, idx) => {
+            const isActive = activeIndex === idx;
+            return (
+              <li key={idx} data-index={idx} className={`min-h-[85vh] md:min-h-[90vh] transition-all duration-500 ${isActive ? 'opacity-100' : 'opacity-40'}`}>
+                <div className={`grid grid-cols-1 items-center gap-6 md:grid-cols-2 md:gap-10 ${idx % 2 === 0 ? '' : 'md:[&>div:first-child]:order-2'}`}>
+                  {/* Title side (large heading, static) */}
+                  <div className={`${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'} transition-all duration-700`}>
+                    <h3 className="my-0 text-[clamp(1.8rem,5vw,3.2rem)] font-extrabold leading-tight text-white [text-wrap:balance]">
+                      {it.title}
+                    </h3>
+                    <div className="mt-2 flex items-center gap-2 text-white/70">
+                      <div className="rounded-full bg-white/10 p-2 ring-2 ring-fuchsia-300/40">{it.icon}</div>
+                      <Calendar className="h-4 w-4" />
+                      <span className="text-xs font-medium tracking-wide">{it.year}</span>
+                    </div>
+                    <p className="mt-2 max-w-prose text-sm leading-relaxed text-white/80">{it.desc}</p>
+                  </div>
+                  {/* Card side */}
+                  <div className={`relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'} transition-all duration-700`}>
+                    <div className="text-xs font-semibold uppercase tracking-wider text-white/60">{it.explainTitle}</div>
+                    <ScrambledText className="m-0 max-w-none text-[clamp(14px,1.3vw,16px)] leading-relaxed">
+                      {it.explainBody}
+                    </ScrambledText>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+function Highlights() {
+  const points = [
+    { label: "Worked examples estruturados" },
+    { label: "Reflexão guiada antes da solução" },
+    { label: "Exemplos correto/incorreto" },
+    { label: "Código final conciso" },
+    { label: "Quiz com justificativas" },
+    { label: "Flashcards em 1 clique" },
+  ];
+  return (
+    <section className="container mx-auto px-4 pb-[clamp(1rem,8vh,4rem)]">
+      <div className="mx-auto max-w-4xl rounded-2xl border border-white/10 bg-white/5 p-5 text-white/90 backdrop-blur-md">
+        <h2 className="mb-3 text-lg font-semibold">Princípios pedagógicos</h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {points.map((p, i) => (
+            <div key={i} className="flex items-center gap-2 text-sm">
+              <CheckCircle2 className="h-4 w-4 text-emerald-300" />
+              <span>{p.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ResearchTerms() {
+  const terms = [
+    { k: "Worked-example effect", d: "Aprendizagem melhora ao estudar exemplos resolvidos antes de resolver problemas, reduzindo carga cognitiva extrínseca.", src: "SBIE 2023; Kalyuga 2023; Wikipedia" },
+    { k: "Cognitive Load Theory", d: "Projetar instrução reduzindo carga extrínseca e fomentando carga germinal para formação de esquemas.", src: "Sweller, sínteses diversas" },
+    { k: "Self-Explanation", d: "Prompts que levam o aluno a explicar os passos elevam retenção e transferência.", src: "Hausmann & VanLehn (AIED)" },
+    { k: "Scaffolding & Fading", d: "Apoio temporário com retirada gradual; ajustar à ZDP do aluno.", src: "Wood, Bruner & Ross; Vygotsky; guias de scaffolding" },
+    { k: "Método Socrático", d: "Perguntas abertas para promover pensamento crítico e metacognição.", src: "Sínteses educacionais" },
+    { k: "Metacognitive Prompts", d: "Efeito depende de diferenças individuais e do material; usar com parcimônia e personalização.", src: "AJET 2025; estudos 2023" },
+  ];
+
+  return (
+    <section className="container mx-auto px-4 pb-[clamp(1rem,8vh,4rem)]">
+      <div className="mx-auto max-w-5xl">
+        <h2 className="mb-3 text-lg font-semibold text-white">Termos-chave</h2>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {terms.map((t, i) => (
+            <div key={i} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-white/90 backdrop-blur-md">
+              <div className="text-sm font-semibold">{t.k}</div>
+              <div className="mt-1 text-sm text-white/80">{t.d}</div>
+              <div className="mt-2 text-xs text-white/60">Fontes: {t.src}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function References() {
+  const refs = [
+    { label: "SBIE 2023 — Worked Examples — André", href: "https://example.com/sbie-2023", note: "Base para exemplos trabalhados" },
+    { label: "SBIE 2024 — André", href: "https://example.com/sbie-2024", note: "Scaffolding e método socrático" },
+    { label: "IEEE Access — CoderBot (em avaliação)", href: "https://example.com/ieee-access-coderbot", note: "Arquitetura AGNO e personalização" },
+    { label: "Dissertação de Mestrado — Renato", href: "https://example.com/mestrado-renato", note: "Fundamentos instrucionais" },
+    { label: "Worked-example effect (Wikipedia)", href: "https://en.wikipedia.org/wiki/Worked-example_effect", note: "Síntese CLT" },
+  ];
+  return (
+    <section className="container mx-auto px-4 pb-[clamp(1rem,8vh,4rem)]">
+      <div className="mx-auto max-w-4xl rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
+        <h2 className="mb-3 text-lg font-semibold text-white">Referências</h2>
+        <ul className="space-y-2">
+          {refs.map((r, i) => (
+            <li key={i} className="flex items-start gap-2 text-sm text-white/85">
+              <LinkIcon className="mt-0.5 h-4 w-4 text-indigo-300" />
+              <div>
+                <a href={r.href} target="_blank" rel="noreferrer" className="hover:underline">
+                  {r.label}
+                </a>
+                <div className="text-xs text-white/60">{r.note}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-xs text-white/60">Fontes internas no Archon: SBIE_2023___Worked_Examples___Andre.pdf; SBIE_2024___Andre.pdf; CoderBot_IEEE_Access_Em_Avaliação.pdf; Dissertação_Mestrado_Renato.pdf.</p>
+      </div>
+    </section>
+  );
+}
+
+// Poster-style minimal section
+function PosterShowcase() {
+  type Poster = {
+    tag: string;
+    title: string;
+    body: string;
+    icon: React.ReactNode;
+    circleClass: string;
+  };
+
+  const posters: Poster[] = [
+    {
+      tag: "Worked Examples",
+      title: "Exemplos resolvidos, antes da prática",
+      body:
+        "Reduz a carga extrínseca e acelera a formação de esquemas. Incentivamos autoexplicações curtas para retenção e transferência.",
+      icon: <BookOpen className="h-6 w-6" />,
+      circleClass: "from-amber-300 via-amber-200 to-transparent",
+    },
+    {
+      tag: "Teoria da Carga Cognitiva",
+      title: "Projetar para focar no que importa",
+      body:
+        "Minimizamos ruído (extrínseca), equilibramos complexidade (intrínseca) e estimulamos aprendizado significativo (germinal).",
+      icon: <Brain className="h-6 w-6" />,
+      circleClass: "from-indigo-300 via-indigo-200 to-transparent",
+    },
+    {
+      tag: "Chatbots educacionais",
+      title: "Tutor sempre disponível, com método",
+      body:
+        "Combina segmentos pedagógicos, perguntas socráticas e avaliação formativa (quiz) com feedback imediato e flashcards.",
+      icon: <Bot className="h-6 w-6" />,
+      circleClass: "from-fuchsia-300 via-fuchsia-200 to-transparent",
+    },
+  ];
+
+  return (
+    <section className="container mx-auto px-4 pb-[clamp(1rem,8vh,5rem)]">
+      <div className="mx-auto grid max-w-5xl grid-cols-1 gap-5 md:grid-cols-3">
+        {posters.map((p, i) => (
+          <article
+            key={i}
+            className="relative overflow-hidden rounded-[1.75rem] bg-white p-6 text-slate-900 shadow-2xl ring-1 ring-black/5 md:p-7"
+            aria-label={`Poster: ${p.tag}`}
+          >
+            <div className={`pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-gradient-to-br ${p.circleClass} blur-2xl`} />
+            <header className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{p.tag}</span>
+              <span className="text-slate-700">{p.icon}</span>
+            </header>
+            <h3 className="mt-2 text-[clamp(1.25rem,2.4vw,1.5rem)] font-extrabold tracking-tight">{p.title}</h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-slate-600">{p.body}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export default function AboutProject() {
+  return (
+    <main className="relative flex min-h-[100svh] flex-col overflow-x-clip">
+      <Background />
+      <div className="container mx-auto flex items-center justify-between px-4 py-4">
+        <a href="/" className="flex items-center gap-2">
+          <img src="/coderbot_colorfull.png" alt="CoderBot" className="h-7 w-7" />
+          <span className="text-sm font-semibold tracking-tight text-white">CoderBot</span>
+        </a>
+        <div className="hidden gap-3 sm:flex">
+          <a href="/about" className="text-sm text-white/80 hover:text-white">Sobre</a>
+          <a href="/auth" className="text-sm text-white/80 hover:text-white">Entrar</a>
+        </div>
+      </div>
+
+      <Hero />
+      <Timeline />
+      {/* Removed extra card-heavy sections to keep only two blocks visible per viewport */}
+      <References />
+
+      <section className="w-full border-t border-white/10 bg-white/[0.03] py-[clamp(0.75rem,3vh,2.25rem)]">
+        <div className="container mx-auto grid grid-cols-1 items-center gap-4 px-4 md:grid-cols-[1fr_auto]">
+          <p className="justify-self-center text-center text-sm text-white/80 md:justify-self-start md:text-left">
+            Quer participar do estudo? Fale com a equipe e receba atualizações.
+          </p>
+          <div className="flex justify-center gap-2 md:justify-end">
+            <Button asChild size="sm" className="gap-1">
+              <a href="/auth">Criar conta</a>
+            </Button>
+            <Button asChild size="sm" variant="outline" className="text-white border-white/30">
+              <a href="/analytics">Ver métricas</a>
+            </Button>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
