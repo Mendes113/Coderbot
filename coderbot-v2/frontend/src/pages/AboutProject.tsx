@@ -100,25 +100,113 @@ type Item = {
 
 function Timeline() {
   const items: Item[] = [
+    
     {
       year: "2023",
-      title: "Worked Examples em foco (SBIE)",
+      title: "Projeto e avaliação de um template de worked examples para o ensino de programação",
       desc: "Passo Fundo - RS, 2023",
       icon: <BookOpen className="h-4 w-4" />,
       explainTitle: "Worked Examples",
       explainBody:
         "O uso de Worked Examples (WE) tem ganhado destaque no ensino de diferentes áreas de conhecimento. Contudo, no ensino de programação, existem poucos trabalhos explorando o assunto. A falta de uma ferramenta educacional projetada para orientar os docentes na aplicação eficaz dos WE pode ser um dos fatores que contribuem para essa limitação. Contudo, para implementar os WE em uma ferramenta é necessário primeiro desenvolver um template. Este trabalho apresenta um template projetado com o objetivo de auxiliar os docentes a padronizar o uso de WE no ensino de programação. O trabalho também descreve os resultados de um estudo exploratório, realizado com docentes que usaram o template, que forneceram insights valiosos sobre a viabilidade e a eficácia do uso do template.",
-      citationBib: `@inproceedings{coderbot_sbie_2023,
-  title={Worked Examples em foco (SBIE)},
-  author={Equipe CoderBot},
-  booktitle={SBIE},
-  year={2023},
-  address={Passo Fundo, RS},
+      citationBib: `@article{garcia2025assistente,
+  title={Um assistente virtual para apoiar a aprendizagem de programa{\c{c}}{\~a}o por meio de worked examples: um resumo estendido},
+  author={Garcia, Renato de S and Valle, Pedro Henrique Dias and Silva, Williamson},
+  journal={Anais Estendidos},
+  pages={107--111},
+  year={2025}
+}
+
 }`,
       links: [
-        { label: "PDF", href: "/docs/SBIE_2023___Worked_Examples___Andre.pdf" },
+        { label: "PDF", href: "https://sol.sbc.org.br/index.php/educomp_estendido/article/download/34928/34719/" },
       ],
     },
+
+    
+    {
+      year: "2023",
+      title: "Aprendendo com os erros dos outros: Um relato sobre a adoção de exemplos errôneos como ferramenta de aprendizagem de casos de uso",
+      desc: "Passo Fundo - RS, 2023",
+      icon: <BookOpen className="h-4 w-4" />,
+      explainTitle: "Worked Examples",
+      explainBody:
+        "Os Casos de Uso (diagrama de caso de uso e descrição textual do caso de uso) são amplamente reconhecidos e usados como um meio de capturar requisitos de sistemas. No entanto, engenheiros de software e estudantes têm lacunas de aprendizado na compreensão da sintaxe e semântica desses modelos. Essas lacunas podem afetar a qualidade final do software, uma vez que esses modelos representariam o software de forma incompleta e incorreta. Logo, faz-se necessário orientar os estudantes enquanto estão aprendendo os diagramas. Para ensinar a modelagem de software de maneira eficaz nos cursos de Computação, os professores podem utilizar estratégias pedagógicas alternativas, como Learning from Erroneous Examples (ErrEx). Este artigo apresenta um relato de experiência que mostra a percepção dos estudantes sobre o uso do ErrEx como apoio na aprendizagem de modelagem de software. Os resultados mostram que o ErrEx ajuda a entender alguns conceitos, na identificação de defeitos e a evitar repeti-los no futuro.",
+      citationBib: `@inproceedings{sbie,
+ author = {Williamson Silva and André Mendes and Renato Garcia and Matheus Ribeiro and Ricardo Vilela and Walter Nakamura and Gabriel Lunardi and Pedro Valle},
+ title = { Aprendendo com os Erros dos Outros: Um relato sobre a adoção de Exemplos Errôneos como ferramenta de Aprendizagem de Casos de Uso},
+ booktitle = {Anais do XXXIV Simpósio Brasileiro de Informática na Educação},
+ location = {Passo Fundo/RS},
+ year = {2023},
+ keywords = {},
+ issn = {0000-0000},
+ pages = {69--80},
+ publisher = {SBC},
+ address = {Porto Alegre, RS, Brasil},
+ doi = {10.5753/sbie.2023.234499},
+ url = {https://sol.sbc.org.br/index.php/sbie/article/view/26651}
+}
+`,
+      links: [
+        { label: "PDF", href: "https://sol.sbc.org.br/index.php/sbie/article/view/26651" },
+      ],
+    },
+
+
+//     {
+//       year: "2023",
+//       title: "Avaliando a autoeficácia e a aceitação do coderbot em cursos introdutórios de programação: um estudo exploratório",
+//       desc: "Passo Fundo - RS, 2024",
+//       icon: <BookOpen className="h-4 w-4" />,
+//       explainTitle: "Worked Examples",
+//       explainBody:
+//         "Os conteúdos de programação são considerados complexos de ser aprendidos do ponto de vista dos estudantes. Um agente pedagógico que tem se destacado no ensino de programação são os chatbots. Neste sentido, desenvolvemos o CoderBot, um agente pedagógico educacional fundamentado na Aprendizagem Baseada em Exemplos, projetado para auxiliar estudantes iniciantes na compreensão de conteúdos de programação. Para avaliar a autoeficácia e aceitação do CoderBot, conduziu-se um estudo com 103 estudantes de graduação de disciplinas introdutórias de programação. Os resultados evidenciam a facilidade de uso do CoderBot, bem como melhorias na compreensão dos conceitos e melhora na motivação e autoconfiança dos estudantes.",
+//       citationBib: `@inproceedings{sbie,
+//  author = {André Mendes and Renato Garcia and João Villa and Ana Oran and Brenda Santana and Gilleanes Guedes and Davi Silva and Pedro Valle and Williamson Silva},
+//  title = { Avaliando a Autoeficácia e a Aceitação do CoderBot em Cursos Introdutórios de Programação: um estudo exploratório},
+//  booktitle = {Anais do XXXV Simpósio Brasileiro de Informática na Educação},
+//  location = {Rio de Janeiro/RJ},
+//  year = {2024},
+//  keywords = {},
+//  issn = {0000-0000},
+//  pages = {3264--3273},
+//  publisher = {SBC},
+//  address = {Porto Alegre, RS, Brasil},
+//  doi = {10.5753/sbie.2024.244885},
+//  url = {https://sol.sbc.org.br/index.php/sbie/article/view/31488}
+// }
+// ,
+// }`,
+//       links: [
+//         { label: "Fonte", href: "https://sol.sbc.org.br/index.php/sbie/article/view/31488" },
+//       ],
+//     },  
+
+    
+    
+    {
+      year: "2024",
+      title: "Perspectiva dos Estudantes sobre um Agente Pedagógico Baseado em Exemplos para a Aprendizagem de Programação: uma análise qualitativa",
+      desc: "Passo Fundo - RS, 2023",
+      icon: <BookOpen className="h-4 w-4" />,
+      explainTitle: "Worked Examples",
+      explainBody:
+        "A programação está se tornando cada vez mais importante em nossa sociedade, mas seu aprendizado apresenta desafios significativos, especialmente para iniciantes. A incorporação de chatbots surge como uma estratégia educacional eficaz, oferecendo suporte contínuo e feedback personalizado. Este artigo apresenta o CoderBot, um agente pedagógico educacional baseado na Aprendizagem por Exemplos, que integra exemplos práticos corretos e errôneos de código. Um estudo exploratório qualitativo com 103 estudantes de disciplinas introdutórias evidenciou que o CoderBot ajudou na compreensão dos exercícios. Contudo, identificou-se a necessidade de mais exemplos e melhorias na clareza das respostas para maximizar seu potencial educacional.",
+      citationBib: `@article{garcia2025assistente,
+  title={Um assistente virtual para apoiar a aprendizagem de programa{\c{c}}{\~a}o por meio de worked examples: um resumo estendido},
+  author={Garcia, Renato de S and Valle, Pedro Henrique Dias and Silva, Williamson},
+  journal={Anais Estendidos},
+  pages={107--111},
+  year={2025}
+}
+
+}`,
+      links: [
+        { label: "PDF", href: "https://sol.sbc.org.br/index.php/educomp_estendido/article/download/34928/34719/" },
+      ],
+    },
+
+
     {
       year: "2024",
       title: "Avaliando a Autoeficácia e a Aceitação do CoderBot em Cursos Introdutórios de Programação: um estudo exploratório",
@@ -142,23 +230,18 @@ function Timeline() {
     {
       year: "2025.2",
       title: "Theory Inspires, but Examples Engage: A Mixed-Methods Analysis of Worked Examples from CoderBot in Programming Education",
-      desc: "São Paulo - SP, 2025",
+      desc: "IEEE",
       icon: <Sparkles className="h-4 w-4" />,
       explainTitle: "Engajamento + avaliação",
       explainBody:
         `Programming has become increasingly important in our society. However, the learning process presents significant challenges, particularly for novice students of introductory courses. From the students’ perspective, programming concepts are often perceived as complex and challenging to understand. Chatbots have emerged as promising and effective pedagogical agents, offering continuous support and personalized feedback throughout the programming learning process. In this paper, we present CoderBot, a pedagogical agent grounded in Example-Based Learning designed to assist novice students in comprehending programming concepts using correct and erroneous practical examples. To evaluate the self-efficacy and acceptance of CoderBot in the classroom, we conducted an exploratory study involving 103 undergraduate students from several regions of our country, all of whom were enrolled in introductory programming courses. The quantitative findings highlight the ease of use associated with CoderBot, along with noticeable improvements in students’ understanding of programming concepts and increased levels of motivation and self-confidence. Moreover, the qualitative results indicate that CoderBot holds the potential to be an effective pedagogical agent for supporting programming instruction, particularly in terms of clarity, accessibility, and ongoing assistance. However, the findings also suggest the need for further expansion of the available examples and improvements in the clarity of responses to fully realize the tool’s educational potential. These results offer valuable insights into integrating chatbots within academic environments, underscoring the role such tools can play in enhancing the learning experience for programming students.`,
-      citationBib: `@article{coderbot_examples_2025,
-  title={Theory Inspires, but Examples Engage: A Mixed-Methods Analysis of Worked Examples from CoderBot in Programming Education},
-  author={Equipe CoderBot},
-  journal={Draft manuscript},
-  year={2025},
-  address={São Paulo, SP},
-}`,
+      citationBib: ``,
       links: [
         { label: "Resumo", href: "#" },
         { label: "Prévia PDF", href: "#" },
       ],
     },
+    
   ];
 
   const sectionRef = React.useRef<HTMLDivElement>(null);
