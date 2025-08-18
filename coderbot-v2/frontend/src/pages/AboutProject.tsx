@@ -1,32 +1,31 @@
 import * as React from "react";
 import { Calendar, Bot, Brain, Sparkles, BookOpen, CheckCircle2, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import LightRays from "@/Backgrounds/LightRays/LightRays";
+import { Plasma } from "@/Backgrounds/Plasma/Plasma";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ScrambledText from "@/TextAnimations/ScrambledText/ScrambledText";
 
 function Background() {
+  const [renderPlasma, setRenderPlasma] = React.useState(true);
+  React.useEffect(() => {
+    try {
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const reducedData = (window.matchMedia && window.matchMedia("(prefers-reduced-data: reduce)").matches) || (navigator as any)?.connection?.saveData === true;
+      const isMobile = window.matchMedia("(max-width: 768px)").matches;
+      setRenderPlasma(!(reducedMotion || reducedData || isMobile));
+    } catch {
+      // keep default
+    }
+  }, []);
+
   return (
     <div aria-hidden className="absolute inset-0 -z-10 overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-[#0e0a1f] via-[#161132] to-[#1f0e3a]" />
-      <LightRays
-        className="absolute inset-0 opacity-15 sm:opacity-20"
-        raysOrigin="top-left"
-        raysColor="#b372ff"
-        raysSpeed={0.3}
-        lightSpread={1.1}
-        rayLength={1.2}
-        pulsating
-        fadeDistance={0.9}
-        saturation={1.0}
-        followMouse={false}
-        mouseInfluence={0}
-        noiseAmount={0.02}
-        distortion={0.03}
-      />
-      <div className="pointer-events-none absolute inset-0 opacity-[0.06]
-                    [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]
-                    bg-[linear-gradient(0deg,transparent_24%,rgba(0,0,0,.35)_25%,rgba(0,0,0,.35)_26%,transparent_27%,transparent_74%,rgba(0,0,0,.35)_75%,rgba(0,0,0,.35)_76%,transparent_77%),linear-gradient(90deg,transparent_24%,rgba(0,0,0,.35)_25%,rgba(0,0,0,.35)_26%,transparent_27%,transparent_74%,rgba(0,0,0,.35)_75%,rgba(0,0,0,.35)_76%,transparent_77%)]
-                    bg-[length:38px_38px]" />
+      <div className="absolute inset-0 bg-[#0e0a1f]" />
+      {renderPlasma && (
+        <div className="absolute inset-0 hidden md:block plasma">
+          <Plasma color="#b372ff" speed={0.5} direction="forward" scale={0.9} opacity={0.5} mouseInteractive={false} fps={24} dpr={1} pauseWhenHidden />
+        </div>
+      )}
     </div>
   );
 }
@@ -99,16 +98,24 @@ function Timeline() {
       year: "2025.2",
       title: "Engajamento no chat",
       desc: "Quiz em JSON como UI, respostas rápidas, analogias por domínio e flashcards em um clique.",
-      icon: <Sparkles className="h-4 w-4" />,
-      explainTitle: "Engajamento + avaliação",
-      explainBody:
-        "Integramos quick replies, quizzes com justificativas e pistas visuais; respostas alimentam recomendações e construção de flashcards pessoais.",
-    },
-  ];
+                                                                                                                                                                                                            icon: <Sparkles className="h-4 w-4" />,
+                                                                                                                                                                                                            explainTitle: "Engajamento + avaliação",
+                                                                                                                                                                                                            explainBody:
+                                                                                                                                                                                                              `Programming has become increasingly important in our society. However, the learning process presents significant challenges, particularly for novice students of introductory courses. From the students’ perspective, programming concepts are often perceived as complex and challenging to understand. Chatbots have emerged as promising and effective pedagogical agents, offering continuous support and personalized feedback throughout the programming learning process. In this paper, we present CoderBot, a pedagogical agent grounded in Example-Based Learning designed to assist novice students in comprehending programming concepts using correct and erroneous practical examples. To evaluate the self-efficacy and acceptance of CoderBot in the classroom, we conducted an exploratory study involving 103 undergraduate students from several regions of our country, all of whom were enrolled in introductory programming courses. The quantitative findings highlight the ease of use associated with CoderBot, along with noticeable improvements in students’ understanding of programming concepts and increased levels of motivation and self-confidence. Moreover, the qualitative results indicate that CoderBot holds the potential to be an effective pedagogical agent for supporting programming instruction, particularly in terms of clarity, accessibility, and ongoing assistance. However, the findings also suggest the need for further expansion of the available examples and improvements in the clarity of responses to fully realize the tool’s educational potential. These results offer valuable insights into integrating chatbots within academic environments, underscoring the role such tools can play in enhancing the learning experience for programming students.`,
+                                                                                                                                                                                                          },
+                                                                                                                                                                                                        ];
 
   const sectionRef = React.useRef<HTMLDivElement>(null);
   const listRef = React.useRef<HTMLUListElement>(null);
   const [activeIndex, setActiveIndex] = React.useState(0);
+  const [expandedIdx, setExpandedIdx] = React.useState<number | null>(null);
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [reducedMotion, setReducedMotion] = React.useState(false);
+  React.useEffect(() => {
+    try {
+      setReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    } catch {}
+  }, []);
 
   React.useEffect(() => {
     if (!listRef.current) return;
@@ -153,11 +160,12 @@ function Timeline() {
         <ul ref={listRef} className="space-y-10">
           {items.map((it, idx) => {
             const isActive = activeIndex === idx;
+            const expanded = expandedIdx === idx;
             return (
-              <li key={idx} data-index={idx} className={`min-h-[85vh] md:min-h-[90vh] transition-all duration-500 ${isActive ? 'opacity-100' : 'opacity-40'}`}>
+              <li key={idx} data-index={idx} className={`min-h-[60vh] md:min-h-[70vh] transition-colors duration-200 ${isActive ? 'opacity-100' : 'opacity-80'}`}>
                 <div className={`grid grid-cols-1 items-center gap-6 md:grid-cols-2 md:gap-10 ${idx % 2 === 0 ? '' : 'md:[&>div:first-child]:order-2'}`}>
                   {/* Title side (large heading, static) */}
-                  <div className={`${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'} transition-all duration-700`}>
+                  <div className={`${isActive ? 'opacity-100' : 'opacity-90'} transition-opacity duration-200`}>
                     <h3 className="my-0 text-[clamp(1.8rem,5vw,3.2rem)] font-extrabold leading-tight text-white [text-wrap:balance]">
                       {it.title}
                     </h3>
@@ -169,12 +177,41 @@ function Timeline() {
                     <p className="mt-2 max-w-prose text-sm leading-relaxed text-white/80">{it.desc}</p>
                   </div>
                   {/* Card side */}
-                  <div className={`relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'} transition-all duration-700`}>
+                  <div className={`relative ${expanded ? '' : 'max-h-[240px] md:max-h-[300px] overflow-hidden'} rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm ${isActive ? 'opacity-100' : 'opacity-90'} transition-opacity duration-200 group`}>
                     <div className="text-xs font-semibold uppercase tracking-wider text-white/60">{it.explainTitle}</div>
-                    <ScrambledText className="m-0 max-w-none text-[clamp(14px,1.3vw,16px)] leading-relaxed">
-                      {it.explainBody}
-                    </ScrambledText>
+                    {reducedMotion ? (
+                      <p className="m-0 mx-auto max-w-[60ch] text-center text-[clamp(12px,1.05vw,14px)] leading-7 text-white/85">
+                        {it.explainBody}
+                      </p>
+                    ) : (
+                      <ScrambledText className="m-0 mx-auto max-w-[60ch] text-center text-[clamp(12px,1.05vw,14px)] leading-7 text-white/85">
+                        {it.explainBody}
+                      </ScrambledText>
+                    )}
+                    {!expanded && (
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/30 to-transparent" />
+                    )}
+                    {/* Vignette overlay on hover */}
+                    <div className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0)_58%,rgba(0,0,0,0.35))]" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="absolute bottom-3 right-3 z-20 text-white border-white/30"
+                      onClick={() => { setExpandedIdx(idx); setDialogOpen(true); }}
+                    >
+                      Ver mais
+                    </Button>
                   </div>
+                  <Dialog open={dialogOpen && expanded} onOpenChange={(o) => { if (!o) { setDialogOpen(false); setExpandedIdx(null); } }}>
+                    <DialogContent className="max-w-3xl">
+                      <DialogHeader>
+                        <DialogTitle className="text-white">{it.explainTitle}</DialogTitle>
+                      </DialogHeader>
+                      <div className="mt-2 max-h-[70vh] overflow-auto pr-1 text-white/90 leading-relaxed">
+                        {it.explainBody}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </li>
             );

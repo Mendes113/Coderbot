@@ -276,7 +276,7 @@ class AgnoService {
         user_context: userContextConverted,
         include_final_code: request.includeFinalCode ?? true,
         include_diagram: false,
-        diagram_type: undefined,
+        diagram_type: null,
         max_final_code_lines: request.maxFinalCodeLines ?? 150
       };
 
@@ -644,7 +644,7 @@ class AgnoService {
    */
   async testConnection(): Promise<boolean> {
     try {
-      const response = await api.get(`${this.baseURL}/health`);
+      const response = await api.get('/health');
       console.log("AGNO Health Check:", response.data);
       return response.data.status === 'healthy';
     } catch (error) {
