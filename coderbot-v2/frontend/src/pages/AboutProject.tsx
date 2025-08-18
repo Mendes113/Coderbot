@@ -3,6 +3,8 @@ import { Calendar, Bot, Brain, Sparkles, BookOpen, CheckCircle2, Link as LinkIco
 import { Button } from "@/components/ui/button";
 import { Plasma } from "@/Backgrounds/Plasma/Plasma";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "@/components/ui/sonner";
 import ScrambledText from "@/TextAnimations/ScrambledText/ScrambledText";
 
 function Background() {
@@ -56,6 +58,35 @@ function Hero() {
   );
 }
 
+function ThematicArt() {
+  const chips = [
+    { label: "Worked Examples", icon: <BookOpen className="h-4 w-4" /> },
+    { label: "Scaffolding & Fading", icon: <Brain className="h-4 w-4" /> },
+    { label: "Método Socrático", icon: <Sparkles className="h-4 w-4" /> },
+    { label: "Tutor de IA", icon: <Bot className="h-4 w-4" /> },
+    { label: "Avaliação formativa", icon: <CheckCircle2 className="h-4 w-4" /> },
+  ];
+
+  return (
+    <section className="container mx-auto px-4 pb-[clamp(1rem,6vh,2.5rem)]">
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.06] p-5 backdrop-blur-sm">
+        <div aria-hidden className="pointer-events-none absolute -inset-20 opacity-30 bg-[radial-gradient(60rem_30rem_at_20%_20%,rgba(139,92,246,0.25),transparent),radial-gradient(50rem_25rem_at_80%_60%,rgba(236,72,153,0.2),transparent)]" />
+        <div className="relative mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-3">
+          {chips.map((c, i) => (
+            <div
+              key={i}
+              className="group inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-white/90 shadow-sm transition-colors hover:bg-white/15"
+            >
+              <span className="text-violet-300">{c.icon}</span>
+              <span className="text-sm font-medium">{c.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 type Item = {
   year: string;
   title: string;
@@ -63,6 +94,8 @@ type Item = {
   icon: React.ReactNode;
   explainTitle: string;
   explainBody: string;
+  citationBib?: string;
+  links?: { label: string; href: string }[];
 };
 
 function Timeline() {
@@ -70,40 +103,63 @@ function Timeline() {
     {
       year: "2023",
       title: "Worked Examples em foco (SBIE)",
-      desc: "Estruturamos respostas com análise do problema, passo a passo, exemplos corretos/incorretos e padrões.",
+      desc: "Passo Fundo - RS, 2023",
       icon: <BookOpen className="h-4 w-4" />,
       explainTitle: "Worked Examples",
       explainBody:
-        "Mostrar soluções passo a passo antes da prática reduz carga extrínseca e acelera a formação de esquemas. Prompts de autoexplicação aumentam retenção e transferência.",
+        "O uso de Worked Examples (WE) tem ganhado destaque no ensino de diferentes áreas de conhecimento. Contudo, no ensino de programação, existem poucos trabalhos explorando o assunto. A falta de uma ferramenta educacional projetada para orientar os docentes na aplicação eficaz dos WE pode ser um dos fatores que contribuem para essa limitação. Contudo, para implementar os WE em uma ferramenta é necessário primeiro desenvolver um template. Este trabalho apresenta um template projetado com o objetivo de auxiliar os docentes a padronizar o uso de WE no ensino de programação. O trabalho também descreve os resultados de um estudo exploratório, realizado com docentes que usaram o template, que forneceram insights valiosos sobre a viabilidade e a eficácia do uso do template.",
+      citationBib: `@inproceedings{coderbot_sbie_2023,
+  title={Worked Examples em foco (SBIE)},
+  author={Equipe CoderBot},
+  booktitle={SBIE},
+  year={2023},
+  address={Passo Fundo, RS},
+}`,
+      links: [
+        { label: "PDF", href: "/docs/SBIE_2023___Worked_Examples___Andre.pdf" },
+      ],
     },
     {
       year: "2024",
-      title: "Scaffolding + Método Socrático",
-      desc: "Passamos a alternar explicações guiadas e perguntas para promover reflexão, reduzindo carga cognitiva.",
+      title: "Avaliando a Autoeficácia e a Aceitação do CoderBot em Cursos Introdutórios de Programação: um estudo exploratório",
+      desc: "Rio de Janeiro - RJ, 2024",
       icon: <Brain className="h-4 w-4" />,
       explainTitle: "Scaffolding & Fading",
       explainBody:
-        "Apoio temporário com retirada gradual (ZDP). Usamos perguntas abertas para estimular metacognição e pensamento crítico enquanto o apoio diminui.",
+        "Os conteúdos de programação são considerados complexos de ser aprendidos do ponto de vista dos estudantes. Um agente pedagógico que tem se destacado no ensino de programação são os chatbots. Neste sentido, desenvolvemos o CoderBot, um agente pedagógico educacional fundamentado na Aprendizagem Baseada em Exemplos, projetado para auxiliar estudantes iniciantes na compreensão de conteúdos de programação. Para avaliar a autoeficácia e aceitação do CoderBot, conduziu-se um estudo com 103 estudantes de graduação de disciplinas introdutórias de programação. Os resultados evidenciam a facilidade de uso do CoderBot, bem como melhorias na compreensão dos conceitos e melhora na motivação e autoconfiança dos estudantes.",
+      citationBib: `@article{coderbot_autoeficacia_2024,
+  title={Avaliando a Autoeficácia e a Aceitação do CoderBot em Cursos Introdutórios de Programação},
+  author={Equipe CoderBot},
+  journal={Relato técnico},
+  year={2024},
+  address={Rio de Janeiro, RJ},
+}`,
+      links: [
+        { label: "PDF", href: "/docs/SBIE_2024___Andre.pdf" },
+      ],
     },
-    {
-      year: "2025.1",
-      title: "AGNO + Segmentação pedagógica",
-      desc: "Segmentos (Reflexão, Passos, Exemplos, Código final) e preferências por nível/tom/idioma.",
-      icon: <Bot className="h-4 w-4" />,
-      explainTitle: "Chatbot pedagógico",
-      explainBody:
-        "Tutor sempre disponível que combina segmentos, perguntas socráticas e avaliação formativa (quiz) com feedback imediato e captura de flashcards.",
-    },
+    
     {
       year: "2025.2",
-      title: "Engajamento no chat",
-      desc: "Quiz em JSON como UI, respostas rápidas, analogias por domínio e flashcards em um clique.",
-                                                                                                                                                                                                            icon: <Sparkles className="h-4 w-4" />,
-                                                                                                                                                                                                            explainTitle: "Engajamento + avaliação",
-                                                                                                                                                                                                            explainBody:
-                                                                                                                                                                                                              `Programming has become increasingly important in our society. However, the learning process presents significant challenges, particularly for novice students of introductory courses. From the students’ perspective, programming concepts are often perceived as complex and challenging to understand. Chatbots have emerged as promising and effective pedagogical agents, offering continuous support and personalized feedback throughout the programming learning process. In this paper, we present CoderBot, a pedagogical agent grounded in Example-Based Learning designed to assist novice students in comprehending programming concepts using correct and erroneous practical examples. To evaluate the self-efficacy and acceptance of CoderBot in the classroom, we conducted an exploratory study involving 103 undergraduate students from several regions of our country, all of whom were enrolled in introductory programming courses. The quantitative findings highlight the ease of use associated with CoderBot, along with noticeable improvements in students’ understanding of programming concepts and increased levels of motivation and self-confidence. Moreover, the qualitative results indicate that CoderBot holds the potential to be an effective pedagogical agent for supporting programming instruction, particularly in terms of clarity, accessibility, and ongoing assistance. However, the findings also suggest the need for further expansion of the available examples and improvements in the clarity of responses to fully realize the tool’s educational potential. These results offer valuable insights into integrating chatbots within academic environments, underscoring the role such tools can play in enhancing the learning experience for programming students.`,
-                                                                                                                                                                                                          },
-                                                                                                                                                                                                        ];
+      title: "Theory Inspires, but Examples Engage: A Mixed-Methods Analysis of Worked Examples from CoderBot in Programming Education",
+      desc: "São Paulo - SP, 2025",
+      icon: <Sparkles className="h-4 w-4" />,
+      explainTitle: "Engajamento + avaliação",
+      explainBody:
+        `Programming has become increasingly important in our society. However, the learning process presents significant challenges, particularly for novice students of introductory courses. From the students’ perspective, programming concepts are often perceived as complex and challenging to understand. Chatbots have emerged as promising and effective pedagogical agents, offering continuous support and personalized feedback throughout the programming learning process. In this paper, we present CoderBot, a pedagogical agent grounded in Example-Based Learning designed to assist novice students in comprehending programming concepts using correct and erroneous practical examples. To evaluate the self-efficacy and acceptance of CoderBot in the classroom, we conducted an exploratory study involving 103 undergraduate students from several regions of our country, all of whom were enrolled in introductory programming courses. The quantitative findings highlight the ease of use associated with CoderBot, along with noticeable improvements in students’ understanding of programming concepts and increased levels of motivation and self-confidence. Moreover, the qualitative results indicate that CoderBot holds the potential to be an effective pedagogical agent for supporting programming instruction, particularly in terms of clarity, accessibility, and ongoing assistance. However, the findings also suggest the need for further expansion of the available examples and improvements in the clarity of responses to fully realize the tool’s educational potential. These results offer valuable insights into integrating chatbots within academic environments, underscoring the role such tools can play in enhancing the learning experience for programming students.`,
+      citationBib: `@article{coderbot_examples_2025,
+  title={Theory Inspires, but Examples Engage: A Mixed-Methods Analysis of Worked Examples from CoderBot in Programming Education},
+  author={Equipe CoderBot},
+  journal={Draft manuscript},
+  year={2025},
+  address={São Paulo, SP},
+}`,
+      links: [
+        { label: "Resumo", href: "#" },
+        { label: "Prévia PDF", href: "#" },
+      ],
+    },
+  ];
 
   const sectionRef = React.useRef<HTMLDivElement>(null);
   const listRef = React.useRef<HTMLUListElement>(null);
@@ -116,6 +172,22 @@ function Timeline() {
       setReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     } catch {}
   }, []);
+
+  const handleCopyCitation = (it: Item, idx: number) => {
+    const url = `${window.location.origin}${window.location.pathname}#timeline-${idx}`;
+    const citation = it.citationBib || `${it.title}. ${it.desc}. ${it.year}. CoderBot Research. Disponível em: ${url}`;
+    navigator.clipboard.writeText(citation).then(() => toast.success("Citação copiada"));
+  };
+
+  const handleShare = (it: Item, idx: number) => {
+    const url = `${window.location.origin}${window.location.pathname}#timeline-${idx}`;
+    const text = `Leia este estudo: ${it.title}`;
+    if ((navigator as any).share) {
+      (navigator as any).share({ title: it.title, text, url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url).then(() => toast.success("Link copiado"));
+    }
+  };
 
   React.useEffect(() => {
     if (!listRef.current) return;
@@ -152,17 +224,36 @@ function Timeline() {
         <div className="pointer-events-none absolute left-1/2 top-0 hidden h-full w-px -translate-x-1/2 bg-white/10 md:block" />
 
         {/* Sticky section-wide title (static) */}
-        <div className="sticky top-[72px] z-10 mb-4">
+        <div className="mb-2">
           <h2 className="text-center md:text-left font-extrabold text-white/90 tracking-tight drop-shadow text-[clamp(2.2rem,7vw,4.2rem)]">
             Linha do tempo da pesquisa
           </h2>
         </div>
+
+        {/* Sticky TOC (years/titles) */}
+        <div className="sticky top-[128px] z-10 mb-6">
+          <div className="overflow-x-auto">
+            <div className="inline-flex gap-2 rounded-xl border border-white/10 bg-white/5 p-2 backdrop-blur-sm">
+              {items.map((it, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => document.getElementById(`timeline-${idx}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                  className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${activeIndex === idx ? 'bg-violet-500/25 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+                  aria-label={`Ir para ${it.title}`}
+                >
+                  {it.year}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <ul ref={listRef} className="space-y-10">
           {items.map((it, idx) => {
             const isActive = activeIndex === idx;
             const expanded = expandedIdx === idx;
             return (
-              <li key={idx} data-index={idx} className={`min-h-[60vh] md:min-h-[70vh] transition-colors duration-200 ${isActive ? 'opacity-100' : 'opacity-80'}`}>
+              <li id={`timeline-${idx}`} key={idx} data-index={idx} className={`min-h-[60vh] md:min-h-[70vh] transition-colors duration-200 ${isActive ? 'opacity-100' : 'opacity-80'}`}>
                 <div className={`grid grid-cols-1 items-center gap-6 md:grid-cols-2 md:gap-10 ${idx % 2 === 0 ? '' : 'md:[&>div:first-child]:order-2'}`}>
                   {/* Title side (large heading, static) */}
                   <div className={`${isActive ? 'opacity-100' : 'opacity-90'} transition-opacity duration-200`}>
@@ -207,9 +298,52 @@ function Timeline() {
                       <DialogHeader>
                         <DialogTitle className="text-white">{it.explainTitle}</DialogTitle>
                       </DialogHeader>
-                      <div className="mt-2 max-h-[70vh] overflow-auto pr-1 text-white/90 leading-relaxed">
+                      {/* Resumo sempre visível */}
+                      <div className="mt-2 max-h-[55vh] overflow-auto pr-1 text-white/90 leading-relaxed">
                         {it.explainBody}
                       </div>
+                      <Tabs defaultValue="citar" className="mt-4">
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="citar">Citar</TabsTrigger>
+                          <TabsTrigger value="compartilhar">Compartilhar</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="citar" className="mt-3">
+                          <div className="rounded-lg border border-white/15 bg-black/30 p-3">
+                            <pre className="whitespace-pre-wrap break-words text-xs text-white/90">
+{it.citationBib || `@article{coderbot_placeholder,
+  title={${it.title}},
+  year={${it.year}},
+}`}
+                            </pre>
+                          </div>
+                          <div className="mt-3 flex justify-end">
+                            <Button size="sm" onClick={() => handleCopyCitation(it, idx)}>Copiar citação</Button>
+                          </div>
+                        </TabsContent>
+                        <TabsContent value="compartilhar" className="mt-3">
+                          <div className="flex flex-col gap-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-sm text-white/80">Compartilhar este estudo</div>
+                              <div className="flex gap-2">
+                                <Button size="sm" variant="secondary" onClick={() => handleShare(it, idx)}>Compartilhar</Button>
+                                <Button size="sm" variant="outline" onClick={() => navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}#timeline-${idx}`).then(() => toast.success('Link copiado'))}>Copiar link</Button>
+                              </div>
+                            </div>
+                            {it.links && it.links.length > 0 && (
+                              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                                <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/70">Links</div>
+                                <ul className="space-y-1 text-sm">
+                                  {it.links.map((l, i2) => (
+                                    <li key={i2}>
+                                      <a href={l.href} target="_blank" rel="noreferrer" className="text-violet-300 hover:underline">{l.label}</a>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        </TabsContent>
+                      </Tabs>
                     </DialogContent>
                   </Dialog>
                 </div>
@@ -368,21 +502,46 @@ function PosterShowcase() {
 }
 
 export default function AboutProject() {
+  const [readProgress, setReadProgress] = React.useState(0);
+  React.useEffect(() => {
+    const onScroll = () => {
+      const doc = document.documentElement;
+      const total = Math.max(1, doc.scrollHeight - window.innerHeight);
+      const p = Math.min(1, Math.max(0, window.scrollY / total));
+      setReadProgress(p);
+    };
+    const handler = () => requestAnimationFrame(onScroll);
+    window.addEventListener("scroll", handler, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", handler as any);
+  }, []);
+
   return (
     <main className="relative flex min-h-[100svh] flex-col overflow-x-clip">
+      {/* Reading progress bar */}
+      <div className="fixed left-0 right-0 top-0 z-[60] h-1 bg-black/20">
+        <div
+          className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-600 transition-[width] duration-200"
+          style={{ width: `${readProgress * 100}%` }}
+        />
+      </div>
       <Background />
-      <div className="container mx-auto flex items-center justify-between px-4 py-4">
+
+      {/* Top bar (optional) */}
+      <div className="container mx-auto flex items-center justify-between px-4 py-4 sm:py-5">
         <a href="/" className="flex items-center gap-2">
           <img src="/coderbot_colorfull.png" alt="CoderBot" className="h-7 w-7" />
           <span className="text-sm font-semibold tracking-tight text-white">CoderBot</span>
         </a>
-        <div className="hidden gap-3 sm:flex">
+        <div className="hidden gap-2 sm:flex">
           <a href="/about" className="text-sm text-white/80 hover:text-white">Sobre</a>
           <a href="/auth" className="text-sm text-white/80 hover:text-white">Entrar</a>
+          <a href="/dashboard" className="text-sm text-white/80 hover:text-white">Dashboard</a>
         </div>
       </div>
 
       <Hero />
+      <ThematicArt />
       <Timeline />
       {/* Removed extra card-heavy sections to keep only two blocks visible per viewport */}
       <References />
