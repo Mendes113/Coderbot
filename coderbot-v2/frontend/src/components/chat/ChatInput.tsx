@@ -170,7 +170,7 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalo
             <input
               ref={inputRef}
               type="text"
-              placeholder={isLoading ? "CoderBot está pensando..." : "Como posso te ajudar hoje? (dica: peça 'mostre o código em Python')"}
+              placeholder={isLoading ? "CoderBot está pensando..." : "Como posso te ajudar hoje? "}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onFocus={() => setInputFocused(true)}
