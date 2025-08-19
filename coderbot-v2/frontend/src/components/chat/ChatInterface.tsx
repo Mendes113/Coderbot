@@ -3,7 +3,7 @@ import { AnalogySettings } from "@/components/chat/AnalogySettings";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { InitialWelcomeMessages } from "@/components/chat/InitialWelcomeMessages";
-import { Message, fetchChatResponse, fetchMethodologies, MethodologyInfo } from "@/services/api";
+import { Message, fetchChatResponse } from "@/services/api";
 import { toast } from "@/components/ui/sonner";
 import { Loader2, MessageSquarePlus, Settings, Brain, Sparkles, Heart, Zap, Star, Trophy, Target, Flame, Gift, ThumbsUp, Smile, PartyPopper } from "lucide-react";
 import confetti from 'canvas-confetti';
@@ -444,7 +444,6 @@ interface SettingsProps {
   setAiModel: (model: string) => void;
   methodology: string;
   setMethodology: (methodology: string) => void;
-  availableMethodologies: MethodologyInfo[];
 }
 
 // DesktopSettingsView: REMOVE methodology dropdown (keep only analogy and model)
@@ -548,7 +547,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const [aiModel, setAiModel] = useState<string>("claude-3-sonnet");
   // Estados para compatibilidade com sistema antigo (fallback)
   const [methodologyState, setMethodology] = useState<string>("default");
-  const [availableMethodologies, setAvailableMethodologies] = useState<MethodologyInfo[]>([]);
+
   
   // Estados para o sistema AGNO (sempre ativado)
   const [agnoMethodology, setAgnoMethodology] = useState<MethodologyType>(MethodologyType.WORKED_EXAMPLES);
@@ -912,70 +911,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   };
 
   const [sessionId, setSessionId] = useState<string>("");
-
-  // On mount, try to restore session from sessionStorage
-  useEffect(() => {
-    const loadMethodologies = async () => {
-      try {
-        setIsLoading(true);
-        const methodologies = await fetchMethodologies();
-        
-        if (methodologies && methodologies.length > 0) {
-          setAvailableMethodologies(methodologies);
-          console.log("Available methodologies loaded:", methodologies);
-          
-          // Set default methodology to Worked Example if available
-          const workedExample = methodologies.find(m => 
-            m.name.toLowerCase().includes("worked") || 
-            m.id === "worked_example"
-          );
-          
-          if (workedExample) {
-            setMethodology(workedExample.id);
-          }
-        } else {
-          console.warn("No teaching methodologies found");
-        }
-      } catch (error) {
-        console.error("Error loading methodologies:", error);
-        toast.error("Não foi possível carregar as metodologias de ensino");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    loadMethodologies();
-    
-    // AGNO está sempre disponível
-    console.log("✅ Sistema AGNO ativado com metodologias educacionais avançadas");
-    
-    // Inicializar timer idle
-    resetIdleTimer();
-    
-    // Event listeners para detectar atividade do usuário
-    const handleUserActivity = () => {
-      handleUserInteraction();
-    };
-    
-    // Detectar movimento do mouse, cliques, rolagem e digitação
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-    
-    activityEvents.forEach(event => {
-      document.addEventListener(event, handleUserActivity, true);
-    });
-    
-    // Cleanup
-    return () => {
-      if (idleTimer) {
-        clearTimeout(idleTimer);
-      }
-      
-      // Remover event listeners
-      activityEvents.forEach(event => {
-        document.removeEventListener(event, handleUserActivity, true);
-      });
-    };
-  }, []);
 
   useEffect(() => {
     const initializeSession = async () => {

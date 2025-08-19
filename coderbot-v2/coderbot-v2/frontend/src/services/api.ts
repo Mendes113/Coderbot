@@ -1,4 +1,4 @@
-import { toast } from "@/components/ui/sonner";
+
 
 export type Message = {
   id: string;
@@ -173,26 +173,11 @@ export const fetchChatResponse = async (
     };
   } catch (error) {
     console.error("Erro ao buscar resposta do chat:", error);
-    toast.error("Não foi possível obter resposta. Tente novamente.");
+   
     return { 
       content: "Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente."
     };
   }
 };
 
-// Add a function to fetch available methodologies
-export const fetchMethodologies = async (): Promise<MethodologyInfo[]> => {
-  try {
-    const response = await fetch("http://localhost:8000/chat/methodologies");
-    if (!response.ok) {
-      throw new Error(`Error fetching methodologies: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    return data.methodologies;
-  } catch (error) {
-    console.error("Error fetching methodologies:", error);
-    toast.error("Failed to load teaching methodologies");
-    return [];
-  }
-};
+
