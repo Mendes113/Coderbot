@@ -4,12 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { useUserData } from "@/hooks/useUserData";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { ProfileForm } from "@/components/profile/ProfileForm";
-import { LearningAnalyticsDashboard } from "@/components/analytics/LearningAnalyticsDashboard";
-import { AdaptiveLearningSetup } from "@/components/adaptive/AdaptiveLearningSetup";
+    // import { LearningAnalyticsDashboard } from "@/components/analytics/LearningAnalyticsDashboard";
+    // import { AdaptiveLearningSetup } from "@/components/adaptive/AdaptiveLearningSetup";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+// import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { LogOut, ArrowLeft, Github, Brain, TrendingUp, Target, Clock, Flame, Trophy, BookOpen, Settings, Zap } from "lucide-react";
 import { pb, startGithubOAuth, getUserApiKey, upsertUserApiKey } from "@/integrations/pocketbase/client";
@@ -532,7 +532,9 @@ const UserProfile = () => {
 
         <TabsContent value="analytics" className="space-y-6">
           {analytics ? (
-            <LearningAnalyticsDashboard userId={userId} />
+            <div>
+              <h1>Analytics</h1>
+            </div>
           ) : (
             <Card>
               <CardHeader>
