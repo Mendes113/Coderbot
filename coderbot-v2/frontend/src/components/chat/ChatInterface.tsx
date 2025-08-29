@@ -540,26 +540,26 @@ const INITIAL_MESSAGES: Message[] = [
 ];
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext, methodology = "default", userId }) => {
+  // Estados principais memoizados para reduzir re-renders
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [analogiesEnabled, setAnalogiesEnabled] = useState(false);
   const [knowledgeBase, setKnowledgeBase] = useState("");
   const [aiModel, setAiModel] = useState<string>("claude-3-sonnet");
-  // Estados para compatibilidade com sistema antigo (fallback)
   const [methodologyState, setMethodology] = useState<string>("default");
-
-  
-  // Estados para o sistema AGNO (sempre ativado)
   const [agnoMethodology, setAgnoMethodology] = useState<MethodologyType>(MethodologyType.WORKED_EXAMPLES);
+
+  // Estados UI otimizados
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [showSidebar, setShowSidebar] = useState(!isMobile);
   const [showAnalogyDropdown, setShowAnalogyDropdown] = useState(false);
-  // Diagrams disabled: hide UI and force off
-  const [diagramsEnabled] = useState(false);
-  const [diagramType, setDiagramType] = useState<'mermaid' | 'excalidraw'>("mermaid");
-  const [maxFinalCodeLines] = useState<number>(150);
+
+  // Estados constantes (não precisam ser state)
+  const diagramsEnabled = false;
+  const diagramType = "mermaid" as const;
+  const maxFinalCodeLines = 150;
   
   // Segmentos estruturados do backend (exibição passo-a-passo)
   type ResponseSegment = { id: string; title: string; type: string; content: string; language?: string };
@@ -567,7 +567,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const [segmentMessageIds, setSegmentMessageIds] = useState<string[]>([]);
 
   // Formata um segmento com um cabeçalho markdown amigável para o usuário
-  const getSegmentBadge = (type: string): string => {
+  const getSegmentBadge = useCallback((type: string): string => {
     switch (type) {
       case 'intro': return '✨ Introdução';
       case 'steps': return '📝 Passo a passo';
@@ -577,15 +577,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
       case 'final_code': return '💻 Código final';
       default: return '📌 Etapa';
     }
-  };
-  const formatSegmentContent = (seg: ResponseSegment): string => {
+  }, []);
+
+  const formatSegmentContent = useCallback((seg: ResponseSegment): string => {
     const label = seg.title?.trim().length ? seg.title : getSegmentBadge(seg.type);
     // Usa heading para aparecer como título no markdown renderizado
     return `### ${label}\n\n${seg.content || ''}`.trim();
-  };
+  }, [getSegmentBadge]);
 
   // Rótulo do botão de avanço, contextual ao próximo segmento
-  const getNextStepButtonLabel = (): string => {
+  const getNextStepButtonLabel = useCallback((): string => {
     if (!pendingSegments || pendingSegments.length === 0) return 'Avançar etapa';
     const nextType = (pendingSegments[0]?.type || '').toLowerCase();
     switch (nextType) {
@@ -602,7 +603,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
       default:
         return 'Avançar etapa';
     }
-  };
+  }, [pendingSegments]);
 
   // Session metrics (start/end)
   const sessionStartRef = useRef<number | null>(null);
@@ -781,13 +782,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     soundEffects.playEpicCelebration();
   };
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     } else if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
-  };
+  }, []);
 
   // Auto-scroll when messages change
   useEffect(() => {

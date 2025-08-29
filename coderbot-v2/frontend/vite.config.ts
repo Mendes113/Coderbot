@@ -9,6 +9,14 @@ export default defineConfig(({ mode }) => ({
     port: 5173,
     strictPort: true,
     allowedHosts: true,
+    // Otimizações de desenvolvimento
+    hmr: {
+      overlay: true
+    },
+    // Cache de dependências
+    fs: {
+      strict: true
+    }
   },
   preview: {
     host: true,
@@ -25,5 +33,39 @@ export default defineConfig(({ mode }) => ({
       "magicui": path.resolve(__dirname, "./src/components/magicui"),
       "magicui/*": path.resolve(__dirname, "./src/components/magicui/*"),
     },
+  },
+  // Otimizações de build
+  build: {
+    target: 'esnext',
+    sourcemap: mode === 'development',
+    minify: mode === 'production' ? 'esbuild' : false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Separar vendor chunks para melhor cache
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select'],
+          'utils-vendor': ['clsx', 'tailwind-merge', 'class-variance-authority'],
+        },
+      },
+    },
+    // Otimizar chunks
+    chunkSizeWarningLimit: 1000,
+  },
+  // Otimizações de dependências
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      'lucide-react',
+    ],
+    exclude: ['@vite/client', '@vite/env'],
+  },
+  // Configurações de CSS
+  css: {
+    devSourcemap: true,
   },
 }));

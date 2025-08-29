@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
@@ -9,34 +9,32 @@ const Index = () => {
   const location = useLocation();
   const [currentNav, setCurrentNav] = useState<string>("chat");
   const isMobile = useIsMobile();
-  
-  // Update currentNav based on the current route
-  useEffect(() => {
+
+  // Memoizar o cálculo da navegação atual para evitar recálculos desnecessários
+  const computedNav = useMemo(() => {
     const path = location.pathname;
-    
-    if (path.includes("chat")) {
-      setCurrentNav("chat");
-    } else if (path.includes("playground")) {
-      setCurrentNav("playground");
-    } else if (path.includes("exercises")) {
-      setCurrentNav("exercises");
-    } else if (path.includes("metrics")) {
-      setCurrentNav("metrics");
-    } else if (path.includes("teacher")) {
-      setCurrentNav("teacher");
-    } else if (path.includes("student")) {
-      setCurrentNav("student");
-    } else if (path.includes("whiteboard")) {
-      setCurrentNav("whiteboard");
-    } else if (path.includes("mermaid")) {
-      setCurrentNav("mermaid");
-    } else if (path.includes("flashcard")) {
-      setCurrentNav("flashcard");
-    }
+
+    if (path.includes("chat")) return "chat";
+    if (path.includes("adaptive")) return "adaptive";
+    if (path.includes("analytics")) return "analytics";
+    if (path.includes("exercises")) return "exercises";
+    if (path.includes("metrics")) return "metrics";
+    if (path.includes("teacher")) return "teacher";
+    if (path.includes("student")) return "student";
+    if (path.includes("whiteboard")) return "whiteboard";
+    if (path.includes("mermaid")) return "mermaid";
+    if (path.includes("flashcard")) return "flashcard";
+
+    return "chat"; // fallback
   }, [location.pathname]);
 
+  // Atualizar currentNav apenas quando necessário
+  useEffect(() => {
+    setCurrentNav(computedNav);
+  }, [computedNav]);
+
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={!isMobile}>
       <div className="flex h-screen w-full overflow-hidden bg-gray-50 dark:bg-gray-900">
         <AppSidebar currentNav={currentNav} onNavChange={setCurrentNav} />
         <main className={cn(

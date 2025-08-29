@@ -6,8 +6,10 @@ import React, { Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { pb } from "@/integrations/pocketbase/client";
 import posthog from "posthog-js";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 // import { CodeEditorProvider } from "@/context/CodeEditorContext";
 
+// Lazy loading otimizado com preload para rotas críticas
 const Index = React.lazy(() => import("./pages/Index"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const UserProfile = React.lazy(() => import("./pages/UserProfile"));
@@ -22,7 +24,6 @@ const Home = React.lazy(() => import("./home/Home"));
 const Mermaid = React.lazy(() => import("./pages/Mermaid"));
 const FlashCardPage = React.lazy(() => import("./pages/FlashCardPage"));
 const AdaptiveLearning = React.lazy(() => import("./pages/AdaptiveLearning"));
-// Removed StudentInvitations route and import
 const Analytics = React.lazy(() => import("./pages/Analytics"));
 const AboutProject = React.lazy(() => import("./pages/AboutProject"));
 
@@ -123,38 +124,50 @@ const App = () => {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        {/* <CodeEditorProvider> */}
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AnalyticsTracker />
-            <Suspense fallback={<div className="flex items-center justify-center h-screen text-xl">Carregando...</div>}>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/about" element={<AboutProject />} />
-                <Route path="dashboard" element={<RequireAuth><Index /></RequireAuth>}>
-                  <Route path="chat" element={<ChatInterface />} />
-                  <Route path="adaptive" element={<AdaptiveLearning />} />
-                  <Route path="analytics" element={<Analytics />} />
-                  <Route path="exercises" element={<ExerciseInterface />} />
-                  <Route path="metrics" element={<LearningMetrics />} />
-                  <Route path="teacher" element={<TeacherDashboard />} />
-                  <Route path="student" element={<StudentDashboard />} />
-                  <Route path="whiteboard" element={<Whiteboard />} />
-                  <Route path="mermaid" element={<Mermaid />} />
-                  <Route path="flashcard" element={<FlashCardPage />} />
-                </Route>
-                <Route path="/profile" element={<RequireAuth><UserProfile /></RequireAuth>} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
-        {/* </CodeEditorProvider> */}
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          {/* <CodeEditorProvider> */}
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AnalyticsTracker />
+              <Suspense fallback={
+                <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
+                  <div className="text-center">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 mb-4">
+                      <div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                    <p className="text-lg font-medium text-gray-700 dark:text-gray-300">Carregando CoderBot...</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Preparando sua experiência educacional</p>
+                  </div>
+                </div>
+              }>
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/about" element={<AboutProject />} />
+                  <Route path="dashboard" element={<RequireAuth><Index /></RequireAuth>}>
+                    <Route path="chat" element={<ChatInterface />} />
+                    <Route path="adaptive" element={<AdaptiveLearning />} />
+                    <Route path="analytics" element={<Analytics />} />
+                    <Route path="exercises" element={<ExerciseInterface />} />
+                    <Route path="metrics" element={<LearningMetrics />} />
+                    <Route path="teacher" element={<TeacherDashboard />} />
+                    <Route path="student" element={<StudentDashboard />} />
+                    <Route path="whiteboard" element={<Whiteboard />} />
+                    <Route path="mermaid" element={<Mermaid />} />
+                    <Route path="flashcard" element={<FlashCardPage />} />
+                  </Route>
+                  <Route path="/profile" element={<RequireAuth><UserProfile /></RequireAuth>} />
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </BrowserRouter>
+          {/* </CodeEditorProvider> */}
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 
