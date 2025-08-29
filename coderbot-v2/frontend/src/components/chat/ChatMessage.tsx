@@ -9,7 +9,7 @@ import Editor from "@monaco-editor/react";
 import posthog from "posthog-js";
 
 const JUDGE0_URL = ""; // force proxy path
-const API_URL = (import.meta as any)?.env?.VITE_API_URL || "/api";
+// Remove duplicate API_URL definition - axios already handles this
 
 // Small stable hash for block keys
 const simpleHash = (s: string) => {
@@ -204,7 +204,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
     const langId = languageIdFrom(langName);
 
     console.log("=== EXECUTION DEBUG START ===");
-    console.log("[Runner] Run requested", { language: langName, langId, blockKey, API_URL, sourceCodeLength: source.length, stdinLength: (stdin || '').length });
+    console.log("[Runner] Run requested", { language: langName, langId, blockKey, sourceCodeLength: source.length, stdinLength: (stdin || '').length });
 
     setExecStates(prev => ({ ...prev, [blockKey]: { status: 'running' } }));
 
@@ -212,7 +212,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
 
     // Always backend proxy now
     try {
-      const endpoint = `${API_URL}/judge/executar`;
+      const endpoint = "judge/executar";
       const payload = { language: langName, code: source, stdin: stdin || "" } as { language: string; code: string; stdin?: string };
       console.log("[Runner] Using backend proxy", { endpoint, payload });
       const res = await api.post(endpoint, payload, { validateStatus: () => true });
@@ -220,7 +220,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
       console.log("[Runner] Response status:", res.status);
       if (!(res.status >= 200 && res.status < 300)) {
         const errMsg = `Backend ${res.status}: ${typeof res.data === 'string' ? res.data : JSON.stringify(res.data)}`;
-        setExecStates(prev => ({ ...prev, [blockKey]: { status: 'error', error: errMsg, meta: { path: 'BACKEND_PROXY', endpoint, status: res.status } } }));
+        setExecStates(prev => ({ ...prev, [blockKey]: { status: 'error', error: errMsg, meta: { path: 'BACKEND_PROXY', endpoint: `judge/executar`, status: res.status } } }));
         console.error('[Runner] HTTP Error Response:', res.data);
         trackEvent('edu_code_run', { lang: langName, path: 'BACKEND_PROXY', durationMs, status: res.status, success: false });
         console.log("=== EXECUTION DEBUG END ===");
@@ -235,12 +235,12 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
       if (json.status?.description) parts.push(`status: ${String(json.status.description)}`);
       if (json.token) parts.push(`token: ${String(json.token)}`);
       const out = parts.join("\n");
-      setExecStates(prev => ({ ...prev, [blockKey]: { status: 'done', output: out || '(sem saída)', meta: { path: 'BACKEND_PROXY', endpoint, status: res.status, token: json?.token, message: json?.message || json?.status?.description }, data: json } }));
+      setExecStates(prev => ({ ...prev, [blockKey]: { status: 'done', output: out || '(sem saída)', meta: { path: 'BACKEND_PROXY', endpoint: `judge/executar`, status: res.status, token: json?.token, message: json?.message || json?.status?.description }, data: json } }));
       trackEvent('edu_code_run', { lang: langName, path: 'BACKEND_PROXY', durationMs, status: res.status, success: true });
       console.log("[Runner] SUCCESS");
     } catch (e: any) {
       const durationMs = Date.now() - startedAt;
-      setExecStates(prev => ({ ...prev, [blockKey]: { status: 'error', error: e?.message || 'Falha ao executar código (proxy)', meta: { path: 'BACKEND_PROXY', endpoint: `${API_URL}/judge/executar`, status: 0 } } }));
+      setExecStates(prev => ({ ...prev, [blockKey]: { status: 'error', error: e?.message || 'Falha ao executar código (proxy)', meta: { path: 'BACKEND_PROXY', endpoint: `judge/executar`, status: 0 } } }));
       trackEvent('edu_code_run', { lang: langName, path: 'BACKEND_PROXY', durationMs, status: 0, success: false });
       console.error('[Runner] CATCH Error:', e);
     }
