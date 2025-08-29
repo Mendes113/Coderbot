@@ -12,7 +12,7 @@ import {
   registerUserAction,
 } from "@/integrations/pocketbase/client";
 import { useDrawings } from "@/hooks/useDrawings";
-import { DrawingList } from "@/components/whiteboard/DrawingList";
+import { DrawingList } from "@/Components/whiteboard/DrawingList";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 import { usePerformance } from "@/hooks/usePerformance";
@@ -274,11 +274,12 @@ const Whiteboard: React.FC = () => {
 
     const api = apiRef.current;
     let changeTimeout: NodeJS.Timeout;
+    let pollInterval: NodeJS.Timeout;
 
     const handleChange = () => {
       clearTimeout(changeTimeout);
       changeTimeout = setTimeout(() => {
-        if (autoSaveEnabled) {
+        if (autoSaveEnabled && editorVisible) {
           debouncedAutoSave();
         }
       }, 1000); // Espera 1s após parar de editar
@@ -287,7 +288,7 @@ const Whiteboard: React.FC = () => {
     // Adiciona listeners para mudanças
     if (api) {
       // Note: Excalidraw API pode não ter eventos diretos, então usamos polling inteligente
-      const pollInterval = setInterval(() => {
+      pollInterval = setInterval(() => {
         if (editorVisible && autoSaveEnabled) {
           handleChange();
         }
@@ -298,7 +299,7 @@ const Whiteboard: React.FC = () => {
         clearTimeout(changeTimeout);
       };
     }
-  }, [editorVisible, autoSaveEnabled, debouncedAutoSave]);
+  }, [editorVisible, autoSaveEnabled]);
 
   // Preload inteligente dos desenhos mais recentes
   useEffect(() => {
@@ -310,7 +311,7 @@ const Whiteboard: React.FC = () => {
 
       recentDrawings.forEach((drawing, index) => {
         // Preload com delay progressivo para não sobrecarregar
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           if (!getCached(drawing.id)) {
             try {
               const jsonObj = typeof drawing.data === "string"
@@ -322,16 +323,19 @@ const Whiteboard: React.FC = () => {
             }
           }
         }, index * 500); // 0ms, 500ms, 1000ms
+
+        // Cleanup timeout
+        return () => clearTimeout(timeoutId);
       });
     }
-  }, [drawings, getCached, setCached, editorVisible]);
+  }, [drawings.length, editorVisible]);
 
   /* ===================== AÇÕES DO MENU INICIAL OTIMIZADAS ===================== */
   const handleOpenEditor = useCallback(() => {
     setEditorVisible(true);
     // Gera contexto inicial para IA quando abre o editor
     setTimeout(() => generateContext(), 1000);
-  }, [generateContext]);
+  }, []); // Remove generateContext dependency to prevent re-renders
 
   const openLocalFile = useCallback(async (file: File) => {
     try {
@@ -379,7 +383,7 @@ const Whiteboard: React.FC = () => {
       console.error('Erro ao abrir quadro:', error);
       toast.error("Não foi possível abrir o quadro");
     }
-  }, [handleOpenEditor, user, getCached, setCached]);
+  }, [user]); // Simplified dependencies to prevent re-renders
 
   const newBoard = useCallback(() => {
     // Limpa todos os estados relacionados
@@ -390,6 +394,7 @@ const Whiteboard: React.FC = () => {
     // Limpa cache e contexto
     clearCache();
     clearContext();
+    
 
     handleOpenEditor();
     toast.success("Novo quadro criado!", { duration: 1500 });
@@ -434,7 +439,7 @@ const Whiteboard: React.FC = () => {
         </div>
       </div>
     );
-  }, [isSlowConnection, lastSaved, context, metrics.cls]);
+  }, [isSlowConnection, lastSaved, context?.metadata.totalElements, metrics.cls]);
 
   // Indicador de contexto IA
   const AIContextIndicator = useMemo(() => {
