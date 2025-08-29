@@ -106,8 +106,6 @@ services:
       context: ./frontend
       dockerfile: ../docker/Dockerfile.frontend
     container_name: coderbot-frontend
-    ports:
-      - "3000:3000"
     depends_on:
       backend:
         condition: service_healthy
