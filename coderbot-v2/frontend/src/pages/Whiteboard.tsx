@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState, useMemo, useEffect, Suspense } fr
 import { Excalidraw, serializeAsJSON } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
-import { Save, Plus, UploadCloud, Loader2, MessageCircle, Star, Trophy, Zap, Heart, Sparkles, ArrowLeft, Cpu, Database } from "lucide-react";
+import { Save, Plus, UploadCloud, Loader2, MessageCircle, Star, Trophy, Zap, Heart, Sparkles, ArrowLeft, Cpu, Database, Brain } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
 import {
@@ -184,7 +184,7 @@ const Whiteboard: React.FC = () => {
 
   // ---------- Performance e contexto IA ----------
   const { metrics, isSlowConnection } = usePerformance();
-  const { context, generateContext, isGeneratingContext } = useWhiteboardAIContext(apiRef);
+  const { context, generateContext, isGeneratingContext, clearContext } = useWhiteboardAIContext(apiRef);
   const { getCached, setCached, clearCache } = useDrawingCache();
 
   // ---------- Sessão do usuário ----------
@@ -389,13 +389,11 @@ const Whiteboard: React.FC = () => {
 
     // Limpa cache e contexto
     clearCache();
-    if (context) {
-      context.clearContext?.();
-    }
+    clearContext();
 
     handleOpenEditor();
     toast.success("Novo quadro criado!", { duration: 1500 });
-  }, [handleOpenEditor, clearCache, context]);
+  }, [handleOpenEditor, clearCache, clearContext]);
 
   /* ===================== COMPONENTES OTIMIZADOS ===================== */
 
@@ -724,9 +722,7 @@ const Whiteboard: React.FC = () => {
             onClick={() => {
               setEditorVisible(false);
               // Limpa contexto quando volta para a lista
-              if (context) {
-                context.clearContext?.();
-              }
+              clearContext();
             }}
             title="Voltar para a lista (limpa contexto da IA)"
             className="group fixed top-5 left-5 z-50 p-3 rounded-full shadow-2xl bg-gradient-to-r from-gray-600 to-gray-700 text-white hover:from-gray-700 hover:to-gray-800 hover:scale-110 transition-all duration-300 border-2 border-white/20"
