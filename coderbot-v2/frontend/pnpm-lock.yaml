@@ -189,7 +189,7 @@ importers:
         specifier: ^1.30.0
         version: 1.30.0
       react:
-        specifier: ^18.3.1
+        specifier: ^18
         version: 18.3.1
       react-arborist:
         specifier: ^3.4.3
@@ -198,7 +198,7 @@ importers:
         specifier: ^8.10.1
         version: 8.10.1(date-fns@3.6.0)(react@18.3.1)
       react-dom:
-        specifier: ^18.3.1
+        specifier: ^18
         version: 18.3.1(react@18.3.1)
       react-flow-renderer:
         specifier: ^10.3.17
