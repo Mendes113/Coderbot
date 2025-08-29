@@ -462,7 +462,7 @@ const Whiteboard: React.FC = () => {
         </div>
       </div>
     );
-  }, [isGeneratingContext, context]);
+  }, [isGeneratingContext, context?.metadata.totalElements]);
 
   // Função para obter o JSON atual do quadro
   const getCurrentSceneJSON = useCallback((): Record<string, any> | null => {
@@ -506,7 +506,7 @@ const Whiteboard: React.FC = () => {
         lastSaved: lastSaved?.toISOString()
       }
     };
-  }, [context, activeId, autoSaveEnabled, isSlowConnection, lastSaved]);
+  }, [context?.summary, context?.metadata.totalElements, activeId, autoSaveEnabled, isSlowConnection, lastSaved]);
 
   /* ===================== RENDER OTIMIZADO ===================== */
   return (
