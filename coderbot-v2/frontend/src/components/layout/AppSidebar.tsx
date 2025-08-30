@@ -42,7 +42,7 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
     const user = getCurrentUser();
     if (user) setUserRole(user.role);
     setIsLoading(false);
-  }, []);
+  }, []); // Dependência vazia é intencional - só executar uma vez na montagem
 
   const mainNavItems: NavItem[] = [
     { id: "chat", label: "Chat", icon: MessageSquare, accessKey: "c", path: "/dashboard/chat" },
@@ -68,14 +68,16 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
     { id: "profile", label: "Perfil", icon: User, accessKey: "p", path: "/profile" },
   ];
 
-  const filteredNavItems = mainNavItems.filter((item) => {
-    if (!item.roles) return true;
-    const normalizedUserRole = (userRole || "").toLowerCase().trim();
-    // Fallback: mostrar itens com controle de role mesmo se a role ainda não estiver carregada
-    if (!normalizedUserRole) return true;
-    const allowed = item.roles.map(r => r.toLowerCase().trim());
-    return allowed.includes(normalizedUserRole);
-  });
+  const filteredNavItems = useMemo(() => {
+    return mainNavItems.filter((item) => {
+      if (!item.roles) return true;
+      const normalizedUserRole = (userRole || "").toLowerCase().trim();
+      // Fallback: mostrar itens com controle de role mesmo se a role ainda não estiver carregada
+      if (!normalizedUserRole) return true;
+      const allowed = item.roles.map(r => r.toLowerCase().trim());
+      return allowed.includes(normalizedUserRole);
+    });
+  }, [userRole]); // Só recalcular quando userRole mudar
 
   // Mapa de atalhos Alt+<tecla> - memoizado
   const accessKeyMap = useMemo(() => {

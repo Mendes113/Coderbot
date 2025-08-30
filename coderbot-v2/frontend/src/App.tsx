@@ -198,7 +198,7 @@ const AnalyticsTracker = () => {
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [location.pathname]);
+  }, []); // Remove location.pathname para evitar recriação desnecessária do listener
 
   return null;
 };
@@ -211,6 +211,7 @@ const RequireAuth = ({ children }: { children: JSX.Element }) => {
     // Se não há sessão válida, redireciona
     if (!pb.authStore.isValid) {
       navigate('/auth');
+      return; // Sai imediatamente após redirecionar
     }
     setLoading(false);
 
@@ -222,7 +223,7 @@ const RequireAuth = ({ children }: { children: JSX.Element }) => {
     });
 
     return () => unsubscribe();
-  }, [navigate]);
+  }, []); // Remove navigate das dependências para evitar loop infinito
 
   if (loading) return null; // ou um spinner
 

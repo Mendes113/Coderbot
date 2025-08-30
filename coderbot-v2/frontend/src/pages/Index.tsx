@@ -28,10 +28,12 @@ const Index = () => {
     return "chat"; // fallback
   }, [location.pathname]);
 
-  // Atualizar currentNav apenas quando necessário
+  // Atualizar currentNav apenas quando necessário - comparar com valor atual para evitar loops
   useEffect(() => {
-    setCurrentNav(computedNav);
-  }, [computedNav]);
+    if (currentNav !== computedNav) {
+      setCurrentNav(computedNav);
+    }
+  }, [computedNav, currentNav]);
 
   return (
     <SidebarProvider defaultOpen={!isMobile}>
