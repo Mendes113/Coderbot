@@ -41,10 +41,12 @@ export const LearningProgress = ({
       setShowLevelUp(true);
       setCurrentLevel(level);
       onCelebration?.();
-      
-      setTimeout(() => {
+
+      const timeout = setTimeout(() => {
         setShowLevelUp(false);
       }, 3000);
+
+      return () => clearTimeout(timeout);
     }
   }, [level, currentLevel, onCelebration]);
 

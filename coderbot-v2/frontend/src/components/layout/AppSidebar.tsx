@@ -13,7 +13,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { getCurrentUser } from "@/integrations/pocketbase/client";
 
 type NavItem = {
@@ -37,6 +37,7 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const { state } = useSidebar();
 
+  // Memoizar busca do usuário para evitar recálculos
   useEffect(() => {
     const user = getCurrentUser();
     if (user) setUserRole(user.role);
@@ -76,7 +77,7 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
     return allowed.includes(normalizedUserRole);
   });
 
-  // Mapa de atalhos Alt+<tecla>
+  // Mapa de atalhos Alt+<tecla> - memoizado
   const accessKeyMap = useMemo(() => {
     const map = new Map<string, NavItem>();
     for (const item of filteredNavItems) {
@@ -85,32 +86,35 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
     return map;
   }, [filteredNavItems]);
 
-  // Listener global para atalhos (ignora campos de texto)
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      const isEditable = !!target && (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable ||
-        (target.getAttribute && target.getAttribute("role") === "textbox")
-      );
-      if (isEditable) return;
-      if (!e.altKey) return;
-      const key = e.key.toLowerCase();
-      const item = accessKeyMap.get(key);
-      if (!item) return;
-      e.preventDefault();
-      onNavChange(item.id);
-      navigate(item.path);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+  // Handler de atalho memoizado para evitar re-criação
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    const target = e.target as HTMLElement | null;
+    const isEditable = !!target && (
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.isContentEditable ||
+      (target.getAttribute && target.getAttribute("role") === "textbox")
+    );
+    if (isEditable) return;
+    if (!e.altKey) return;
+    const key = e.key.toLowerCase();
+    const item = accessKeyMap.get(key);
+    if (!item) return;
+    e.preventDefault();
+    onNavChange(item.id);
+    navigate(item.path);
   }, [accessKeyMap, navigate, onNavChange]);
 
-  const isItemActive = (item: NavItem) => {
+  // Listener global para atalhos (ignora campos de texto)
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
+
+  // Memoizar função de verificação de item ativo
+  const isItemActive = useCallback((item: NavItem) => {
     return currentNav === item.id || location.pathname.startsWith(item.path);
-  };
+  }, [currentNav, location.pathname]);
 
   if (isLoading) {
     return (

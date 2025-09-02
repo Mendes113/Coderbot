@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { AnalogySettings } from "@/components/chat/AnalogySettings";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { InitialWelcomeMessages } from "@/components/chat/InitialWelcomeMessages";
-import { Message, fetchChatResponse, fetchMethodologies, MethodologyInfo } from "@/services/api";
+import { Message, fetchChatResponse } from "@/services/api";
 import { toast } from "@/components/ui/sonner";
 import { Loader2, MessageSquarePlus, Settings, Brain, Sparkles, Heart, Zap, Star, Trophy, Target, Flame, Gift, ThumbsUp, Smile, PartyPopper } from "lucide-react";
 import confetti from 'canvas-confetti';
@@ -444,7 +444,6 @@ interface SettingsProps {
   setAiModel: (model: string) => void;
   methodology: string;
   setMethodology: (methodology: string) => void;
-  availableMethodologies: MethodologyInfo[];
 }
 
 // DesktopSettingsView: REMOVE methodology dropdown (keep only analogy and model)
@@ -541,25 +540,70 @@ const INITIAL_MESSAGES: Message[] = [
 ];
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext, methodology = "default", userId }) => {
+  // Estados principais memoizados para reduzir re-renders
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [analogiesEnabled, setAnalogiesEnabled] = useState(false);
   const [knowledgeBase, setKnowledgeBase] = useState("");
   const [aiModel, setAiModel] = useState<string>("claude-3-sonnet");
-  // Estados para compatibilidade com sistema antigo (fallback)
   const [methodologyState, setMethodology] = useState<string>("default");
-  const [availableMethodologies, setAvailableMethodologies] = useState<MethodologyInfo[]>([]);
-  
-  // Estados para o sistema AGNO (sempre ativado)
   const [agnoMethodology, setAgnoMethodology] = useState<MethodologyType>(MethodologyType.WORKED_EXAMPLES);
+
+  // Estados UI otimizados
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [showSidebar, setShowSidebar] = useState(!isMobile);
   const [showAnalogyDropdown, setShowAnalogyDropdown] = useState(false);
-  const [diagramsEnabled, setDiagramsEnabled] = useState(true);
-  const [diagramType, setDiagramType] = useState<'mermaid' | 'excalidraw'>("mermaid");
-  const [maxFinalCodeLines] = useState<number>(150);
+
+  // Estados constantes (não precisam ser state)
+  const diagramsEnabled = false;
+  const diagramType = "mermaid" as const;
+  const maxFinalCodeLines = 150;
+  
+  // Segmentos estruturados do backend (exibição passo-a-passo)
+  type ResponseSegment = { id: string; title: string; type: string; content: string; language?: string };
+  const [pendingSegments, setPendingSegments] = useState<ResponseSegment[]>([]);
+  const [segmentMessageIds, setSegmentMessageIds] = useState<string[]>([]);
+
+  // Formata um segmento com um cabeçalho markdown amigável para o usuário
+  const getSegmentBadge = useCallback((type: string): string => {
+    switch (type) {
+      case 'intro': return '✨ Introdução';
+      case 'steps': return '📝 Passo a passo';
+      case 'correct_example': return '✅ Exemplo Correto';
+      case 'incorrect_example': return '⚠️ Exemplo Incorreto';
+      case 'reflection': return '💭 Reflexão';
+      case 'final_code': return '💻 Código final';
+      default: return '📌 Etapa';
+    }
+  }, []);
+
+  const formatSegmentContent = useCallback((seg: ResponseSegment): string => {
+    const label = seg.title?.trim().length ? seg.title : getSegmentBadge(seg.type);
+    // Usa heading para aparecer como título no markdown renderizado
+    return `### ${label}\n\n${seg.content || ''}`.trim();
+  }, [getSegmentBadge]);
+
+  // Rótulo do botão de avanço, contextual ao próximo segmento
+  const getNextStepButtonLabel = useCallback((): string => {
+    if (!pendingSegments || pendingSegments.length === 0) return 'Avançar etapa';
+    const nextType = (pendingSegments[0]?.type || '').toLowerCase();
+    switch (nextType) {
+      case 'reflection':
+        return 'Iniciar reflexão';
+      case 'steps':
+        return 'Ver passos';
+      case 'correct_example':
+        return 'Ver exemplo correto';
+      case 'incorrect_example':
+        return 'Ver exemplo incorreto';
+      case 'final_code':
+        return 'Ver código final';
+      default:
+        return 'Avançar etapa';
+    }
+  }, [pendingSegments]);
 
   // Session metrics (start/end)
   const sessionStartRef = useRef<number | null>(null);
@@ -738,13 +782,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     soundEffects.playEpicCelebration();
   };
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     } else if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
-  };
+  }, []);
 
   // Auto-scroll when messages change
   useEffect(() => {
@@ -868,70 +912,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   };
 
   const [sessionId, setSessionId] = useState<string>("");
-
-  // On mount, try to restore session from sessionStorage
-  useEffect(() => {
-    const loadMethodologies = async () => {
-      try {
-        setIsLoading(true);
-        const methodologies = await fetchMethodologies();
-        
-        if (methodologies && methodologies.length > 0) {
-          setAvailableMethodologies(methodologies);
-          console.log("Available methodologies loaded:", methodologies);
-          
-          // Set default methodology to Worked Example if available
-          const workedExample = methodologies.find(m => 
-            m.name.toLowerCase().includes("worked") || 
-            m.id === "worked_example"
-          );
-          
-          if (workedExample) {
-            setMethodology(workedExample.id);
-          }
-        } else {
-          console.warn("No teaching methodologies found");
-        }
-      } catch (error) {
-        console.error("Error loading methodologies:", error);
-        toast.error("Não foi possível carregar as metodologias de ensino");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    loadMethodologies();
-    
-    // AGNO está sempre disponível
-    console.log("✅ Sistema AGNO ativado com metodologias educacionais avançadas");
-    
-    // Inicializar timer idle
-    resetIdleTimer();
-    
-    // Event listeners para detectar atividade do usuário
-    const handleUserActivity = () => {
-      handleUserInteraction();
-    };
-    
-    // Detectar movimento do mouse, cliques, rolagem e digitação
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-    
-    activityEvents.forEach(event => {
-      document.addEventListener(event, handleUserActivity, true);
-    });
-    
-    // Cleanup
-    return () => {
-      if (idleTimer) {
-        clearTimeout(idleTimer);
-      }
-      
-      // Remover event listeners
-      activityEvents.forEach(event => {
-        document.removeEventListener(event, handleUserActivity, true);
-      });
-    };
-  }, []);
 
   useEffect(() => {
     const initializeSession = async () => {
@@ -1250,6 +1230,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
 
       // Sempre usar AGNO (que está funcionando perfeitamente)
       let response;
+      let lastResponseLength = 0;
       
       try {
         const userIdStr = typeof userId === 'string' ? userId : (userId ? JSON.stringify(userId) : "anonymous");
@@ -1309,17 +1290,79 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
           provider,
           modelId,
           includeFinalCode: true,
-          includeDiagram: diagramsEnabled,
-          diagramType: diagramType,
+          includeDiagram: false,
+          diagramType,
           maxFinalCodeLines
         });
-
-        response = {
-          content: agnoResponse.response,
-          analogies: "" // AGNO não usa analogias separadas
-        };
         
-        console.log(`✅ AGNO resposta recebida usando ${provider}/${modelId}: ${agnoResponse.response.length} caracteres`);
+        // Verifica se o backend retornou segmentos estruturados
+        const segments = ((agnoResponse as any)?.segments || []) as ResponseSegment[];
+        const hasSegments = Array.isArray(segments) && segments.length > 0;
+        
+        if (hasSegments) {
+          // Primeiro segmento vira a resposta inicial
+          const [firstSeg, ...restSegs] = segments;
+          setPendingSegments(restSegs);
+          setSegmentMessageIds([]);
+          lastResponseLength = (firstSeg?.content || '').length;
+
+          // Salva mensagem de IA somente com o primeiro segmento
+          const aiMsgId = await chatService.saveMessage({
+            content: formatSegmentContent(firstSeg),
+            isAi: true,
+            sessionId,
+          });
+
+          // Atualiza a mensagem temporária de IA com conteúdo real + id real
+          setMessages(prev => 
+            prev.map(msg => 
+              msg.id === tempId 
+                ? { ...msg, id: aiMsgId, content: formatSegmentContent(firstSeg), timestamp: new Date() } 
+                : msg
+            )
+          );
+
+          // Registrar ID da primeira etapa
+          setSegmentMessageIds(prev => [...prev, aiMsgId]);
+
+          // Analytics específico para segmentos
+          trackEvent('edu_chat_segments_received', {
+            sessionId,
+            totalSegments: segments.length,
+            provider: chosenProvider,
+            model: chosenModel,
+          });
+        } else {
+          // Fallback: comportamento anterior (mensagem completa)
+          response = {
+            content: agnoResponse.response,
+            analogies: ""
+          };
+          lastResponseLength = (response.content || '').length;
+          
+          // Save AI response (completa)
+          const aiMsgId = await chatService.saveMessage({
+            content: response.content,
+            isAi: true,
+            sessionId,
+          });
+          
+          // Update the AI message with content and real ID
+          setMessages(prev => 
+            prev.map(msg => 
+              msg.id === tempId 
+                ? {
+                    ...msg,
+                    id: aiMsgId,
+                    content: response.content,
+                    timestamp: new Date()
+                  } 
+                : msg
+            )
+          );
+        }
+        
+        console.log(`✅ AGNO resposta recebida usando ${provider}/${modelId}: ${lastResponseLength} caracteres`);
         
       } catch (error) {
         // Analytics: failure in AGNO path (no sensitive data)
@@ -1345,33 +1388,13 @@ Por favor, tente novamente em alguns instantes. Se o problema persistir, recarre
 Obrigado pela paciência! 🤖✨`,
           analogies: ""
         };
+        lastResponseLength = (response.content || '').length;
       }
       
-      // Save AI response
-      const aiMsgId = await chatService.saveMessage({
-        content: response.content,
-        isAi: true,
-        sessionId,
-      });
-
-      // Update the AI message with content and real ID
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.id === tempId 
-            ? {
-                ...msg,
-                id: aiMsgId,
-                content: response.content,
-                timestamp: new Date()
-              } 
-            : msg
-        )
-      );
-      
-      // Analytics: response received
+      // Analytics: response received (genérico)
       trackEvent('edu_chat_response_received', {
         sessionId,
-        responseLength: (response.content || '').length,
+        responseLength: lastResponseLength,
         latencyMs: Date.now() - startTs,
         model: chosenModel,
         provider: chosenProvider,
@@ -1395,6 +1418,51 @@ Obrigado pela paciência! 🤖✨`,
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Avançar para o próximo segmento, criando uma nova mensagem de IA
+  const handleNextSegment = async () => {
+    if (!sessionId) return;
+    if (!pendingSegments || pendingSegments.length === 0) return;
+    const [nextSeg, ...rest] = pendingSegments;
+    setPendingSegments(rest);
+
+    // Adiciona mensagem temporária para UX consistente
+    const tempSegId = (Date.now() + Math.random()).toString();
+    setMessages(prev => [
+      ...prev,
+      {
+        id: tempSegId,
+        content: formatSegmentContent(nextSeg),
+        isAi: true,
+        timestamp: new Date(),
+      }
+    ]);
+
+    try {
+      const savedId = await chatService.saveMessage({
+        content: formatSegmentContent(nextSeg),
+        isAi: true,
+        sessionId,
+      });
+      setMessages(prev => prev.map(m => m.id === tempSegId ? { ...m, id: savedId } : m));
+      setSegmentMessageIds(prev => [...prev, savedId]);
+      trackEvent('edu_chat_segment_advanced', { sessionId, segmentType: nextSeg.type, remaining: rest.length });
+      scrollToBottom();
+    } catch (e) {
+      console.error('Erro ao salvar segmento:', e);
+      toast.error('Não foi possível salvar a etapa.');
+    }
+  };
+
+  // Voltar para o segmento anterior (apenas rola até a mensagem anterior)
+  const handlePrevSegment = () => {
+    if (segmentMessageIds.length <= 1) return;
+    const prevId = segmentMessageIds[segmentMessageIds.length - 2];
+    const el = document.getElementById(`msg-${prevId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   };
 
@@ -1549,37 +1617,9 @@ Obrigado pela paciência! 🤖✨`,
                 </div>
               )}
             </div>
-            {/* Toggle de Diagramas */}
-            <div className="relative">
-              <button
-                type="button"
-                aria-label={diagramsEnabled ? "Desativar diagramas" : "Ativar diagramas"}
-                title={diagramsEnabled ? "Diagramas ativados" : "Diagramas desativados"}
-                onClick={() => setDiagramsEnabled((v) => !v)}
-                className={cn(
-                  "flex items-center gap-1 px-2 py-1 rounded-full border border-gray-200 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-                  diagramsEnabled
-                    ? "bg-[hsl(var(--education-purple)/0.12)] text-[hsl(var(--education-purple))] border-[hsl(var(--education-purple))]"
-                    : "bg-white text-gray-500 hover:text-[hsl(var(--education-purple))] hover:border-[hsl(var(--education-purple))]"
-                )}
-                tabIndex={0}
-                style={{ minHeight: 28 }}
-              >
-                <Sparkles className="h-4 w-4" />
-                <span>Diagramas</span>
-              </button>
-            </div>
-            {diagramsEnabled && (
-              <Select value={diagramType} onValueChange={(v) => setDiagramType(v as any)}>
-                <SelectTrigger className="w-[120px] h-8 text-xs">
-                  <SelectValue placeholder="Tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="mermaid">Mermaid</SelectItem>
-                  <SelectItem value="excalidraw">Excalidraw</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
+            {/* Diagram UI removed */}
+         
+          
           </div>
         </div>
       </div>
@@ -1614,15 +1654,16 @@ Obrigado pela paciência! 🤖✨`,
             </div>
           )}
 
-          {/* Regular Chat Messages */}
+          {/* Regular Chat Messages (wrap com id p/ scroll) */}
           {!showWelcomeMessages && messages.map((message) => (
-            <ChatMessage
-              key={message.id}
-              content={message.content}
-              isAi={message.isAi}
-              timestamp={message.timestamp}
-              onQuizAnswer={handleQuizAnswer}
-            />
+            <div key={message.id} id={`msg-${message.id}`}>
+              <ChatMessage
+                content={message.content}
+                isAi={message.isAi}
+                timestamp={message.timestamp}
+                onQuizAnswer={handleQuizAnswer}
+              />
+            </div>
           ))}
           
           {/* IdleState - Aparecer quando usuário estiver idle (mas não em nível 'none') */}
@@ -1644,6 +1685,25 @@ Obrigado pela paciência! 🤖✨`,
         "border-t p-4 backdrop-blur shrink-0 bg-background/70 supports-[backdrop-filter]:bg-background/60 sticky bottom-0",
         isMobile ? "pb-6" : ""
       )}>
+        {/* Barra de avanço de etapas (quando há segmentos pendentes) */}
+        {(pendingSegments.length > 0 || segmentMessageIds.length > 1) && !isLoading && !showWelcomeMessages && (
+          <div className="max-w-3xl mx-auto mb-2 flex items-center justify-between rounded-xl border bg-background/90 shadow-sm px-3 py-2">
+            <div className="text-xs text-muted-foreground">
+              Etapas restantes: {pendingSegments.length}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={handlePrevSegment} disabled={segmentMessageIds.length <= 1} className="h-8">
+                Voltar etapa
+              </Button>
+              {pendingSegments.length > 0 && (
+                <Button size="sm" onClick={handleNextSegment} className="h-8">
+                  {getNextStepButtonLabel()}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="max-w-3xl mx-auto rounded-2xl border bg-background/90 shadow-sm p-2">
           <ChatInput
             onSendMessage={handleSendMessage}

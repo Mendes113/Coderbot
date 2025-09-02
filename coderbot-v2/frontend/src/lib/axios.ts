@@ -3,9 +3,8 @@ import axios from 'axios';
 import { pb } from "@/integrations/pocketbase/client";
 import posthog from 'posthog-js';
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
-});
+const base = (import.meta as any)?.env?.VITE_API_URL || '/api';
+const api = axios.create({ baseURL: base });
 
 api.interceptors.request.use(async (config) => {
   // Use PocketBase token instead of Supabase

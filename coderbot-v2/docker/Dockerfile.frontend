@@ -23,10 +23,20 @@ COPY . .
 
 RUN rm -rf src-tauri temp-tauri supabase 2>/dev/null || true
 
-# Definir variáveis de ambiente para build
+# ===== Build-time args para Vite =====
+ARG VITE_API_URL=/api
+ARG VITE_POCKETBASE_URL=/pb
+# PostHog (analytics)
+ARG VITE_PUBLIC_POSTHOG_KEY
+ARG VITE_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+
+# Definir variáveis de ambiente para build (lidas pelo Vite)
 ENV NODE_ENV=production
-ENV VITE_API_URL=http://localhost:8000
-ENV VITE_POCKETBASE_URL=http://localhost:8090
+ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_POCKETBASE_URL=${VITE_POCKETBASE_URL}
+# PostHog (analytics)
+ENV VITE_PUBLIC_POSTHOG_KEY=${VITE_PUBLIC_POSTHOG_KEY}
+ENV VITE_PUBLIC_POSTHOG_HOST=${VITE_PUBLIC_POSTHOG_HOST}
 
 # Build da aplicação para produção (falha se build falhar)
 RUN pnpm run build

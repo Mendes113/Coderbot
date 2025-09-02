@@ -4,13 +4,12 @@ import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useMemo, useState, useEffect, useRef } from "react";
-import mermaid from "mermaid";
 import api from "@/lib/axios";
 import Editor from "@monaco-editor/react";
 import posthog from "posthog-js";
 
 const JUDGE0_URL = ""; // force proxy path
-const API_URL = (import.meta as any)?.env?.VITE_API_URL || "http://localhost:8000";
+// Remove duplicate API_URL definition - axios already handles this
 
 // Small stable hash for block keys
 const simpleHash = (s: string) => {
@@ -36,68 +35,7 @@ export type QuizAnswerEvent = {
 };
 
 const MermaidView = ({ code, id }: { code: string; id: string }) => {
-  const [svg, setSvg] = useState<string>("");
-  const [error, setError] = useState<string>("");
-
-  const sanitize = (src: string) => {
-    let c = (src || "").trim();
-    // Remove cercas acidentais
-    c = c.replace(/^```mermaid\s*/i, "");
-    c = c.replace(/```\s*$/i, "");
-    // Se não começar com diretiva conhecida, prefixar um grafo simples
-    const startsOk = /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|journey|gantt|pie)\b/.test(c);
-    if (!startsOk) {
-      c = `graph TD\n${c}`;
-    }
-    return c;
-  };
-
-  useEffect(() => {
-    let cancelled = false;
-    const render = async () => {
-      try {
-        mermaid.initialize({ startOnLoad: false, theme: "dark" });
-        const uniqueId = `mmd_${id}`;
-        const primary = sanitize(code);
-        try {
-          const result = await mermaid.render(uniqueId, primary);
-          if (!cancelled) {
-            setSvg(result.svg || "");
-            setError("");
-          }
-          return;
-        } catch (e1: any) {
-          // Segunda tentativa: encapsular em um grafo mínimo
-          const fallback = `graph TD\nA[Diagrama]-->B[Conteúdo]\n`;
-          const result2 = await mermaid.render(uniqueId + "_fb", fallback);
-          if (!cancelled) {
-            setSvg(result2.svg || "");
-            setError("Diagrama original inválido; exibindo fallback.");
-          }
-        }
-      } catch (e: any) {
-        if (!cancelled) {
-          setSvg("");
-          setError("Falha ao renderizar diagrama.");
-        }
-      }
-    };
-    render();
-    return () => { cancelled = true; };
-  }, [code, id]);
-
-  return (
-    <div className="bg-white p-4">
-      {svg ? (
-        <>
-          {error && <div className="text-xs text-red-500 mb-2">{error}</div>}
-          <div className="overflow-auto" dangerouslySetInnerHTML={{ __html: svg }} />
-        </>
-      ) : (
-        <div className="text-sm text-[#7d8590]">Não foi possível renderizar o diagrama.</div>
-      )}
-    </div>
-  );
+  return null;
 };
 
 type ChatMessageProps = {
@@ -125,17 +63,26 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
       if (!match) return null;
       const jsonStr = match[1].trim();
       const data = JSON.parse(jsonStr) as {
-        question: string;
-        options: { id?: string; text: string; correct?: boolean }[];
+        question?: string;
+        options?: { id?: string; text?: string; correct?: boolean; reason?: string; explanation?: string }[];
         explanation?: string;
       };
-      const normalized = (data.options || []).slice(0, 3).map((opt, idx) => ({
-        id: opt.id || ["A", "B", "C"][idx],
-        text: opt.text,
-        correct: Boolean(opt.correct),
-      }));
-      if (normalized.length === 3 && normalized.some(o => o.correct)) {
-        return { question: data.question, options: normalized, explanation: data.explanation };
+      const opts = Array.isArray(data.options) ? data.options : [];
+      const normalized = opts
+        .map((opt, idx) => ({
+          id: opt?.id || String.fromCharCode(65 + idx),
+          text: (opt?.text ?? "").toString(),
+          correct: Boolean((opt as any)?.correct),
+          reason: (opt as any)?.reason || (opt as any)?.explanation || undefined,
+        }))
+        .filter(o => o.text.trim().length > 0)
+        .slice(0, 3);
+      if (normalized.length >= 2) {
+        return {
+          question: (data.question || '').toString(),
+          options: normalized as { id: string; text: string; correct: boolean; reason?: string }[],
+          explanation: data.explanation,
+        };
       }
       return null;
     } catch {
@@ -257,7 +204,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
     const langId = languageIdFrom(langName);
 
     console.log("=== EXECUTION DEBUG START ===");
-    console.log("[Runner] Run requested", { language: langName, langId, blockKey, API_URL, sourceCodeLength: source.length, stdinLength: (stdin || '').length });
+    console.log("[Runner] Run requested", { language: langName, langId, blockKey, sourceCodeLength: source.length, stdinLength: (stdin || '').length });
 
     setExecStates(prev => ({ ...prev, [blockKey]: { status: 'running' } }));
 
@@ -265,7 +212,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
 
     // Always backend proxy now
     try {
-      const endpoint = `${API_URL}/judge/executar`;
+      const endpoint = "judge/executar";
       const payload = { language: langName, code: source, stdin: stdin || "" } as { language: string; code: string; stdin?: string };
       console.log("[Runner] Using backend proxy", { endpoint, payload });
       const res = await api.post(endpoint, payload, { validateStatus: () => true });
@@ -273,7 +220,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
       console.log("[Runner] Response status:", res.status);
       if (!(res.status >= 200 && res.status < 300)) {
         const errMsg = `Backend ${res.status}: ${typeof res.data === 'string' ? res.data : JSON.stringify(res.data)}`;
-        setExecStates(prev => ({ ...prev, [blockKey]: { status: 'error', error: errMsg, meta: { path: 'BACKEND_PROXY', endpoint, status: res.status } } }));
+        setExecStates(prev => ({ ...prev, [blockKey]: { status: 'error', error: errMsg, meta: { path: 'BACKEND_PROXY', endpoint: `judge/executar`, status: res.status } } }));
         console.error('[Runner] HTTP Error Response:', res.data);
         trackEvent('edu_code_run', { lang: langName, path: 'BACKEND_PROXY', durationMs, status: res.status, success: false });
         console.log("=== EXECUTION DEBUG END ===");
@@ -288,12 +235,12 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
       if (json.status?.description) parts.push(`status: ${String(json.status.description)}`);
       if (json.token) parts.push(`token: ${String(json.token)}`);
       const out = parts.join("\n");
-      setExecStates(prev => ({ ...prev, [blockKey]: { status: 'done', output: out || '(sem saída)', meta: { path: 'BACKEND_PROXY', endpoint, status: res.status, token: json?.token, message: json?.message || json?.status?.description }, data: json } }));
+      setExecStates(prev => ({ ...prev, [blockKey]: { status: 'done', output: out || '(sem saída)', meta: { path: 'BACKEND_PROXY', endpoint: `judge/executar`, status: res.status, token: json?.token, message: json?.message || json?.status?.description }, data: json } }));
       trackEvent('edu_code_run', { lang: langName, path: 'BACKEND_PROXY', durationMs, status: res.status, success: true });
       console.log("[Runner] SUCCESS");
     } catch (e: any) {
       const durationMs = Date.now() - startedAt;
-      setExecStates(prev => ({ ...prev, [blockKey]: { status: 'error', error: e?.message || 'Falha ao executar código (proxy)', meta: { path: 'BACKEND_PROXY', endpoint: `${API_URL}/judge/executar`, status: 0 } } }));
+      setExecStates(prev => ({ ...prev, [blockKey]: { status: 'error', error: e?.message || 'Falha ao executar código (proxy)', meta: { path: 'BACKEND_PROXY', endpoint: `judge/executar`, status: 0 } } }));
       trackEvent('edu_code_run', { lang: langName, path: 'BACKEND_PROXY', durationMs, status: 0, success: false });
       console.error('[Runner] CATCH Error:', e);
     }
@@ -305,6 +252,13 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
 
   // Remove the raw ```quiz block from markdown before rendering
   const contentWithoutQuiz = useMemo(() => content.replace(/```quiz[\s\S]*?```/gi, '').trim(), [content]);
+
+  // Determine if there is explanatory content besides headings and fenced code blocks
+  const hasExplanationContent = useMemo(() => {
+    const withoutCode = contentWithoutQuiz.replace(/```[\s\S]*?```/g, '');
+    const withoutHeadings = withoutCode.replace(/^\s{0,3}#{1,6}\s+[^\n]+\n?/gm, '');
+    return withoutHeadings.trim().length > 0;
+  }, [contentWithoutQuiz]);
 
   // Fallback: parse fenced code blocks if ReactMarkdown doesn't render any (e.g., formatting quirks)
   const fencedBlocks = useMemo(() => {
@@ -334,7 +288,6 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
     return null as null | { lang: string; code: string; blockKey: string };
   }, [fencedBlocks]);
 
-  const [selectedView, setSelectedView] = useState<'explanation' | 'final'>('explanation');
   const [editedFinalCode, setEditedFinalCode] = useState<string>(finalBlock?.code || '');
   const [finalLang, setFinalLang] = useState<string>(finalBlock?.lang || 'javascript');
   const [finalStdin, setFinalStdin] = useState<string>("");
@@ -447,10 +400,14 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
   return (
     <div
       className={cn(
-        "py-5 px-5 rounded-2xl mb-3 shadow-sm transition-all duration-200 border",
+        // layout and common bubble styling
+        "py-5 px-5 rounded-2xl mb-3 shadow-sm transition-all duration-200 border max-w-[85%]",
+        // side alignment: AI left, User right
+        isAi ? "mr-auto" : "ml-auto",
+        // distinct background, border and text colors + asymmetric corners
         isAi
-          ? "bg-[hsl(var(--education-bot-bg))] border-white/10 text-white"
-          : "bg-[hsl(var(--education-user-bg))] border-black/10 text-gray-900"
+          ? "bg-[#0b1220] border-[#334155] text-[#e5e7eb] rounded-bl-none"
+          : "bg-[#1d4ed8] border-[#1e40af] text-white rounded-br-none"
       )}
     >
       <div className="flex items-center mb-2">
@@ -458,17 +415,37 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
           className={cn(
             "icon-container h-8 w-8 rounded-full flex items-center justify-center shadow-sm border transition-all duration-300 hover:scale-105",
             isAi
-              ? "bg-[hsl(var(--education-purple))] border-white/10 hover:bg-[hsl(var(--education-purple-dark))]"
-              : "bg-[hsl(var(--education-user))] border-black/10 hover:bg-[hsl(var(--education-user-dark))]"
+              ? "bg-[#1d4ed8] border-white/10 hover:bg-[#1e40af]"
+              : "bg-white/15 border-white/20 hover:bg-white/20"
           )}
         >
           {isAi ? (
             <Bot className="icon-bot h-4 w-4 text-white animate-subtle-pulse hover:animate-gentle-float transition-all duration-300" />
           ) : (
-            <User className="icon-user h-4 w-4 text-gray-100 hover:text-white transition-all duration-300 hover:scale-110 animate-rotate-gently" />
+            <User className="icon-user h-4 w-4 text-white transition-all duration-300 hover:scale-110" />
           )}
         </div>
-        <span className={cn("ml-2 font-semibold text-sm", isAi ? "text-white" : "text-gray-100")}>{isAi ? "Assistente IA" : "Você"}</span>
+        <span className={cn("ml-2 font-semibold text-sm", isAi ? "text-white" : "text-white")}>{isAi ? "Assistente IA" : "Você"}</span>
+        {/* Segment chip (detect from markdown heading) */}
+        {(() => {
+          // Captura primeira linha do tipo ### Título
+          const m = (content || '').match(/^\s{0,3}#{3}\s+([^\n]+)/);
+          if (!m) return null;
+          const title = (m[1] || '').trim();
+          const lower = title.toLowerCase();
+          let cls = 'bg-[#21262d] text-[#9ca3af] border-[#30363d]';
+          if (/introdu\u00e7\u00e3o|introducao/.test(lower)) cls = 'bg-[#1f1533] text-[#c4b5fd] border-[#7c3aed]';
+          else if (/passo a passo|passo/.test(lower)) cls = 'bg-[#0d1b2a] text-[#93c5fd] border-[#3b82f6]';
+          else if (/exemplo\s+correr|exemplo correto|correto|\u2705/.test(lower)) cls = 'bg-[#0c1a10] text-[#86efac] border-[#16a34a]';
+          else if (/exemplo\s+incorreto|incorreto|erro|\u26a0/.test(lower)) cls = 'bg-[#1a0c0c] text-[#fca5a5] border-[#ef4444]';
+          else if (/reflex/.test(lower)) cls = 'bg-[#1a1033] text-[#c084fc] border-[#a855f7]';
+          else if (/c\u00f3digo final|codigo final|c\u00f3digo|codigo|final/.test(lower)) cls = 'bg-[#0b1020] text-[#93c5fd] border-[#3b82f6]';
+          return (
+            <span className={cn("ml-2 px-2 py-0.5 rounded-full text-[10px] font-medium border", cls)}>
+              {title}
+            </span>
+          );
+        })()}
         <span className="ml-auto text-xs text-muted-foreground">
           {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
@@ -476,35 +453,10 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
       <div className="ml-10">
         {isAi ? (
           <div className="markdown-content prose prose-invert max-w-none">
-            {/* Tabs */}
-            {finalBlock && (
-              <div className="mb-3 flex items-center gap-2">
-                <button
-                  type="button"
-                  className={cn(
-                    "px-3 py-1.5 rounded-full text-xs border transition-colors",
-                    selectedView === 'explanation' ? 'bg-[#7c3aed] text-white border-[#a78bfa]' : 'bg-transparent border-[#6b7280] text-[#cbd5e1] hover:bg-white/10'
-                  )}
-                  onClick={() => setSelectedView('explanation')}
-                >
-                  Explicação
-                </button>
-                {finalBlock && (
-                  <button
-                    type="button"
-                    className={cn(
-                      "px-3 py-1.5 rounded-full text-xs border transition-colors",
-                      selectedView === 'final' ? 'bg-[#7c3aed] text-white border-[#a78bfa]' : 'bg-transparent border-[#6b7280] text-[#cbd5e1] hover:bg-white/10'
-                    )}
-                    onClick={() => setSelectedView('final')}
-                  >
-                    Código final
-                  </button>
-                )}
-              </div>
-            )}
-
-            {selectedView === 'explanation' && (
+            {/* Auto: render explanation (non-empty after removing headings and code); otherwise show final code editor */}
+            {(() => {
+              if (hasExplanationContent) {
+                return (
             <ReactMarkdown
               components={{
                 code({ node, className, children, inline, ...props }: any) {
@@ -531,7 +483,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
                       <div className="my-3 rounded-md overflow-hidden bg-[#0d1117] border border-[#30363d]">
                         <div className="flex items-center justify-between px-3 py-2 border-b border-[#30363d]">
                           <span className="text-xs text-[#9ca3af] font-mono">{effectiveLang}</span>
-                          <button 
+                          <button
                             onClick={() => copyToClipboard(code)}
                             className="opacity-90 hover:opacity-100 transition-opacity duration-200 bg-[#21262d] hover:bg-[#30363d] rounded px-2 py-1 text-[#7d8590] hover:text-[#c9d1d9] text-xs flex items-center gap-1"
                             aria-label="Copy code"
@@ -564,7 +516,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
                       </div>
                     );
                   }
-                  
+
                   return (
                     <code className="bg-[#262626] text-[#e6edf3] px-1.5 py-0.5 rounded text-sm font-mono border border-[#30363d]" {...props}>
                       {children}
@@ -572,10 +524,10 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
                   );
                 },
                 a: ({ node, ...props }) => (
-                  <a 
-                    {...props} 
-                    className="text-blue-400 hover:text-blue-300 underline hover:no-underline transition-colors" 
-                    target="_blank" 
+                  <a
+                    {...props}
+                    className="text-blue-400 hover:text-blue-300 underline hover:no-underline transition-colors"
+                    target="_blank"
                     rel="noopener noreferrer"
                   />
                 ),
@@ -604,20 +556,22 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
             >
               {contentWithoutQuiz}
             </ReactMarkdown>
-            )}
+                );
+              }
+              return null;
+            })()}
 
-            {/* Fallback runner when markdown produced no code blocks - only in explanation view */}
-            {selectedView === 'explanation' && codeBlockCounter < 0 && fencedBlocks.length > 0 && (
+            {/* Fallback runner when no explanation content exists: show code blocks (non-diagram) */}
+            {(!hasExplanationContent) && codeBlockCounter < 0 && fencedBlocks.length > 0 && !finalBlock && (
               <div className="mt-4 space-y-4">
                 {fencedBlocks.map(({ lang, code, blockKey }) => {
                   // hide in explanation if this is final or diagram
-                  if (finalBlock && blockKey === finalBlock.blockKey) return null;
                   if (lang === 'mermaid' || lang === 'excalidraw') return null; // sempre ocultar diagramas
                   return (
                     <div key={blockKey} className="rounded-md overflow-hidden bg-[#0d1117] border border-[#30363d]">
                       <div className="flex items-center justify-between px-3 py-2 border-b border-[#30363d]">
                         <span className="text-xs text-[#9ca3af] font-mono">{lang || 'text'}</span>
-                        <button 
+                        <button
                           onClick={() => copyToClipboard(code)}
                           className="opacity-90 hover:opacity-100 transition-opacity duration-200 bg-[#21262d] hover:bg-[#30363d] rounded px-2 py-1 text-[#7d8590] hover:text-[#c9d1d9] text-xs flex items-center gap-1"
                           aria-label="Copy code"
@@ -652,8 +606,8 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
               </div>
             )}
 
-            {/* Quiz options render in explanation view */}
-            {selectedView === 'explanation' && quizData && (
+            {/* Quiz options render when present */}
+            {quizData && (
               <div className="mt-4 p-3 rounded-xl border border-[#30363d] bg-[#0f1420]">
                 <div className="text-sm text-white font-medium mb-2">{quizData.question || 'Quiz'}</div>
                 <div className="flex gap-2 flex-wrap">
@@ -698,20 +652,24 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
                     );
                   })}
                 </div>
-                {selectedOption !== null && (
-                  <div className={cn("mt-2 text-xs", isCorrect ? "text-green-400" : "text-red-400")}
-                  >
-                    {isCorrect ? "Resposta correta!" : "Resposta incorreta."}
-                    {quizData.explanation ? (
-                      <span className="block text-[#9ca3af] mt-1">{quizData.explanation}</span>
-                    ) : null}
-                  </div>
-                )}
+                {selectedOption !== null && (() => {
+                  const selected = quizData.options.find(o => o.id === selectedOption);
+                  const reason = selected?.reason || quizData.explanation;
+                  return (
+                    <div className={cn("mt-2 text-xs", isCorrect ? "text-green-400" : "text-red-400")}
+                    >
+                      {isCorrect ? "Resposta correta!" : "Resposta incorreta."}
+                      {reason ? (
+                        <span className="block text-[#9ca3af] mt-1">{reason}</span>
+                      ) : null}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
-            {/* Final code view */}
-            {selectedView === 'final' && finalBlock && (
+            {/* Final code view: only when no explanation content exists and we detected a final block */}
+            {(!hasExplanationContent) && finalBlock && (
               <div className="rounded-lg overflow-hidden bg-[#0d1117] border border-[#30363d]">
                 <div className="flex items-center justify-between bg-[#161b22] px-4 py-2.5 border-b border-[#30363d]">
                   <div className="text-sm text-[#7d8590] font-mono">{finalLang || 'javascript'}</div>
@@ -797,76 +755,10 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
                     />
                   </div>
                 </div>
-                {(() => {
-                  const key = simpleHash(`${(finalLang || 'javascript').toLowerCase()}::${editedFinalCode}`);
-                  const status = execStates[key]?.status;
-                  return (
-                    <div className="border-t border-[#30363d] bg-[#0f1420] px-4 py-3 text-sm text-[#c9d1d9]">
-                      <div className="flex items-center gap-2 mb-2">
-                        <TerminalSquare size={16} />
-                        <span className="text-[#7d8590]">Saída da execução</span>
-                      </div>
-                      {status === 'running' && <div className="text-[#7d8590]">Executando...</div>}
-                      {status === 'done' && (
-                        (() => {
-                          const summary = buildSummary(finalLang || 'javascript', execStates[key]?.data);
-                          const open = Boolean(detailsOpen[key]);
-                          return (
-                            <div className="space-y-2">
-                              <div className={cn(
-                                "px-3 py-2 rounded-md text-sm flex items-start gap-2",
-                                summary.level === 'success' && 'bg-[#0c1a10] text-[#c9d1d9] border border-[#1f6f3e]',
-                                summary.level === 'info' && 'bg-[#0d1726] text-[#c9d1d9] border border-[#1f3b6f]',
-                                summary.level === 'warn' && 'bg-[#1b150c] text-[#c9d1d9] border border-[#6f531f]',
-                                summary.level === 'error' && 'bg-[#1a0c0c] text-[#c9d1d9] border border-[#6f1f1f]'
-                              )}>
-                                <div className="pt-0.5">
-                                  {summary.level === 'success' ? <CheckCheck size={14} className="text-[#3fb950]"/> : summary.level === 'warn' ? <AlertTriangle size={14} className="text-[#f59e0b]"/> : summary.level === 'error' ? <AlertTriangle size={14} className="text-[#ef4444]"/> : <TerminalSquare size={14} className="text-[#60a5fa]"/>}
-                                </div>
-                                <div className="flex-1">{summary.text}</div>
-                                <button
-                                  type="button"
-                                  className="text-xs text-[#7d8590] hover:text[#c9d1d9] underline ml-2"
-                                  onClick={() => toggleDetails(key)}
-                                >
-                                  {open ? 'Ocultar detalhes' : 'Mostrar detalhes'}
-                                </button>
-                              </div>
-                              {open && (
-                                <div className="space-y-2">
-                                  <pre className="whitespace-pre-wrap text-[#c9d1d9]">{execStates[key]?.output}</pre>
-                                  {execStates[key]?.meta && (
-                                    <div className="mt-2 text-xs text-[#7d8590]">
-                                      <div>Executado via: {execStates[key]?.meta?.path}</div>
-                                      <div>HTTP: {execStates[key]?.meta?.status} • endpoint: {execStates[key]?.meta?.endpoint}</div>
-                                      {execStates[key]?.meta?.token && (<div>token: {execStates[key]?.meta?.token}</div>)}
-                                      {execStates[key]?.meta?.message && (<div>mensagem: {execStates[key]?.meta?.message}</div>)}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()
-                      )}
-                      {status === 'error' && (
-                        <div className="text-red-400 flex flex-col gap-1">
-                          <div className="flex items-center gap-2"><AlertTriangle size={14} /> {execStates[key]?.error}</div>
-                          {execStates[key]?.meta && (
-                            <div className="text-xs text-[#fca5a5]">
-                              <div>via: {execStates[key]?.meta?.path} • endpoint: {execStates[key]?.meta?.endpoint}</div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {!status && <div className="text-[#7d8590]">Edite e clique em Executar para ver a saída.</div>}
-                    </div>
-                  );
-                })()}
               </div>
             )}
 
-            {/* Diagram view removido */}
+
           </div>
         ) : (
           <div className={cn("text-base whitespace-pre-wrap leading-relaxed", "text-white")}>{content}</div>

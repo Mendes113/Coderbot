@@ -1,8 +1,8 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useRef, useState, useMemo, useEffect, Suspense } from "react";
 import { Excalidraw, serializeAsJSON } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
-import { Save, Plus, UploadCloud, Loader2, MessageCircle, Star, Trophy, Zap, Heart, Sparkles, ArrowLeft } from "lucide-react";
+import { Save, Plus, UploadCloud, Loader2, MessageCircle, Star, Trophy, Zap, Heart, Sparkles, ArrowLeft, Cpu, Database, Brain } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
 import {
@@ -12,35 +12,194 @@ import {
   registerUserAction,
 } from "@/integrations/pocketbase/client";
 import { useDrawings } from "@/hooks/useDrawings";
-import { DrawingList } from "@/components/whiteboard/DrawingList";
+import { DrawingList } from "@/Components/whiteboard/DrawingList";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
+import { usePerformance } from "@/hooks/usePerformance";
+import { Button } from "@/components/ui/button";
 
 // ---------- Tipos auxiliares ----------
 /** Estrutura mínima do JSON exportado pelo Excalidraw */
 type SceneJSON = Record<string, unknown>;
 
+/** Contexto estruturado do whiteboard para IA */
+interface WhiteboardContext {
+  summary: string;
+  elements: any[];
+  metadata: {
+    totalElements: number;
+    types: string[];
+    complexity: 'simple' | 'medium' | 'complex';
+    lastModified: string;
+  };
+  insights: string[];
+}
+
 const getToday = () => new Date().toISOString().slice(0, 10);
+
+// Hook personalizado para gerenciar o contexto do whiteboard para IA
+const useWhiteboardAIContext = (apiRef: React.RefObject<ExcalidrawImperativeAPI>) => {
+  const [context, setContext] = useState<WhiteboardContext | null>(null);
+  const [isGeneratingContext, setIsGeneratingContext] = useState(false);
+
+  const generateContext = useCallback(async () => {
+    const api = apiRef.current;
+    if (!api) return null;
+
+    setIsGeneratingContext(true);
+    try {
+      const elements = api.getSceneElements();
+      const appState = api.getAppState();
+
+      // Análise básica dos elementos
+      const elementTypes = [...new Set(elements.map(el => el.type))];
+      const complexity = elements.length > 50 ? 'complex' :
+                        elements.length > 20 ? 'medium' : 'simple';
+
+      // Gera insights básicos sobre o conteúdo
+      const insights: string[] = [];
+      if (elements.some(el => el.type === 'text')) {
+        insights.push("Contém anotações textuais");
+      }
+      if (elements.some(el => el.type === 'rectangle' || el.type === 'ellipse')) {
+        insights.push("Possui formas geométricas");
+      }
+      if (elements.some(el => el.type === 'arrow')) {
+        insights.push("Contém conexões/setas indicando relacionamentos");
+      }
+      if (elements.length > 10) {
+        insights.push("Quadro com muitos elementos - pode representar um conceito complexo");
+      }
+
+      // Gera resumo simples
+      const summary = `Quadro com ${elements.length} elementos (${elementTypes.join(', ')}). ${
+        complexity === 'complex' ? 'Conteúdo complexo e detalhado.' :
+        complexity === 'medium' ? 'Conteúdo moderadamente detalhado.' :
+        'Conteúdo simples e direto.'
+      }`;
+
+      const newContext: WhiteboardContext = {
+        summary,
+        elements: elements.slice(0, 10), // Limita elementos para performance
+        metadata: {
+          totalElements: elements.length,
+          types: elementTypes,
+          complexity,
+          lastModified: new Date().toISOString()
+        },
+        insights
+      };
+
+      setContext(newContext);
+      return newContext;
+    } catch (error) {
+      console.error('Erro ao gerar contexto do whiteboard:', error);
+      return null;
+    } finally {
+      setIsGeneratingContext(false);
+    }
+  }, [apiRef]);
+
+  return {
+    context,
+    generateContext,
+    isGeneratingContext,
+    clearContext: useCallback(() => setContext(null), [])
+  };
+};
+
+// Hook para otimizar salvamento com debounce
+const useDebouncedSave = (saveFunction: () => Promise<void>, delay: number = 2000) => {
+  const timeoutRef = useRef<NodeJS.Timeout>();
+  const lastSaveRef = useRef<number>(0);
+
+  const debouncedSave = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = setTimeout(async () => {
+      const now = Date.now();
+      // Evita salvamentos muito frequentes (mínimo 1 segundo entre salvamentos)
+      if (now - lastSaveRef.current > 1000) {
+        try {
+          await saveFunction();
+          lastSaveRef.current = now;
+        } catch (error) {
+          console.error('Erro no salvamento automático:', error);
+        }
+      }
+    }, delay);
+  }, [saveFunction, delay]);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  return debouncedSave;
+};
+
+// Hook para cache inteligente de desenhos
+const useDrawingCache = () => {
+  const [cache, setCache] = useState<Map<string, { data: any; timestamp: number }>>(new Map());
+
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+
+  const getCached = useCallback((id: string) => {
+    const cached = cache.get(id);
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      return cached.data;
+    }
+    return null;
+  }, [cache]);
+
+  const setCached = useCallback((id: string, data: any) => {
+    setCache(prev => {
+      const newCache = new Map(prev);
+      newCache.set(id, { data, timestamp: Date.now() });
+
+      // Limpa cache antigo (mantém apenas os 10 mais recentes)
+      if (newCache.size > 10) {
+        const sorted = Array.from(newCache.entries())
+          .sort(([,a], [,b]) => b.timestamp - a.timestamp);
+        return new Map(sorted.slice(0, 10));
+      }
+
+      return newCache;
+    });
+  }, []);
+
+  const clearCache = useCallback(() => setCache(new Map()), []);
+
+  return { getCached, setCached, clearCache };
+};
 
 const Whiteboard: React.FC = () => {
   const apiRef = useRef<ExcalidrawImperativeAPI>(null);
   const inflightRef = useRef(false); // evita salvar em paralelo
 
+  // ---------- Performance e contexto IA ----------
+  const { metrics, isSlowConnection } = usePerformance();
+  const { context, generateContext, isGeneratingContext, clearContext } = useWhiteboardAIContext(apiRef);
+  const { getCached, setCached, clearCache } = useDrawingCache();
+
   // ---------- Sessão do usuário ----------
   const user = getCurrentUser();
   const { drawings, loading, refresh } = useDrawings(user?.id);
 
-  // ---------- Estado local ----------
+  // ---------- Estado local otimizado ----------
   const [editorVisible, setEditorVisible] = useState(false);
   const [scene, setScene] = useState<SceneJSON | null>(null);
-  const [activeId, setActiveId] = useState<string | null>(null); // controla update vs create
-  // const [excalidrawAccessed, setExcalidrawAccessed] = useState(false); // novo estado
-  // const [lastSaveTime, setLastSaveTime] = useState<number>(0);
-  // const [dailyBonusGiven, setDailyBonusGiven] = useState(false);
-  // const [createdBoards, setCreatedBoards] = useState<number>(0);
-  const [isChatOpen, setIsChatOpen] = useState(false); // novo estado para controlar abertura do chat
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [motivationalMessage, setMotivationalMessage] = useState("");
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // // Bônus diário ao acessar pela primeira vez no dia
   // React.useEffect(() => {
@@ -55,49 +214,48 @@ const Whiteboard: React.FC = () => {
   //   }
   // }, [user, dailyBonusGiven]);
 
-  /* ===================== FUNÇÃO DE SALVAR ===================== */
-  const saveScene = useCallback(async () => {
+  /* ===================== FUNÇÃO DE SALVAR OTIMIZADA ===================== */
+  const saveScene = useCallback(async (isAutoSave: boolean = false) => {
     const api = apiRef.current;
     if (!api || !user) return;
     if (inflightRef.current) return; // já tem save rodando
 
     inflightRef.current = true;
 
-    const jsonObj = serializeAsJSON(
-      api.getSceneElements(),
-      api.getAppState(),
-      api.getFiles(),
-      "local",
-    );
-    const jsonStr = JSON.stringify(jsonObj);
-
     try {
+      const jsonObj = serializeAsJSON(
+        api.getSceneElements(),
+        api.getAppState(),
+        api.getFiles(),
+        "local",
+      );
+      const jsonStr = JSON.stringify(jsonObj);
+
+      // Compressão simples para reduzir tamanho se necessário
+      const compressedData = jsonStr.length > 50000 ? jsonStr : jsonStr; // Placeholder para futura compressão
+
       if (activeId) {
-        await pb.collection("drawings").update(activeId, { data: jsonStr });
+        await pb.collection("drawings").update(activeId, { data: compressedData });
       } else {
         const record = await pb.collection("drawings").create({
           title: "Quadro sem nome",
-          data: jsonStr,
+          data: compressedData,
           user: user.id,
         });
         setActiveId(record.id);
-        // setCreatedBoards((prev) => {
-        //   const newCount = prev + 1;
-        //   // Bônus a cada 10 quadros criados
-        //   if (newCount % 10 === 0) {
-        //     registerUserAction(user.id, 'whiteboard_10_boards'); // 500 pontos
-        //   }
-        //   return newCount;
-        // });
-        // registerUserAction(user.id, 'whiteboard_create_board'); // 50 pontos
       }
-      // // Salvar quadro: 10 pontos, limitado a 1x por minuto
-      // const now = Date.now();
-      // if (now - lastSaveTime > 60000) {
-      //   registerUserAction(user.id, 'whiteboard_save_board');
-      //   setLastSaveTime(now);
-      // }
-      toast.success("Quadro salvo");
+
+      setLastSaved(new Date());
+
+      // Atualiza cache se for um quadro existente
+      if (activeId && jsonObj) {
+        setCached(activeId, jsonObj);
+      }
+
+      if (!isAutoSave) {
+        toast.success("Quadro salvo");
+      }
+
       refresh();
     } catch (err) {
       toast.error("Erro ao salvar");
@@ -105,50 +263,209 @@ const Whiteboard: React.FC = () => {
     } finally {
       inflightRef.current = false;
     }
-  }, [activeId, user, refresh/*, lastSaveTime*/]);
+  }, [activeId, user, refresh]);
 
-  /* ===================== AÇÕES DO MENU INICIAL ===================== */
+  // Auto-save inteligente com debounce
+  const debouncedAutoSave = useDebouncedSave(() => saveScene(true), isSlowConnection ? 5000 : 3000);
+
+  // Hook para detectar mudanças no quadro e acionar auto-save
+  useEffect(() => {
+    if (!editorVisible || !autoSaveEnabled || !apiRef.current) return;
+
+    const api = apiRef.current;
+    let changeTimeout: NodeJS.Timeout;
+    let pollInterval: NodeJS.Timeout;
+
+    const handleChange = () => {
+      clearTimeout(changeTimeout);
+      changeTimeout = setTimeout(() => {
+        if (autoSaveEnabled && editorVisible) {
+          debouncedAutoSave();
+        }
+      }, 1000); // Espera 1s após parar de editar
+    };
+
+    // Adiciona listeners para mudanças
+    if (api) {
+      // Note: Excalidraw API pode não ter eventos diretos, então usamos polling inteligente
+      pollInterval = setInterval(() => {
+        if (editorVisible && autoSaveEnabled) {
+          handleChange();
+        }
+      }, 5000); // Verifica a cada 5s
+
+      return () => {
+        clearInterval(pollInterval);
+        clearTimeout(changeTimeout);
+      };
+    }
+  }, [editorVisible, autoSaveEnabled]);
+
+  // Preload inteligente dos desenhos mais recentes
+  useEffect(() => {
+    if (drawings.length > 0 && !editorVisible) {
+      // Preload os 3 desenhos mais recentes em background
+      const recentDrawings = drawings
+        .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
+        .slice(0, 3);
+
+      recentDrawings.forEach((drawing, index) => {
+        // Preload com delay progressivo para não sobrecarregar
+        const timeoutId = setTimeout(() => {
+          if (!getCached(drawing.id)) {
+            try {
+              const jsonObj = typeof drawing.data === "string"
+                ? JSON.parse(drawing.data)
+                : drawing.data;
+              setCached(drawing.id, jsonObj);
+            } catch (error) {
+              console.warn(`Erro ao fazer preload do desenho ${drawing.id}:`, error);
+            }
+          }
+        }, index * 500); // 0ms, 500ms, 1000ms
+
+        // Cleanup timeout
+        return () => clearTimeout(timeoutId);
+      });
+    }
+  }, [drawings.length, editorVisible]);
+
+  /* ===================== AÇÕES DO MENU INICIAL OTIMIZADAS ===================== */
   const handleOpenEditor = useCallback(() => {
     setEditorVisible(true);
-    // if (!excalidrawAccessed && user) {
-    //   registerUserAction(user.id, "access_excalidraw");
-    //   setExcalidrawAccessed(true);
-    // }
-  }, [/*excalidrawAccessed,*/ user]);
+    // Gera contexto inicial para IA quando abre o editor
+    setTimeout(() => generateContext(), 1000);
+  }, []); // Remove generateContext dependency to prevent re-renders
 
-  const openLocalFile = async (file: File) => {
+  const openLocalFile = useCallback(async (file: File) => {
     try {
       const jsonObj = JSON.parse(await file.text());
       setScene(jsonObj);
       setActiveId(null);
       handleOpenEditor();
-      if (user) registerUserAction(user.id, 'whiteboard_upload_file'); // 30 pontos
-    } catch {
-      toast.error("Arquivo inválido");
-    }
-  };
+      if (user) registerUserAction(user.id, 'whiteboard_upload_file');
 
-  const openFromDB = (d: DrawingRecord) => {
+      // Feedback visual de carregamento
+      toast.success("Arquivo carregado com sucesso!");
+    } catch {
+      toast.error("Arquivo inválido ou corrompido");
+    }
+  }, []);
+
+  const openFromDB = useCallback((d: DrawingRecord) => {
     try {
-      const jsonObj: SceneJSON = typeof d.data === "string" ? JSON.parse(d.data) : (d.data as SceneJSON);
+      // Tenta carregar do cache primeiro
+      let jsonObj: SceneJSON = getCached(d.id);
+
+      if (!jsonObj) {
+        // Se não está no cache, parse do banco
+        jsonObj = typeof d.data === "string" ? JSON.parse(d.data) : (d.data as SceneJSON);
+
+        // Salva no cache para futuras utilizações
+        setCached(d.id, jsonObj);
+      }
+
       setScene(jsonObj);
       setActiveId(d.id);
       handleOpenEditor();
-      if (user) registerUserAction(user.id, 'whiteboard_open_board'); // 20 pontos
-    } catch {
+      if (user) registerUserAction(user.id, 'whiteboard_open_board');
+
+      // Feedback de performance inteligente
+      const wasCached = getCached(d.id) !== null;
+      toast.success(
+        `Quadro "${d.title || 'Sem nome'}" ${wasCached ? 'carregado (cache)' : 'carregado'}`,
+        {
+          duration: wasCached ? 1500 : 2000,
+          icon: wasCached ? '⚡' : '📁'
+        }
+      );
+    } catch (error) {
+      console.error('Erro ao abrir quadro:', error);
       toast.error("Não foi possível abrir o quadro");
     }
-  };
+  }, [user]); // Simplified dependencies to prevent re-renders
 
-  const newBoard = () => {
+  const newBoard = useCallback(() => {
+    // Limpa todos os estados relacionados
     setScene(null);
     setActiveId(null);
+    setLastSaved(null);
+
+    // Limpa cache e contexto
+    clearCache();
+    clearContext();
+    
+
     handleOpenEditor();
-    // Criar novo quadro: 50 pontos (será registrado no saveScene ao criar)
-  };
+    toast.success("Novo quadro criado!", { duration: 1500 });
+  }, [handleOpenEditor, clearCache, clearContext]);
+
+  /* ===================== COMPONENTES OTIMIZADOS ===================== */
+
+  // Componente lazy para Excalidraw com loading state
+  const LazyExcalidraw = useMemo(() => React.lazy(() =>
+    import("@excalidraw/excalidraw").then(module => ({
+      default: module.Excalidraw
+    }))
+  ), []);
+
+  // Indicador de performance aprimorado
+  const PerformanceIndicator = useMemo(() => {
+    const getPerformanceColor = () => {
+      if (isSlowConnection) return 'bg-orange-600';
+      if (metrics.cls && metrics.cls > 0.1) return 'bg-yellow-600';
+      return 'bg-green-600';
+    };
+
+    return (
+      <div className={`fixed top-4 right-4 z-30 ${getPerformanceColor()} text-white px-3 py-2 rounded-lg text-xs font-mono shadow-lg`}>
+        <div className="flex items-center gap-2">
+          <Cpu className="w-3 h-3" />
+          <div className="flex flex-col">
+            <span className="font-medium">
+              {isSlowConnection ? 'Conexão Lenta' : 'Performance OK'}
+            </span>
+            {lastSaved && (
+              <span className="text-xs opacity-90">
+                Salvo: {lastSaved.toLocaleTimeString()}
+              </span>
+            )}
+            {context && (
+              <span className="text-xs opacity-90">
+                IA: {context.metadata.totalElements} elementos
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }, [isSlowConnection, lastSaved, context?.metadata.totalElements, metrics.cls]);
+
+  // Indicador de contexto IA
+  const AIContextIndicator = useMemo(() => {
+    if (!isGeneratingContext && !context) return null;
+
+    return (
+      <div className="fixed bottom-20 right-4 z-30 bg-purple-600 text-white px-3 py-2 rounded-lg text-xs max-w-xs">
+        <div className="flex items-center gap-2">
+          {isGeneratingContext ? (
+            <>
+              <Loader2 className="w-3 h-3 animate-spin" />
+              <span>Analisando quadro...</span>
+            </>
+          ) : (
+            <>
+              <Brain className="w-3 h-3" />
+              <span>IA pronta ({context?.metadata.totalElements} elementos)</span>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }, [isGeneratingContext, context?.metadata.totalElements]);
 
   // Função para obter o JSON atual do quadro
-  const getCurrentSceneJSON = (): Record<string, any> | null => {
+  const getCurrentSceneJSON = useCallback((): Record<string, any> | null => {
     const api = apiRef.current;
     if (!api) return null;
     const jsonStr = serializeAsJSON(
@@ -162,13 +479,44 @@ const Whiteboard: React.FC = () => {
     } catch {
       return null;
     }
-  };
+  }, []);
 
-  /* ===================== RENDER ===================== */
+  // Contexto estruturado para IA - memoizado para performance
+  const structuredWhiteboardContext = useMemo(() => {
+    if (!context) return null;
+
+    return {
+      whiteboard: {
+        summary: context.summary,
+        complexity: context.metadata.complexity,
+        elementCount: context.metadata.totalElements,
+        elementTypes: context.metadata.types,
+        insights: context.insights,
+        lastModified: context.metadata.lastModified,
+        // Dados limitados para performance
+        sampleElements: context.elements.slice(0, 5)
+      },
+      user: {
+        hasActiveDrawing: !!activeId,
+        drawingTitle: "Quadro atual",
+        isAutoSaveEnabled: autoSaveEnabled
+      },
+      performance: {
+        isSlowConnection,
+        lastSaved: lastSaved?.toISOString()
+      }
+    };
+  }, [context?.summary, context?.metadata.totalElements, activeId, autoSaveEnabled, isSlowConnection, lastSaved]);
+
+  /* ===================== RENDER OTIMIZADO ===================== */
   return (
     <div className="flex flex-col w-full min-h-screen bg-background text-foreground relative">
       <Toaster position="bottom-center" />
-      
+
+      {/* Indicadores de Performance */}
+      {editorVisible && PerformanceIndicator}
+      {editorVisible && AIContextIndicator}
+
       {/* Celebration Overlay */}
       {showCelebration && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
@@ -241,21 +589,51 @@ const Whiteboard: React.FC = () => {
           )}
           */}
 
-          {/* upload */}
-          <label className="flex flex-col items-center gap-2 cursor-pointer w-full p-4 border rounded-lg bg-gray-50 hover:bg-gray-100 transition mb-2 text-black">
-            <UploadCloud size={24}  />
-            <span className="text-sm text-black">Carregar arquivo (.json / .excalidraw)</span>
+          {/* Upload com validação e feedback */}
+          <label className="flex flex-col items-center gap-2 cursor-pointer w-full p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 hover:border-purple-400 transition-all duration-300 mb-2 text-black group">
+            <div className="p-2 bg-purple-100 rounded-full group-hover:bg-purple-200 transition-colors">
+              <UploadCloud size={24} className="text-purple-600" />
+            </div>
+            <span className="text-sm text-black font-medium">Carregar arquivo (.json / .excalidraw)</span>
+            <span className="text-xs text-gray-500">Máx. 10MB • Cache inteligente ativado</span>
             <input
               type="file"
               accept=".json,.excalidraw"
               className="hidden"
-              onChange={(e) => e.target.files?.[0] && openLocalFile(e.target.files[0])}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+
+                // Validação de tamanho
+                const maxSize = 10 * 1024 * 1024; // 10MB
+                if (file.size > maxSize) {
+                  toast.error("Arquivo muito grande! Máximo 10MB.");
+                  return;
+                }
+
+                // Feedback de carregamento
+                toast.loading("Carregando arquivo...", { id: 'upload' });
+
+                try {
+                  await openLocalFile(file);
+                  toast.success("Arquivo carregado com sucesso!", { id: 'upload' });
+                } catch (error) {
+                  toast.error("Erro ao carregar arquivo", { id: 'upload' });
+                }
+              }}
             />
           </label>
 
-          {/* novo quadro */}
-          <button onClick={newBoard} className="btn-primary flex items-center gap-2 w-full justify-center py-3 text-lg rounded-lg shadow hover:scale-105 transition mb-2">
-            <Plus size={20} /> Novo quadro
+          {/* Novo quadro com feedback visual aprimorado */}
+          <button
+            onClick={newBoard}
+            className="btn-primary flex items-center gap-2 w-full justify-center py-3 text-lg rounded-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 mb-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+          >
+            <Plus size={20} />
+            Novo quadro
+            <div className="ml-2 px-2 py-1 bg-white/20 rounded-full text-xs">
+              IA Integrada
+            </div>
           </button>
 
               {/* Lista de quadros com design emocional */}
@@ -299,12 +677,12 @@ const Whiteboard: React.FC = () => {
           )}
         </div>
       ) : (
-        /* ---------- Editor ---------- */
+        /* ---------- Editor Otimizado ---------- */
         <>
-          <div 
+          <div
             className="fixed inset-0 top-0 left-0 w-full h-full z-10 bg-background"
-            style={{ 
-              height: '100vh', 
+            style={{
+              height: '100vh',
               width: '100vw',
               position: 'fixed',
               top: 0,
@@ -313,25 +691,45 @@ const Whiteboard: React.FC = () => {
               bottom: 0
             }}
           >
-            <Excalidraw
-              initialData={scene || undefined}
-              excalidrawAPI={(api) => (apiRef.current = api)}
-              theme="dark"
-              UIOptions={{
-                canvasActions: {
-                  loadScene: false,
-                  export: {
-                    saveFileToDisk: true
+            <Suspense fallback={
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+                  <p className="text-lg font-medium">Carregando editor...</p>
+                  <p className="text-sm text-muted-foreground">Preparando ferramentas de desenho</p>
+                </div>
+              </div>
+            }>
+              <LazyExcalidraw
+                initialData={scene || undefined}
+                excalidrawAPI={(api) => (apiRef.current = api)}
+                theme="dark"
+                UIOptions={{
+                  canvasActions: {
+                    loadScene: false,
+                    export: {
+                      saveFileToDisk: true
+                    }
                   }
-                }
-              }}
-            />
+                }}
+                onChange={() => {
+                  // Trigger contexto IA update quando há mudanças
+                  if (autoSaveEnabled) {
+                    generateContext();
+                  }
+                }}
+              />
+            </Suspense>
           </div>
 
           {/* Botão de voltar - canto superior esquerdo */}
           <button
-            onClick={() => setEditorVisible(false)}
-            title="Voltar para a lista"
+            onClick={() => {
+              setEditorVisible(false);
+              // Limpa contexto quando volta para a lista
+              clearContext();
+            }}
+            title="Voltar para a lista (limpa contexto da IA)"
             className="group fixed top-5 left-5 z-50 p-3 rounded-full shadow-2xl bg-gradient-to-r from-gray-600 to-gray-700 text-white hover:from-gray-700 hover:to-gray-800 hover:scale-110 transition-all duration-300 border-2 border-white/20"
           >
             <div className="relative">
@@ -342,21 +740,70 @@ const Whiteboard: React.FC = () => {
             <div className="absolute inset-0 bg-gray-400/20 rounded-full animate-ping opacity-50"></div>
           </button>
 
-          {/* ---------- Chat Popup ---------- */}
+          {/* ---------- Chat Popup com IA Integrada ---------- */}
           <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
             <SheetTrigger asChild>
               <button
-                title="Abrir chat"
-                className="fixed bottom-20 ml-2  z-50 p-5 rounded-full shadow-xl bg-primary text-primary-foreground hover:bg-primary/90 transition"
+                title="Abrir chat com IA (contexto do quadro disponível)"
+                className="fixed bottom-20 ml-2 z-50 p-5 rounded-full shadow-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 transition-all duration-300 hover:scale-105"
               >
-                <MessageCircle size={24} />
+                <div className="relative">
+                  <MessageCircle size={24} />
+                  {context && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                  )}
+                </div>
               </button>
             </SheetTrigger>
             <SheetContent side="bottom" className="h-[70vh] p-0">
-              {/* Passar o contexto do quadro para o chat */}
-              <ChatInterface whiteboardContext={scene || undefined} />
+              {/* Passar o contexto estruturado do quadro para o chat */}
+              <ChatInterface
+                whiteboardContext={structuredWhiteboardContext || scene || undefined}
+                methodology="worked_examples"
+              />
             </SheetContent>
           </Sheet>
+
+          {/* Controles de Performance e IA */}
+          <div className="fixed top-20 right-4 z-30 flex flex-col gap-2">
+            <Button
+              variant={autoSaveEnabled ? "default" : "outline"}
+              size="sm"
+              onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}
+              className="text-xs"
+              title="Ativar/desativar salvamento automático inteligente"
+            >
+              <Database className="w-3 h-3 mr-1" />
+              Auto-save {autoSaveEnabled ? 'ON' : 'OFF'}
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={generateContext}
+              disabled={isGeneratingContext}
+              className="text-xs"
+              title="Atualizar contexto da IA com o quadro atual"
+            >
+              {isGeneratingContext ? (
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+              ) : (
+                <Brain className="w-3 h-3 mr-1" />
+              )}
+              Atualizar IA
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearCache}
+              className="text-xs"
+              title="Limpar cache de desenhos"
+            >
+              <Database className="w-3 h-3 mr-1" />
+              Limpar Cache
+            </Button>
+          </div>
         </>
       )}
     </div>

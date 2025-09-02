@@ -17,7 +17,7 @@ const Progress = React.forwardRef<
     {showToggle && (
       <button
         onClick={onToggle}
-    className={cn(
+        className={cn(
           "flex items-center justify-center",
           "w-8 h-8 rounded-lg bg-primary hover:bg-primary/90",
           "text-primary-foreground transition-colors"
@@ -31,8 +31,22 @@ const Progress = React.forwardRef<
         )}
       </button>
     )}
+    <ProgressPrimitive.Root
+      ref={ref}
+      className={cn(
+        "relative h-4 w-full overflow-hidden rounded-full bg-secondary",
+        className
+      )}
+      {...props}
+    >
+      <ProgressPrimitive.Indicator
+        className="h-full w-full flex-1 bg-primary transition-all"
+        style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+      />
+    </ProgressPrimitive.Root>
   </div>
 ))
+
 Progress.displayName = ProgressPrimitive.Root.displayName
 
 export { Progress }

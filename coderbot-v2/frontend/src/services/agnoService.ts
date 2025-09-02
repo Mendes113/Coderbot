@@ -56,6 +56,8 @@ export interface AgnoResponse {
       content: string;
     };
   };
+  // Novo: segmentos estruturados para exibição passo a passo no frontend
+  segments?: ResponseSegment[];
 }
 
 // Interface para respostas XML estruturadas (worked examples)
@@ -134,6 +136,15 @@ export interface StructuredWorkedExampleResponse {
     learningTheory: string;
     agent: string;
   };
+}
+
+// Segmentos estruturados retornados pelo backend para navegação por etapas
+export interface ResponseSegment {
+  id: string;
+  title: string;
+  type: 'intro' | 'steps' | 'correct_example' | 'incorrect_example' | 'reflection' | 'final_code' | string;
+  content: string;
+  language?: string;
 }
 
 // Configurações dos provedores
@@ -264,8 +275,8 @@ class AgnoService {
         context: request.context,
         user_context: userContextConverted,
         include_final_code: request.includeFinalCode ?? true,
-        include_diagram: request.includeDiagram ?? true,
-        diagram_type: request.diagramType || 'mermaid',
+        include_diagram: false,
+        diagram_type: null,
         max_final_code_lines: request.maxFinalCodeLines ?? 150
       };
 
@@ -292,7 +303,8 @@ class AgnoService {
         methodology: request.methodology,
         isXmlFormatted: response.data.is_xml_formatted || request.methodology === MethodologyType.WORKED_EXAMPLES,
         metadata: response.data.metadata,
-        extras: response.data.extras
+        extras: response.data.extras,
+        segments: response.data.segments as ResponseSegment[] | undefined,
       };
     } catch (error: any) {
       const durationMs = Math.round(((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - startedAt);
@@ -632,7 +644,7 @@ class AgnoService {
    */
   async testConnection(): Promise<boolean> {
     try {
-      const response = await api.get(`${this.baseURL}/health`);
+      const response = await api.get('/health');
       console.log("AGNO Health Check:", response.data);
       return response.data.status === 'healthy';
     } catch (error) {

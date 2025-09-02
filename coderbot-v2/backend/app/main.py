@@ -32,13 +32,22 @@ app = FastAPI(
 )
 
 
-# CORS: permitir qualquer origem local (qualquer porta)
+# CORS: permitir origens explícitas do frontend e localhost
+allowed_origins = [
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+    "http://localhost",
+    "http://127.0.0.1",
+    "http://0.0.0.0:3001",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$",
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
 )
 
 
