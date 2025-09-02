@@ -35,11 +35,15 @@ class Settings(BaseSettings):
     ollama_host: str = Field("http://localhost:11434", env="OLLAMA_HOST")
     ollama_timeout: int = Field(120, env="OLLAMA_TIMEOUT")
 
+    # Qdrant Vector Database
+    qdrant_url: str = Field("http://localhost:6333", env="QDRANT_URL")
+    qdrant_api_key: str = Field("", env="QDRANT_API_KEY")
+
     # Outros
     rapidapi_key: str = Field(..., env="RAPIDAPI_KEY")
 
     class Config:
-        env_file = ".env"
+        env_file = "../.env"
         env_file_encoding = "utf-8"
         from_attributes = True
         extra = "ignore"  # Ignora campos extras para evitar erros de validação

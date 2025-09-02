@@ -92,8 +92,9 @@ class RAGService:
     """
 
     def __init__(self):
-        self.qdrant_url = os.getenv("QDRANT_URL", "http://qdrant:6333")
-        self.qdrant_api_key = os.getenv("QDRANT_API_KEY")
+        from app.config import settings
+        self.qdrant_url = settings.qdrant_url
+        self.qdrant_api_key = settings.qdrant_api_key
         self.collection_name = "educational_content"
 
         # Inicializar cliente Qdrant
@@ -179,11 +180,11 @@ class RAGService:
             )
             resp.raise_for_status()
             data = resp.json()
-                    embedding = data["data"][0]["embedding"]
+            embedding = data["data"][0]["embedding"]
 
-                    # Cache
-                    self.embedding_cache[cache_key] = embedding
-                    return embedding
+            # Cache
+            self.embedding_cache[cache_key] = embedding
+            return embedding
 
         except Exception as e:
             logger.warning(f"OpenAI embedding falhou: {e}")
@@ -470,7 +471,7 @@ class RAGService:
             logger.info(f"Contexto RAG construído: {len(retrieved_content)} itens, {rag_context.context_tokens} tokens")
             return rag_context
 
-            except Exception as e:
+        except Exception as e:
             logger.error(f"Erro ao construir contexto RAG: {e}")
             raise
 

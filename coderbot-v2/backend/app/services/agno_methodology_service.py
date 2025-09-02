@@ -1227,23 +1227,23 @@ class AgnoMethodologyService:
         )
 
         def ask(self, methodology: MethodologyType, user_query: str, context: Optional[str] = None, use_cognitive_override: bool = False) -> str:
-        """
-        Processa uma pergunta usando uma metodologia específica com context engineering.
+            """
+            Processa uma pergunta usando uma metodologia específica com context engineering.
 
-        Args:
-            methodology: Metodologia educacional a ser utilizada
-            user_query: Pergunta do usuário
-            context: Contexto adicional (opcional)
-            use_cognitive_override: Se True, permite que análise cognitiva altere a metodologia escolhida.
-                                   Se False (padrão), mantém a metodologia escolhida pelo usuário.
+            Args:
+                methodology: Metodologia educacional a ser utilizada
+                user_query: Pergunta do usuário
+                context: Contexto adicional (opcional)
+                use_cognitive_override: Se True, permite que análise cognitiva altere a metodologia escolhida.
+                                       Se False (padrão), mantém a metodologia escolhida pelo usuário.
 
-        Returns:
-            str: Resposta formatada segundo a metodologia escolhida
+            Returns:
+                str: Resposta formatada segundo a metodologia escolhida
 
-        Raises:
-            ValueError: Se a entrada for inválida
-            RuntimeError: Se houver erro na geração da resposta
-        """
+            Raises:
+                ValueError: Se a entrada for inválida
+                RuntimeError: Se houver erro na geração da resposta
+            """
         # Validação de entrada
         if not self._validate_input(user_query, context):
             raise ValueError("Entrada inválida: pergunta não pode estar vazia")
