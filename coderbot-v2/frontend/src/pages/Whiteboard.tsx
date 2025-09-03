@@ -435,7 +435,7 @@ const Whiteboard: React.FC = () => {
     };
 
     return (
-      <div className={`fixed top-4 right-4 z-30 ${getPerformanceColor()} text-white px-2 py-1 rounded-md text-xs font-mono shadow-md`}>
+      <div className={`fixed top-12 right-4 z-30 ${getPerformanceColor()} text-white px-2 py-1 rounded-md text-xs font-mono shadow-md`}>
         <div className="flex items-center gap-1">
           <Cpu className="w-3 h-3" />
           <span className="font-medium text-xs">
@@ -446,28 +446,22 @@ const Whiteboard: React.FC = () => {
     );
   }, [isSlowConnection, metrics.cls]);
 
-  // Indicador de contexto IA
+  // Indicador de contexto IA (discreto)
   const AIContextIndicator = useMemo(() => {
     if (!isGeneratingContext && !context) return null;
 
     return (
-      <div className="fixed bottom-20 right-4 z-30 bg-purple-600 text-white px-3 py-2 rounded-lg text-xs max-w-xs">
-        <div className="flex items-center gap-2">
+      <div className="fixed bottom-20 right-4 z-30 bg-purple-500/80 text-white px-2 py-1 rounded-md text-xs backdrop-blur-sm border border-purple-400/30">
+        <div className="flex items-center gap-1">
           {isGeneratingContext ? (
-            <>
-              <Loader2 className="w-3 h-3 animate-spin" />
-              <span>Analisando quadro...</span>
-            </>
+            <Loader2 className="w-3 h-3 animate-spin" />
           ) : (
-            <>
-              <Brain className="w-3 h-3" />
-              <span>IA pronta ({context?.metadata.totalElements} elementos)</span>
-            </>
+            <Brain className="w-3 h-3" />
           )}
         </div>
       </div>
     );
-  }, [isGeneratingContext, context?.metadata.totalElements]);
+  }, [isGeneratingContext, context]);
 
   // Função para obter o JSON atual do quadro
   const getCurrentSceneJSON = useCallback((): Record<string, any> | null => {
@@ -764,17 +758,16 @@ const Whiteboard: React.FC = () => {
             </SheetContent>
           </Sheet>
 
-          {/* Controles de Performance e IA */}
-          <div className="fixed top-20 right-4 z-30 flex flex-col gap-2">
+          {/* Controles de Performance e IA (menores) */}
+          <div className="fixed top-20 right-4 z-30 flex flex-col gap-1">
             <Button
               variant={autoSaveEnabled ? "default" : "outline"}
               size="sm"
               onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}
-              className="text-xs"
+              className="text-xs h-7 px-2"
               title="Ativar/desativar salvamento automático inteligente"
             >
-              <Database className="w-3 h-3 mr-1" />
-              Auto-save {autoSaveEnabled ? 'ON' : 'OFF'}
+              <Database className="w-3 h-3" />
             </Button>
 
             <Button
@@ -782,26 +775,24 @@ const Whiteboard: React.FC = () => {
               size="sm"
               onClick={generateContext}
               disabled={isGeneratingContext}
-              className="text-xs"
+              className="text-xs h-7 px-2"
               title="Atualizar contexto da IA com o quadro atual"
             >
               {isGeneratingContext ? (
-                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                <Loader2 className="w-3 h-3 animate-spin" />
               ) : (
-                <Brain className="w-3 h-3 mr-1" />
+                <Brain className="w-3 h-3" />
               )}
-              Atualizar IA
             </Button>
 
             <Button
               variant="outline"
               size="sm"
               onClick={clearCache}
-              className="text-xs"
+              className="text-xs h-7 px-2"
               title="Limpar cache de desenhos"
             >
-              <Database className="w-3 h-3 mr-1" />
-              Limpar Cache
+              <Zap className="w-3 h-3" />
             </Button>
           </div>
         </>

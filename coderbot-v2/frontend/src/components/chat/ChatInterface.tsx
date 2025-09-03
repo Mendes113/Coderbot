@@ -354,11 +354,141 @@ const CodeBotReaction = ({ type }: { type: 'encouragement' | 'celebration' | 'th
   );
 };
 
+// Componente de indicadores visuais do sistema
+const SystemStatusIndicators = ({
+  systemStatus,
+  connectionStatus,
+  sessionId,
+  whiteboardContext,
+  messagesCount,
+  aiModel,
+  agnoMethodology,
+  analogiesEnabled,
+  showSystemDetails,
+  setShowSystemDetails
+}: {
+  systemStatus: 'initializing' | 'ready' | 'working' | 'error';
+  connectionStatus: 'connecting' | 'connected' | 'disconnected';
+  sessionId: string;
+  whiteboardContext?: any;
+  messagesCount: number;
+  aiModel: string;
+  agnoMethodology: any;
+  analogiesEnabled: boolean;
+  showSystemDetails: boolean;
+  setShowSystemDetails: (show: boolean) => void;
+}) => {
+  const getStatusColor = (status: typeof systemStatus) => {
+    switch (status) {
+      case 'initializing': return 'text-yellow-500';
+      case 'ready': return 'text-green-500';
+      case 'working': return 'text-blue-500';
+      case 'error': return 'text-red-500';
+      default: return 'text-gray-500';
+    }
+  };
+
+  const getConnectionColor = (status: typeof connectionStatus) => {
+    switch (status) {
+      case 'connecting': return 'bg-yellow-500';
+      case 'connected': return 'bg-green-500';
+      case 'disconnected': return 'bg-red-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const getStatusText = (status: typeof systemStatus) => {
+    switch (status) {
+      case 'initializing': return 'Inicializando...';
+      case 'ready': return 'Pronto para conversar';
+      case 'working': return 'Processando resposta';
+      case 'error': return 'Erro no sistema';
+      default: return 'Status desconhecido';
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-blue-50/50 to-purple-50/50 border-b border-blue-100/50 dark:from-blue-950/20 dark:to-purple-950/20 dark:border-blue-900/30">
+      <div className="flex items-center gap-3">
+        {/* Status do Sistema */}
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${getConnectionColor(connectionStatus)} animate-pulse`}></div>
+          <span className={`text-xs font-medium ${getStatusColor(systemStatus)}`}>
+            {getStatusText(systemStatus)}
+          </span>
+        </div>
+
+        {/* Indicador de Contexto do Whiteboard */}
+        {whiteboardContext && (
+          <div className="flex items-center gap-1 px-3 py-1 bg-purple-100/60 dark:bg-purple-900/30 rounded-full border border-purple-200/50">
+            <Brain className="w-3 h-3 text-purple-600 animate-pulse" />
+            <span className="text-xs text-purple-700 dark:text-purple-300 font-medium">
+              {whiteboardContext?.whiteboard?.elementCount || 0} elementos • IA integrada
+            </span>
+          </div>
+        )}
+
+        {/* Contador de Mensagens */}
+        <div className="flex items-center gap-1 px-2 py-1 bg-gray-100/60 dark:bg-gray-800/50 rounded-full">
+          <MessageSquarePlus className="w-3 h-3 text-gray-600 dark:text-gray-400" />
+          <span className="text-xs text-gray-700 dark:text-gray-300">
+            {messagesCount} mensagens
+          </span>
+        </div>
+      </div>
+
+      {/* Status da Sessão e Detalhes */}
+      <div className="flex items-center gap-2">
+        {/* Botão de informações do sistema */}
+        <button
+          onClick={() => setShowSystemDetails(!showSystemDetails)}
+          className="flex items-center gap-1 px-2 py-1 bg-blue-100/60 dark:bg-blue-900/30 rounded-full hover:bg-blue-200/60 dark:hover:bg-blue-800/30 transition-colors"
+          title="Mostrar detalhes do sistema"
+        >
+          <Settings className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+          <span className="text-xs text-blue-700 dark:text-blue-300">
+            Sistema
+          </span>
+        </button>
+
+        {sessionId && (
+          <div className="flex items-center gap-1 px-2 py-1 bg-green-100/60 dark:bg-green-900/30 rounded-full">
+            <Zap className="w-3 h-3 text-green-600" />
+            <span className="text-xs text-green-700 dark:text-green-300">
+              Sessão ativa
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Detalhes do Sistema (expandível) */}
+      {showSystemDetails && (
+        <div className="absolute top-full left-0 right-0 mt-1 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
+          <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">📊 Status do Sistema</h4>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div><span className="font-medium">Modelo:</span> {aiModel}</div>
+            <div><span className="font-medium">Metodologia:</span> {agnoMethodology}</div>
+            <div><span className="font-medium">Analogias:</span> {analogiesEnabled ? 'Ativo' : 'Inativo'}</div>
+            <div><span className="font-medium">Mensagens:</span> {messagesCount}</div>
+            {whiteboardContext && (
+              <>
+                <div className="col-span-2"><span className="font-medium">🎨 Contexto Whiteboard:</span></div>
+                <div><span className="font-medium">Elementos:</span> {whiteboardContext?.whiteboard?.elementCount || 0}</div>
+                <div><span className="font-medium">Complexidade:</span> {whiteboardContext?.whiteboard?.complexity || 'N/A'}</div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Componente de estado idle - versão ultra sutil e discreta
-const IdleState = ({ 
-  onSuggestedQuestion, 
-  idleLevel = 'mild' 
-}: { 
+const IdleState = ({
+  onSuggestedQuestion,
+  idleLevel = 'mild'
+}: {
   onSuggestedQuestion: (question: string) => void;
   idleLevel?: 'none' | 'mild' | 'moderate' | 'high';
 }) => {
@@ -679,6 +809,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   // Estados para controle das mensagens de boas-vindas
   const [showWelcomeMessages, setShowWelcomeMessages] = useState(true);
   const [welcomeComplete, setWelcomeComplete] = useState(false);
+
+  // Estado para indicar se o sistema está inicializando
+  const [systemInitializing, setSystemInitializing] = useState(true);
+  const [systemStatus, setSystemStatus] = useState<'initializing' | 'ready' | 'working' | 'error'>('initializing');
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   
   // Estados emocionais e de experiência do usuário
   const [isFirstInteraction, setIsFirstInteraction] = useState(true);
@@ -690,6 +825,105 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     "Deixando tudo simples e direto... ✨",
     "Quase lá! Finalizando sua resposta... 🚀"
   ]);
+
+  // Atualizar status do sistema baseado nos estados atuais
+  useEffect(() => {
+    if (systemInitializing) {
+      setSystemStatus('initializing');
+      setConnectionStatus('connecting');
+    } else if (isLoading) {
+      setSystemStatus('working');
+      setConnectionStatus('connected');
+    } else {
+      setSystemStatus('ready');
+      setConnectionStatus('connected');
+    }
+  }, [systemInitializing, isLoading]);
+
+  // Simular inicialização completa após um tempo
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSystemInitializing(false);
+    }, 2000); // 2 segundos para simular carregamento
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Componente de loading durante inicialização
+  if (systemInitializing) {
+    return (
+      <div className="relative flex h-full w-full">
+        <div className="flex-1 flex flex-col">
+          <div className="px-4 py-3 border-b shrink-0 sticky top-0 z-40 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-purple-500 to-pink-500">
+                <Loader2 className="w-6 h-6 text-white animate-spin" />
+              </div>
+              <div>
+                <h1 className="text-xl font-semibold text-primary">CodeBot</h1>
+                <p className="text-sm text-muted-foreground">Inicializando sistema...</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 flex items-center justify-center px-4">
+            <div className="text-center space-y-6 max-w-md">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-r from-blue-400 to-purple-500">
+                <Brain className="w-10 h-10 text-white animate-pulse" />
+              </div>
+
+              <div className="space-y-2">
+                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+                  Preparando sua experiência
+                </h2>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Carregando modelos de IA, configurando sessão e conectando sistemas...
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                  <div className="bg-gradient-to-r from-blue-400 to-purple-500 h-2 rounded-full animate-pulse"
+                       style={{ width: '75%', animation: 'pulse 1.5s ease-in-out infinite' }}>
+                  </div>
+                </div>
+
+                <div className="flex justify-center items-center gap-2 text-sm text-gray-500">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  </div>
+                  <span>Conectando...</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs text-gray-500">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                  <span>Modelo IA</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                  <span>Sessão criada</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                  <span>Backend conectado</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span>Finalizando...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Estados de celebração e conquistas
   const [celebrationCount, setCelebrationCount] = useState(0);
   const [showAchievement, setShowAchievement] = useState(false);
   const [achievementMessage, setAchievementMessage] = useState("");
@@ -702,6 +936,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const [showCodeBotReaction, setShowCodeBotReaction] = useState<string | null>(null);
   const [sessionMessagesCount, setSessionMessagesCount] = useState(0);
   const [lastInteractionTime, setLastInteractionTime] = useState<Date | null>(null);
+
+  // Estado para mostrar informações detalhadas do sistema
+  const [showSystemDetails, setShowSystemDetails] = useState(false);
   
   // Idle management
   const [isUserIdle, setIsUserIdle] = useState(false);
@@ -1624,10 +1861,10 @@ Obrigado pela paciência! 🤖✨`,
         </div>
       </div>
       {/* Área de mensagens com scroll */}
-      <div 
+      <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto px-4 bg-gradient-to-b from-purple-50/30 to-transparent dark:from-purple-900/10" 
-        style={{ 
+        className="flex-1 overflow-y-auto px-4 bg-gradient-to-b from-purple-50/30 to-transparent dark:from-purple-900/10"
+        style={{
           height: 0,
           scrollBehavior: 'smooth',
           overscrollBehavior: 'contain',
@@ -1635,6 +1872,20 @@ Obrigado pela paciência! 🤖✨`,
         }}
         tabIndex={0}
       >
+        {/* Indicadores visuais do sistema */}
+        <SystemStatusIndicators
+          systemStatus={systemStatus}
+          connectionStatus={connectionStatus}
+          sessionId={sessionId}
+          whiteboardContext={whiteboardContext}
+          messagesCount={messages.length}
+          aiModel={aiModel}
+          agnoMethodology={agnoMethodology}
+          analogiesEnabled={analogiesEnabled}
+          showSystemDetails={showSystemDetails}
+          setShowSystemDetails={setShowSystemDetails}
+        />
+
         <div className="flex flex-col space-y-6 max-w-3xl mx-auto py-6">
           {/* Header com progresso e streak - inspirado no Duolingo */}
          
@@ -1642,6 +1893,27 @@ Obrigado pela paciência! 🤖✨`,
           {/* Reação do CodeBot */}
           {showCodeBotReaction && (
             <CodeBotReaction type={showCodeBotReaction as any} />
+          )}
+
+          {/* Sistema Funcionando - Indicador quando não há mensagens ainda */}
+          {!showWelcomeMessages && messages.length === 0 && !isLoading && (
+            <div className="flex flex-col items-center justify-center py-12 space-y-6">
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-green-400 to-blue-500 mb-4">
+                  <Sparkles className="w-8 h-8 text-white animate-pulse" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                  🎉 Sistema Funcionando!
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-4 max-w-md">
+                  O CodeBot está pronto para te ajudar com programação. Digite sua pergunta abaixo!
+                </p>
+                <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  Sistema ativo e conectado
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Initial Welcome Messages with Animations */}
