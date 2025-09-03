@@ -248,10 +248,15 @@ async def demo_cognitive_pipeline():
         cognitive_analysis.get('problem_analysis', {})
     )
 
-    print("
-📊 Resultado da validação:"    print(".2f"    if 'solution_analysis' in validation_result:
+    print("\n📊 Resultado da validação:")
+    if 'solution_analysis' in validation_result:
         analysis = validation_result['solution_analysis']
-        print(".2f"        print(".2f"        print(f"   📊 Valor educacional: {analysis.get('educational_value', 'N/A')}")
+        # If 'educational_value' is a float, format with .2f, else print as is
+        educational_value = analysis.get('educational_value', 'N/A')
+        if isinstance(educational_value, float):
+            print(f"   📊 Valor educacional: {educational_value:.2f}")
+        else:
+            print(f"   📊 Valor educacional: {educational_value}")
 
         if analysis.get('improvement_suggestions'):
             print("   💡 Sugestões:")
