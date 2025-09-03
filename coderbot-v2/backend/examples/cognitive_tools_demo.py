@@ -215,8 +215,8 @@ async def demo_cognitive_pipeline():
     # Processar query
     cognitive_analysis = pipeline.process_query(test_query)
 
-    print("
-📊 Resultado da análise cognitiva:"    print(f"   🎯 Metodologia sugerida: {cognitive_analysis.get('suggested_methodology', 'N/A')}")
+    print("\n📊 Resultado da análise cognitiva:")
+        print(f"   🎯 Metodologia sugerida: {cognitive_analysis.get('suggested_methodology', 'N/A')}")
     print(f"   🧠 Carga cognitiva: {cognitive_analysis.get('cognitive_load', 'N/A')}")
     print(f"   📖 Objetivos de aprendizagem: {cognitive_analysis.get('learning_objectives', [])}")
 
