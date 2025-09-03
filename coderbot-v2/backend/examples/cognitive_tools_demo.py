@@ -98,7 +98,10 @@ async def demo_solution_examination():
 
     examination = tool.examine_solution(solution, problem, context)
 
-    print(".2f"    print(".2f"    print(".2f"    print(".2f"    print(f"   📊 Valor educacional: {examination['educational_value']}")
+    print(f"   ✅ Correção: {examination.get('correctness_score', 0.0):.2f}")
+    print(f"   📝 Clareza: {examination.get('clarity_score', 0.0):.2f}")
+    print(f"   📋 Completude: {examination.get('completeness_score', 0.0):.2f}")
+    print(f"   📊 Valor educacional: {examination.get('educational_value', 0.0):.2f}")
 
     if examination['error_analysis']:
         print("   ⚠️  Erros detectados:")
