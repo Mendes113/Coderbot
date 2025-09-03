@@ -76,7 +76,8 @@ async def test_provider(provider: str, model_id: str):
         end_time = time.time()
         duration = end_time - start_time
 
-        print("✅ Resposta gerada!"        print(".2f"        print("-" * 50)
+        print(f"✅ Resposta gerada! (Tempo: {duration:.2f}s)")
+        print("-" * 50)
         print("📝 Resposta:")
         print("-" * 50)
         print(response[:500] + "..." if len(response) > 500 else response)
