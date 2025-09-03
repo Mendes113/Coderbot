@@ -238,8 +238,8 @@ async def demo_cognitive_pipeline():
     print(fatorial(5))  # Saída: 120
     """
 
-    print("
-🔍 Validando solução proposta..."    validation_result = pipeline.validate_solution(
+    print("\n🔍 Validando solução proposta...")
+    validation_result = pipeline.validate_solution(
         mock_solution,
         test_query,
         cognitive_analysis.get('problem_analysis', {})
