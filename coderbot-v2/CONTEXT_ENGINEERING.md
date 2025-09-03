@@ -451,37 +451,12 @@ def _augment_context_for_outputs(
     return "\n\n".join([p for p in context_parts if p])
 ```
 
-#### 2. Serviço RAG (`rag_service.py`)
+#### 2. Serviço RAG (conceitual vs. atual) ⚠️ PARCIAL
 ```python
-class RAGContextEngine:
-    """Engine para context engineering com RAG"""
-    
-    def build_educational_context(
-        self, 
-        query: str,
-        student_profile: StudentProfile,
-        session_memory: List[Dict[str, Any]]
-    ) -> EducationalContext:
-        """Constrói contexto educacional otimizado"""
-        
-        # 1. Busca semântica no Qdrant
-        relevant_content = self._semantic_search(query, student_profile)
-        
-        # 2. Consolidação de memória da sessão
-        session_insights = self._consolidate_session_memory(session_memory)
-        
-        # 3. Context engineering - pruning e compression
-        optimized_context = self._optimize_context(
-            relevant_content,
-            session_insights,
-            max_tokens=self.max_context_tokens
-        )
-        
-        return EducationalContext(
-            retrieved_content=optimized_context,
-            context_tokens=len(optimized_context.split()),
-            relevance_score=self._calculate_relevance_score(optimized_context)
-        )
+# Nota: A classe RAGContextEngine descrita aqui é um exemplo conceitual.
+# Na implementação atual, existe um RAG Service funcional (Qdrant) usado
+# pelo agente educacional e pelo pipeline cognitivo, mas sem a classe
+# RAGContextEngine monolítica.
 ```
 
 #### 3. Agente Educacional (`educational_agent_service.py`)
@@ -705,73 +680,11 @@ def dynamic_token_reallocation(context_state):
 
 ## 📈 Métricas e Avaliação
 
-### Context Engineering Metrics
-
-#### 1. Métricas de Eficiência de Contexto
+### Context Engineering Metrics (aspiracional)
 ```python
-@dataclass
-class ContextMetrics:
-    """Métricas para avaliação de context engineering"""
-    
-    # Eficiência de tokens
-    token_utilization_rate: float  # % de tokens úteis vs total
-    context_compression_ratio: float  # Compressão alcançada
-    relevance_score: float  # Score de relevância do contexto
-    
-    # Performance educacional
-    student_engagement_score: float  # Engajamento do estudante
-    learning_effectiveness: float  # Eficácia do aprendizado
-    methodology_alignment: float  # Alinhamento com metodologia
-    
-    # Performance técnica
-    response_latency: float  # Latência da resposta
-    token_cost: float  # Custo em tokens
-    quality_score: float  # Qualidade da resposta
-```
-
-#### 2. Dashboard de Context Engineering
-
-```mermaid
-graph LR
-    subgraph "Token Efficiency"
-        A1["Utilization: 87%"]
-        A2["Compression: 73%"]
-        A3["Waste Rate: 13%"]
-    end
-    
-    subgraph "Context Quality"
-        B1["Relevance: 92%"]
-        B2["Coherence: 85%"]
-        B3["Accuracy: 94%"]
-    end
-    
-    subgraph "Educational Impact"
-        C1["Engagement: 89%"]
-        C2["Learning: 78%"]
-        C3["Retention: 71%"]
-    end
-    
-    subgraph "Technical Performance"
-        D1["Latency: 2.3s"]
-        D2["Cost: $0.02"]
-        D3["Throughput: 45/m"]
-    end
-    
-    subgraph "Provider Performance"
-        E1["Claude: 92% | $0.03"]
-        E2["OpenAI: 88% | $0.04"]
-        E3["Ollama: 75% | $0.00"]
-        E4["OpenRouter: 90% | $0.02"]
-    end
-    
-    style A1 fill:#4caf50
-    style A2 fill:#4caf50
-    style B1 fill:#2196f3
-    style B3 fill:#2196f3
-    style C1 fill:#ff9800
-    style D3 fill:#9c27b0
-    style E1 fill:#f44336
-    style E4 fill:#f44336
+# As métricas e dashboards descritos nesta seção são objetivos futuros.
+# Atualmente, o sistema registra logs e metadados no backend, mas
+# não possui dashboards consolidados de métricas de contexto.
 ```
 
 #### **Métricas Detalhadas**

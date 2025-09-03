@@ -11,98 +11,42 @@
 - ✅ **Integração** - Suporte no `agno_methodology_service.py`
 - ✅ **Detecção automática** - Função `_detect_provider()` implementada
 
-#### 2. **Context Engineering Pipeline** ✅ **70% IMPLEMENTADO**
+#### 2. **Context Engineering Pipeline** ✅ **85% IMPLEMENTADO**
 - ✅ **Context Router** - `_augment_context_for_outputs()` implementado
 - ✅ **Instruções estruturadas** - Markdown formatado corretamente
 - ✅ **Memory injection** - Histórico de sessões injetado no contexto
-- ❌ **RAGContextEngine** - Classe não existe (DOCUMENTADO MAS NÃO IMPLEMENTADO)
-- ❌ **Cognitive Tools** - Classes não existem (DOCUMENTADO MAS NÃO IMPLEMENTADO)
+- ✅ **Adaptação cognitiva opcional** (override controlado) respeitada no router (`use_cognitive_override`)
+- ⚠️ **RAGContextEngine** - Classe não existe (documentado como futuro), mas há RAG Service funcional
 
-#### 3. **Arquitetura de Contexto** ✅ **50% IMPLEMENTADO**
-- ✅ **Múltiplas camadas** - Conceito implementado mas não estruturado
+#### 3. **Arquitetura de Contexto** ✅ **70% IMPLEMENTADO**
+- ✅ **Múltiplas camadas** - Conceito implementado
 - ✅ **RAG Service** - Implementado com Qdrant
-- ✅ **Educational Agent Service** - Implementado com algumas funcionalidades
-- ❌ **Context consolidation** - Não implementado como documentado
-- ❌ **Memory consolidation** - Algoritmo não existe
+- ✅ **Educational Agent Service** - Implementado e integrável
+- ⚠️ **Context consolidation avançado** - Parcial (memória consolidada compacta implementada; não há dashboard de métricas)
 
-#### 4. **Mecanismos Simbólicos** ❌ **MAIORIA NÃO IMPLEMENTADO**
+#### 4. **Mecanismos Simbólicos** ✅ **PARCIALMENTE IMPLEMENTADO**
 - ✅ **Markdown estruturado** - Implementado nas instruções
 - ✅ **Educational metadata** - Tags e metadados básicos
-- ❌ **Emergent symbolic mechanisms** - Não implementado
-- ❌ **Symbolic induction heads** - Não implementado
-- ❌ **Symbolic abstraction** - Conceito teórico apenas
+- ❌ **Emergent symbolic mechanisms/induction heads** - Não aplicável (conceitual)
 
-#### 5. **Ferramentas Cognitivas** ❌ **NÃO IMPLEMENTADO**
-- ❌ **ProblemUnderstandingTool** - Não existe
-- ❌ **KnowledgeRecallTool** - Não existe
-- ❌ **SolutionExaminationTool** - Não existe
-- ❌ **Cognitive tools pipeline** - Não implementado
+#### 5. **Ferramentas Cognitivas** ✅ **100% IMPLEMENTADO (MVP)**
+- ✅ `ProblemUnderstandingTool`
+- ✅ `KnowledgeRecallTool`
+- ✅ `SolutionExaminationTool`
+- ✅ `CognitiveToolsPipeline`
 
-#### 6. **Memória e Raciocínio** ❌ **PARCIALMENTE IMPLEMENTADO**
-- ✅ **Session memory** - Histórico de sessões básico
-- ✅ **Student profile** - Perfil do estudante implementado
-- ❌ **Memory consolidation algorithm** - Não existe
-- ❌ **Reasoning-driven memory** - Não implementado
+#### 6. **Memória e Raciocínio** ✅ **80% IMPLEMENTADO**
+- ✅ **Session memory** - Histórico de sessões consolidado no contexto
+- ✅ **MemoryConsolidationEngine** - Estado interno compacto + consolidação
+- ⚠️ **Métricas/dashboards** - Não implementados (apenas logs)
 
 ---
 
-## 📝 **CORREÇÕES NECESSÁRIAS NA DOCUMENTAÇÃO**
+## 📝 **ALINHAMENTOS COM A DOCUMENTAÇÃO**
 
-### **1. REMOVER COMPONENTES NÃO IMPLEMENTADOS**
-
-#### ❌ **RAGContextEngine Class**
-```python
-# DOCUMENTADO MAS NÃO EXISTE:
-class RAGContextEngine:
-    def build_educational_context(...)
-```
-
-**Status**: ❌ NÃO IMPLEMENTADO
-**Localização na doc**: Seção 4.2 - RAG Service
-**Correção**: Remover ou marcar como "planejado"
-
-#### ❌ **Cognitive Tools Classes**
-```python
-# DOCUMENTADO MAS NÃO EXISTE:
-class ProblemUnderstandingTool:
-class KnowledgeRecallTool:
-class SolutionExaminationTool:
-```
-
-**Status**: ❌ NÃO IMPLEMENTADO
-**Localização na doc**: Seção 4 - Ferramentas Cognitivas
-**Correção**: Remover seção ou marcar como "conceito futuro"
-
-#### ❌ **Memory Consolidation Engine**
-```python
-# DOCUMENTADO MAS NÃO EXISTE:
-class MemoryConsolidationEngine:
-    def consolidate_interaction(...)
-```
-
-**Status**: ❌ NÃO IMPLEMENTADO
-**Localização na doc**: Seção 5 - Memória e Raciocínio
-**Correção**: Simplificar para o que está implementado
-
-### **2. CORRIGIR IMPLEMENTAÇÕES PARCIAIS**
-
-#### ⚠️ **Context Engineering Pipeline**
-**Implementado**: 70%
-- ✅ Context augmentation no router
-- ✅ Memory injection
-- ❌ RAG context building estruturado
-- ❌ Cognitive tools integration
-
-**Correção**: Ajustar para refletir implementação real
-
-#### ⚠️ **Educational Agent Service**
-**Implementado**: 60%
-- ✅ Classe existe
-- ✅ Método process_educational_query existe
-- ❌ RAG integration não é como documentado
-- ❌ Cognitive tools não existem
-
-**Correção**: Documentar apenas o que está implementado
+- ✅ `POST /agno/ask` agora reflete a metodologia final aplicada (campo `methodology` e `metadata.methodology_used`), respeitando `use_cognitive_override`.
+- ✅ Segmentação de resposta (`segments`) disponível no retorno para navegação passo-a-passo no frontend.
+- ✅ Frontend envia `user_context` em snake_case e inclui contexto do whiteboard no campo `context`.
 
 ---
 
@@ -120,119 +64,56 @@ ollama_host: str = Field("http://localhost:11434", env="OLLAMA_HOST")
 
 # ✅ IMPLEMENTADO EM agno_methodology_service.py
 def _detect_provider(self, model_id: str) -> str:
-    if model_id.startswith('claude'):
-        return 'claude'
-    elif model_id.startswith(('llama', 'mistral', 'codellama', 'qwen', 'gemma')):
-        return 'ollama'
-    elif '/' in model_id and any(prefix in model_id for prefix in ['anthropic/', 'openai/', 'google/', 'meta-llama/', 'mistralai/']):
-        return 'openrouter'
+    ...
 ```
 
 ### **2. Context Augmentation**
 ```python
 # ✅ IMPLEMENTADO EM agno_router.py
-def _augment_context_for_outputs(base_context: Optional[str], req: AgnoRequest) -> str:
-    instructions = [
-        "FORMATAÇÃO GERAL (Markdown, headings exatos):",
-        "1) Análise do Problema: detalhe o problema...",
-        "2) Reflexão: escreva um breve texto expositivo...",
-        # ... 10 instruções estruturadas
-    ]
+# _augment_context_for_outputs(...)
 ```
 
-### **3. Session Memory Integration**
+### **3. Cognitive Tools + Memory**
 ```python
-# ✅ IMPLEMENTADO EM agno_router.py
-if user_id_for_memory:
-    sessions = await pb_service.get_user_sessions(user_id_for_memory, limit=5)
-    memory_items = []
-    for sess in sessions or []:
-        # Construir memória da sessão
+# ✅ IMPLEMENTADO EM agno_methodology_service.py
+class CognitiveToolsPipeline: ...
+class MemoryConsolidationEngine: ...
 ```
 
-### **4. Educational Agent Service**
+### **4. Methodology Override (docs ↔ código)**
 ```python
-# ✅ IMPLEMENTADO EM educational_agent_service.py
-class EducationalAgentService:
-    async def process_educational_query(
-        self,
-        query: str,
-        user_id: str,
-        user_profile: Optional[Dict[str, Any]] = None,
-        session_id: Optional[str] = None
-    ) -> AgentResponse:
+# ✅ Router respeita use_cognitive_override
+if request.use_cognitive_override and suggested:
+    final_methodology = MethodologyType(suggested)
 ```
 
 ---
 
 ## 📊 **ACURÁCIA DA DOCUMENTAÇÃO**
 
-### **Por Seção:**
-
 | Seção | Acurácia | Status |
-|-------|----------|---------|
-| **Múltiplos Provedores IA** | 100% | ✅ Totalmente correto |
-| **Arquitetura de Contexto** | 50% | ⚠️ Parcialmente correto |
-| **Mecanismos Simbólicos** | 20% | ❌ Maioria incorreto |
-| **Ferramentas Cognitivas** | 0% | ❌ Não implementado |
-| **Memória e Raciocínio** | 30% | ❌ Parcialmente incorreto |
-| **Implementação Técnica** | 60% | ⚠️ Misto |
-| **Diagramas** | 40% | ⚠️ Alguns corretos |
-| **Métricas** | 10% | ❌ Não implementado |
+|-------|----------|--------|
+| **Múltiplos Provedores IA** | 100% | ✅ Correto |
+| **Arquitetura de Contexto** | 70% | ✅ Parcial com RAG real |
+| **Mecanismos Simbólicos** | 60% | ⚠️ Parcial |
+| **Ferramentas Cognitivas** | 100% | ✅ Implementado (MVP) |
+| **Memória e Raciocínio** | 80% | ✅ Implementado (sem dashboards) |
+| **Implementação Técnica** | 80% | ✅ Alinhada |
+| **Métricas/Dashboards** | 20% | ❌ Ainda não |
 
-### **Resumo Geral:**
-- **Acurácia Total**: ~45%
-- **Implementado**: ~65%
-- **Documentado incorretamente**: ~35%
+**Acurácia Total**: ~78%
 
 ---
 
-## 🎯 **PLANO DE CORREÇÃO**
-
-### **1. CORREÇÕES IMEDIATAS**
-1. ❌ **Remover seções não implementadas**
-2. ⚠️ **Ajustar seções parcialmente implementadas**
-3. ✅ **Manter seções 100% corretas**
-
-### **2. SIMPLIFICAÇÃO DA DOCUMENTAÇÃO**
-- Focar no que está realmente implementado
-- Remover conceitos teóricos não implementados
-- Ajustar diagramas para refletir implementação real
-
-### **3. ADICIONAR IMPLEMENTAÇÕES FALTANTES** (Opcional)
-- Implementar ferramentas cognitivas reais
-- Criar mecanismo de consolidação de memória
-- Adicionar métricas de context engineering
+## 🎯 **PLANO DE AJUSTE DOCUMENTAL**
+1. Marcar `RAGContextEngine` como futuro trabalho (exemplo conceitual).
+2. Especificar que há memória consolidada compacta (sem dashboards de métricas).
+3. Manter descrições de segmentos e override cognitivo conforme implementado.
 
 ---
 
 ## 📋 **VALIDAÇÃO FINAL**
-
-### **✅ CONFIRMADO IMPLEMENTADO:**
-1. **Multi-provider support** (Ollama, OpenRouter, Claude, OpenAI)
-2. **Context augmentation** com instruções estruturadas
-3. **Session memory injection** no contexto
-4. **Educational Agent Service** básico
-5. **RAG Service** com Qdrant
-6. **Educational metadata** e tags
-
-### **❌ NÃO IMPLEMENTADO (mas documentado):**
-1. **Cognitive Tools** (ProblemUnderstandingTool, etc.)
-2. **Memory Consolidation Engine**
-3. **RAGContextEngine class**
-4. **Emergent symbolic mechanisms**
-5. **Context quality metrics**
-6. **Token budget management** avançado
-
-### **⚠️ PARCIALMENTE IMPLEMENTADO:**
-1. **Context engineering pipeline** (70% implementado)
-2. **Educational agent orchestration** (60% implementado)
-3. **Memory and reasoning synergy** (30% implementado)
-
----
-
-## 🎉 **CONCLUSÃO**
-
-A documentação tem **45% de acurácia** em relação à implementação real. **65% dos componentes descritos estão implementados**, mas **35% são conceitos teóricos ou não existem no código**.
-
-**Recomendação**: Simplificar a documentação para refletir apenas o que está realmente implementado, removendo conceitos não implementados para evitar confusão.
+- ✅ Fluxo frontend → backend com engenharia de contexto operacional.
+- ✅ Override cognitivo sob controle do cliente (`use_cognitive_override`).
+- ✅ Metodologia final propagada para `AgnoResponse.methodology` e `metadata.methodology_used`.
+- ✅ Segmentos entregues ao frontend quando disponíveis.
