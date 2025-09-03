@@ -40,11 +40,11 @@ const Index = () => {
       <div className="flex h-screen w-full overflow-hidden bg-gray-50 dark:bg-gray-900">
         <AppSidebar currentNav={currentNav} onNavChange={setCurrentNav} />
         <main className={cn(
-          "flex-1 overflow-hidden relative",
+          "flex-1 overflow-auto relative",
           isMobile ? "w-full" : ""
         )}>
           {/* Conteúdo atual da rota */}
-          <div className="w-full h-full">
+          <div className="w-full min-h-full">
             <Outlet />
           </div>
         </main>

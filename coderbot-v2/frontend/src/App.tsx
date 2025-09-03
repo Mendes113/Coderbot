@@ -26,6 +26,7 @@ const FlashCardPage = React.lazy(() => import("./pages/FlashCardPage"));
 const AdaptiveLearning = React.lazy(() => import("./pages/AdaptiveLearning"));
 const Analytics = React.lazy(() => import("./pages/Analytics"));
 const AboutProject = React.lazy(() => import("./pages/AboutProject"));
+const NotesPage = React.lazy(() => import("./pages/NotesPage"));
 
 const queryClient = new QueryClient();
 
@@ -157,6 +158,7 @@ const App = () => {
                     <Route path="whiteboard" element={<Whiteboard />} />
                     <Route path="mermaid" element={<Mermaid />} />
                     <Route path="flashcard" element={<FlashCardPage />} />
+                    <Route path="notes" element={<NotesPage />} />
                   </Route>
                   <Route path="/profile" element={<RequireAuth><UserProfile /></RequireAuth>} />
                   <Route path="/auth" element={<Auth />} />

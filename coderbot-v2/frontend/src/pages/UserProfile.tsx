@@ -191,7 +191,7 @@ const UserProfile = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-full flex flex-col">
       {/* Header com branding moderno (inspirado no AppSidebar) */}
       <div className="relative flex items-center justify-between gap-3 border-b border-sidebar-border/50 p-4 bg-gradient-to-br from-coderbot-purple/20 via-transparent to-transparent backdrop-blur-sm">
         <div className="flex items-center gap-3">

@@ -1,4 +1,4 @@
-import { User, MessageSquare, Code, GraduationCap, Presentation, Mail } from "lucide-react";
+import { User, MessageSquare, Code, GraduationCap, Presentation, Mail, BookOpen } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -64,6 +64,7 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
       roles: ["student", "teacher", "admin"],
     },
     { id: "whiteboard", label: "Quadro", icon: Presentation, accessKey: "w", path: "/dashboard/whiteboard" },
+    { id: "notes", label: "Notas", icon: BookOpen, accessKey: "n", path: "/dashboard/notes" },
     // New: Profile button (accessible to all roles)
     { id: "profile", label: "Perfil", icon: User, accessKey: "p", path: "/profile" },
   ];

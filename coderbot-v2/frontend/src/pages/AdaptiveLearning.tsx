@@ -112,7 +112,7 @@ const AdaptiveLearning: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-full">
         <div className="flex flex-col items-center space-y-4">
           <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
           <p className="text-muted-foreground">Loading your learning environment...</p>
@@ -126,7 +126,7 @@ const AdaptiveLearning: React.FC = () => {
       <div className="container mx-auto py-6">
         <AdaptiveLearningSetup 
           onComplete={handleSetupComplete}
-          className="min-h-screen"
+          className="h-full"
         />
       </div>
     );

@@ -849,79 +849,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     return () => clearTimeout(timer);
   }, []);
 
-  // Componente de loading durante inicialização
-  if (systemInitializing) {
-    return (
-      <div className="relative flex h-full w-full">
-        <div className="flex-1 flex flex-col">
-          <div className="px-4 py-3 border-b shrink-0 sticky top-0 z-40 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-purple-500 to-pink-500">
-                <Loader2 className="w-6 h-6 text-white animate-spin" />
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold text-primary">CodeBot</h1>
-                <p className="text-sm text-muted-foreground">Inicializando sistema...</p>
-              </div>
-            </div>
-          </div>
 
-          <div className="flex-1 flex items-center justify-center px-4">
-            <div className="text-center space-y-6 max-w-md">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-r from-blue-400 to-purple-500">
-                <Brain className="w-10 h-10 text-white animate-pulse" />
-              </div>
-
-              <div className="space-y-2">
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
-                  Preparando sua experiência
-                </h2>
-                <p className="text-gray-600 dark:text-gray-400">
-                  Carregando modelos de IA, configurando sessão e conectando sistemas...
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                  <div className="bg-gradient-to-r from-blue-400 to-purple-500 h-2 rounded-full animate-pulse"
-                       style={{ width: '75%', animation: 'pulse 1.5s ease-in-out infinite' }}>
-                  </div>
-                </div>
-
-                <div className="flex justify-center items-center gap-2 text-sm text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  </div>
-                  <span>Conectando...</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-xs text-gray-500">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                  <span>Modelo IA</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                  <span>Sessão criada</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                  <span>Backend conectado</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
-                  <span>Finalizando...</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // Estados de celebração e conquistas
   const [celebrationCount, setCelebrationCount] = useState(0);
@@ -1702,6 +1630,80 @@ Obrigado pela paciência! 🤖✨`,
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   };
+
+  // Return condicional APÓS todos os hooks serem declarados
+  if (systemInitializing) {
+    return (
+      <div className="relative flex h-full w-full">
+        <div className="flex-1 flex flex-col">
+          <div className="px-4 py-3 border-b shrink-0 sticky top-0 z-40 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-purple-500 to-pink-500">
+                <Loader2 className="w-6 h-6 text-white animate-spin" />
+              </div>
+              <div>
+                <h1 className="text-xl font-semibold text-primary">CodeBot</h1>
+                <p className="text-sm text-muted-foreground">Inicializando sistema...</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 flex items-center justify-center px-4">
+            <div className="text-center space-y-6 max-w-md">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-r from-blue-400 to-purple-500">
+                <Brain className="w-10 h-10 text-white animate-pulse" />
+              </div>
+
+              <div className="space-y-2">
+                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+                  Preparando sua experiência
+                </h2>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Carregando modelos de IA, configurando sessão e conectando sistemas...
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                  <div className="bg-gradient-to-r from-blue-400 to-purple-500 h-2 rounded-full animate-pulse"
+                       style={{ width: '75%', animation: 'pulse 1.5s ease-in-out infinite' }}>
+                  </div>
+                </div>
+
+                <div className="flex justify-center items-center gap-2 text-sm text-gray-500">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  </div>
+                  <span>Conectando...</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs text-gray-500">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                  <span>Modelo IA</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                  <span>Sessão criada</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                  <span>Backend conectado</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span>Finalizando...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex h-full w-full">
