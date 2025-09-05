@@ -30,8 +30,8 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "magicui": path.resolve(__dirname, "./src/components/magicui"),
-      "magicui/*": path.resolve(__dirname, "./src/components/magicui/*"),
+      "magicui": path.resolve(__dirname, "./src/Components/magicui"),
+      "magicui/*": path.resolve(__dirname, "./src/Components/magicui/*"),
     },
   },
   // Otimizações de build
