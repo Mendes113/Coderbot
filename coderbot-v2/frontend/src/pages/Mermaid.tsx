@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import Dock from "@/Components/Dock/Dock";
+import Dock from "@/components/Dock/Dock";
 import { Plus, ArrowRight, RefreshCcw, Download, Maximize2, Save, Eye } from "lucide-react";
 import { toast } from "react-hot-toast";
 

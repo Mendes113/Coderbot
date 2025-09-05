@@ -6,7 +6,7 @@ import React, { Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { pb } from "@/integrations/pocketbase/client";
 import posthog from "posthog-js";
-import { ErrorBoundary } from "@/Components/ErrorBoundary";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 // import { CodeEditorProvider } from "@/context/CodeEditorContext";
 
 // Lazy loading otimizado com preload para rotas críticas

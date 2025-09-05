@@ -26,7 +26,7 @@ import {
   EyeOff,
   Loader2
 } from "lucide-react";
-import { BlockNoteEditor } from "@/components/notes/BlockNoteEditor";
+import BlockNoteEditor from "@/components/notes/BlockNoteEditor";
 import { useNotes, type Note, type NoteFilters } from "@/hooks/useNotes";
 import { toast } from "sonner";
 
