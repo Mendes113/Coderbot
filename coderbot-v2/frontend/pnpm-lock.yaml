@@ -298,7 +298,7 @@ importers:
         version: 0.9.9(@types/react-dom@18.3.7(@types/react@18.3.20))(@types/react@18.3.20)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       vite_react_shadcn_ts:
         specifier: 'file:'
-        version: file:(@emotion/is-prop-valid@1.3.1)(@react-three/fiber@9.1.2(@types/react@18.3.20)(react-dom@18.3.1(react@18.3.1))(react-native@0.79.2(@babel/core@7.27.1)(@types/react@18.3.20)(react@18.3.1))(react@18.3.1)(three@0.176.0))(@types/node@22.15.10)(@types/react-dom@18.3.7(@types/react@18.3.20))(@types/react@18.3.20)(konva@9.3.20)(react-konva@18.2.10(@types/react@18.3.20)(konva@9.3.20)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-native@0.79.2(@babel/core@7.27.1)(@types/react@18.3.20)(react@18.3.1))(react-zdog@1.2.2)(tailwindcss@3.4.17(ts-node@10.9.2(@swc/core@1.11.24)(@types/node@22.15.10)(typescript@5.8.3)))(three@0.176.0)(typescript@5.8.3)(zdog@1.1.3)
+        version: file:(@emotion/is-prop-valid@1.3.1)(@floating-ui/dom@1.7.0)(@react-three/fiber@9.1.2(@types/react@18.3.20)(react-dom@18.3.1(react@18.3.1))(react-native@0.79.2(@babel/core@7.27.1)(@types/react@18.3.20)(react@18.3.1))(react@18.3.1)(three@0.176.0))(@tiptap/core@3.4.1(@tiptap/pm@3.4.1))(@tiptap/extension-code-block@3.4.1(@tiptap/core@3.4.1(@tiptap/pm@3.4.1))(@tiptap/pm@3.4.1))(@tiptap/extension-list@3.4.1(@tiptap/core@3.4.1(@tiptap/pm@3.4.1))(@tiptap/pm@3.4.1))(@tiptap/extensions@3.4.1(@tiptap/core@3.4.1(@tiptap/pm@3.4.1))(@tiptap/pm@3.4.1))(@tiptap/pm@3.4.1)(@types/node@22.15.10)(@types/react-dom@18.3.7(@types/react@18.3.20))(@types/react@18.3.20)(konva@9.3.20)(react-konva@18.2.10(@types/react@18.3.20)(konva@9.3.20)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-native@0.79.2(@babel/core@7.27.1)(@types/react@18.3.20)(react@18.3.1))(react-zdog@1.2.2)(tailwindcss@3.4.17(ts-node@10.9.2(@swc/core@1.11.24)(@types/node@22.15.10)(typescript@5.8.3)))(three@0.176.0)(typescript@5.8.3)(zdog@1.1.3)
       xterm:
         specifier: ^5.3.0
         version: 5.3.0
@@ -12536,8 +12536,8 @@ snapshots:
       sass: 1.51.0
       terser: 5.39.0
 
-  vite_react_shadcn_ts@file:(@emotion/is-prop-valid@1.3.1)(@react-three/fiber@9.1.2(@types/react@18.3.20)(react-dom@18.3.1(react@18.3.1))(react-native@0.79.2(@babel/core@7.27.1)(@types/react@18.3.20)(react@18.3.1))(react@18.3.1)(three@0.176.0))(@types/node@22.15.10)(@types/react-dom@18.3.7(@types/react@18.3.20))(@types/react@18.3.20)(konva@9.3.20)(react-konva@18.2.10(@types/react@18.3.20)(konva@9.3.20)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-native@0.79.2(@babel/core@7.27.1)(@types/react@18.3.20)(react@18.3.1))(react-zdog@1.2.2)(tailwindcss@3.4.17(ts-node@10.9.2(@swc/core@1.11.24)(@types/node@22.15.10)(typescript@5.8.3)))(three@0.176.0)(typescript@5.8.3)(zdog@1.1.3):
-    dependencies:
+  ? vite_react_shadcn_ts@file:(@emotion/is-prop-valid@1.3.1)(@floating-ui/dom@1.7.0)(@react-three/fiber@9.1.2(@types/react@18.3.20)(react-dom@18.3.1(react@18.3.1))(react-native@0.79.2(@babel/core@7.27.1)(@types/react@18.3.20)(react@18.3.1))(react@18.3.1)(three@0.176.0))(@tiptap/core@3.4.1(@tiptap/pm@3.4.1))(@tiptap/extension-code-block@3.4.1(@tiptap/core@3.4.1(@tiptap/pm@3.4.1))(@tiptap/pm@3.4.1))(@tiptap/extension-list@3.4.1(@tiptap/core@3.4.1(@tiptap/pm@3.4.1))(@tiptap/pm@3.4.1))(@tiptap/extensions@3.4.1(@tiptap/core@3.4.1(@tiptap/pm@3.4.1))(@tiptap/pm@3.4.1))(@tiptap/pm@3.4.1)(@types/node@22.15.10)(@types/react-dom@18.3.7(@types/react@18.3.20))(@types/react@18.3.20)(konva@9.3.20)(react-konva@18.2.10(@types/react@18.3.20)(konva@9.3.20)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-native@0.79.2(@babel/core@7.27.1)(@types/react@18.3.20)(react@18.3.1))(react-zdog@1.2.2)(tailwindcss@3.4.17(ts-node@10.9.2(@swc/core@1.11.24)(@types/node@22.15.10)(typescript@5.8.3)))(three@0.176.0)(typescript@5.8.3)(zdog@1.1.3)
+  : dependencies:
       '@emotion/react': 11.14.0(@types/react@18.3.20)(react@18.3.1)
       '@emotion/styled': 11.14.1(@emotion/react@11.14.0(@types/react@18.3.20)(react@18.3.1))(@types/react@18.3.20)(react@18.3.1)
       '@excalidraw/excalidraw': 0.18.0(@types/react-dom@18.3.7(@types/react@18.3.20))(@types/react@18.3.20)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -12573,6 +12573,17 @@ snapshots:
       '@react-spring/web': 9.7.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@supabase/supabase-js': 2.49.4
       '@tanstack/react-query': 5.75.2(react@18.3.1)
+      '@tiptap/extension-character-count': 3.4.1(@tiptap/extensions@3.4.1(@tiptap/core@3.4.1(@tiptap/pm@3.4.1))(@tiptap/pm@3.4.1))
+      '@tiptap/extension-code-block-lowlight': 3.4.1(@tiptap/core@3.4.1(@tiptap/pm@3.4.1))(@tiptap/extension-code-block@3.4.1(@tiptap/core@3.4.1(@tiptap/pm@3.4.1))(@tiptap/pm@3.4.1))(@tiptap/pm@3.4.1)(highlight.js@11.11.1)(lowlight@3.3.0)
+      '@tiptap/extension-highlight': 3.4.1(@tiptap/core@3.4.1(@tiptap/pm@3.4.1))
+      '@tiptap/extension-image': 3.4.1(@tiptap/core@3.4.1(@tiptap/pm@3.4.1))
+      '@tiptap/extension-link': 3.4.1(@tiptap/core@3.4.1(@tiptap/pm@3.4.1))(@tiptap/pm@3.4.1)
+      '@tiptap/extension-placeholder': 3.4.1(@tiptap/extensions@3.4.1(@tiptap/core@3.4.1(@tiptap/pm@3.4.1))(@tiptap/pm@3.4.1))
+      '@tiptap/extension-task-item': 3.4.1(@tiptap/extension-list@3.4.1(@tiptap/core@3.4.1(@tiptap/pm@3.4.1))(@tiptap/pm@3.4.1))
+      '@tiptap/extension-task-list': 3.4.1(@tiptap/extension-list@3.4.1(@tiptap/core@3.4.1(@tiptap/pm@3.4.1))(@tiptap/pm@3.4.1))
+      '@tiptap/extension-text-align': 3.4.1(@tiptap/core@3.4.1(@tiptap/pm@3.4.1))
+      '@tiptap/react': 3.4.1(@floating-ui/dom@1.7.0)(@tiptap/core@3.4.1(@tiptap/pm@3.4.1))(@tiptap/pm@3.4.1)(@types/react-dom@18.3.7(@types/react@18.3.20))(@types/react@18.3.20)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@tiptap/starter-kit': 3.4.1
       '@types/react-syntax-highlighter': 15.5.13
       axios: 1.9.0
       canvas-confetti: 1.9.3
@@ -12589,6 +12600,7 @@ snapshots:
       highlight.js: 11.11.1
       i18next: 25.0.2(typescript@5.8.3)
       input-otp: 1.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      lowlight: 3.3.0
       lucide-react: 0.462.0(react@18.3.1)
       mermaid: 10.9.3
       monaco-editor: 0.52.2
@@ -12619,6 +12631,7 @@ snapshots:
       sonner: 1.7.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       tailwind-merge: 2.6.0
       tailwindcss-animate: 1.0.7(tailwindcss@3.4.17(ts-node@10.9.2(@swc/core@1.11.24)(@types/node@22.15.10)(typescript@5.8.3)))
+      turndown: 7.2.1
       uuid: 11.1.0
       vaul: 0.9.9(@types/react-dom@18.3.7(@types/react@18.3.20))(@types/react@18.3.20)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       xterm: 5.3.0
@@ -12626,8 +12639,14 @@ snapshots:
       zod: 3.24.3
     transitivePeerDependencies:
       - '@emotion/is-prop-valid'
+      - '@floating-ui/dom'
       - '@react-three/fiber'
       - '@rrweb/types'
+      - '@tiptap/core'
+      - '@tiptap/extension-code-block'
+      - '@tiptap/extension-list'
+      - '@tiptap/extensions'
+      - '@tiptap/pm'
       - '@types/hoist-non-react-statics'
       - '@types/node'
       - '@types/react'
