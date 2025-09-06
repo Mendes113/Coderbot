@@ -6,7 +6,7 @@ import React, { Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { pb } from "@/integrations/pocketbase/client";
 import posthog from "posthog-js";
-import { ErrorBoundary } from "@/Components/ErrorBoundary";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 // import { CodeEditorProvider } from "@/context/CodeEditorContext";
 
 // Lazy loading otimizado com preload para rotas críticas
@@ -26,6 +26,7 @@ const FlashCardPage = React.lazy(() => import("./pages/FlashCardPage"));
 const AdaptiveLearning = React.lazy(() => import("./pages/AdaptiveLearning"));
 const Analytics = React.lazy(() => import("./pages/Analytics"));
 const AboutProject = React.lazy(() => import("./pages/AboutProject"));
+const NotesPage = React.lazy(() => import("./pages/NotesPage"));
 
 const queryClient = new QueryClient();
 
@@ -157,6 +158,7 @@ const App = () => {
                     <Route path="whiteboard" element={<Whiteboard />} />
                     <Route path="mermaid" element={<Mermaid />} />
                     <Route path="flashcard" element={<FlashCardPage />} />
+                    <Route path="notes" element={<NotesPage />} />
                   </Route>
                   <Route path="/profile" element={<RequireAuth><UserProfile /></RequireAuth>} />
                   <Route path="/auth" element={<Auth />} />
@@ -198,7 +200,7 @@ const AnalyticsTracker = () => {
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [location.pathname]);
+  }, []); // Remove location.pathname para evitar recriação desnecessária do listener
 
   return null;
 };
@@ -211,6 +213,7 @@ const RequireAuth = ({ children }: { children: JSX.Element }) => {
     // Se não há sessão válida, redireciona
     if (!pb.authStore.isValid) {
       navigate('/auth');
+      return; // Sai imediatamente após redirecionar
     }
     setLoading(false);
 
@@ -222,7 +225,7 @@ const RequireAuth = ({ children }: { children: JSX.Element }) => {
     });
 
     return () => unsubscribe();
-  }, [navigate]);
+  }, []); // Remove navigate das dependências para evitar loop infinito
 
   if (loading) return null; // ou um spinner
 

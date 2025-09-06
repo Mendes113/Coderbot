@@ -212,14 +212,14 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
       </TabsList>
       
       <TabsContent value="profile">
-        <Card>
-          <CardHeader>
-            <CardTitle>
+        <Card className="bg-gradient-to-br from-background/90 to-background/50 backdrop-blur-sm border-sidebar-border/50 shadow-xl ring-1 ring-black/5 rounded-2xl">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl">
               {isEditing ? "Editar Perfil" : "Detalhes do Perfil"}
             </CardTitle>
-            <CardDescription>
-              {isEditing 
-                ? "Atualize suas informações pessoais" 
+            <CardDescription className="text-muted-foreground/80">
+              {isEditing
+                ? "Atualize suas informações pessoais"
                 : "Suas informações pessoais"}
             </CardDescription>
           </CardHeader>
@@ -229,12 +229,12 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <div className="flex flex-col items-center mb-6">
-                    <Avatar className="h-24 w-24 mb-4 border-2 border-primary/20">
-                      <AvatarImage 
-                        src={avatarPreview || profile?.avatar_url || undefined} 
-                        alt="Profile" 
+                    <Avatar className="h-24 w-24 mb-4 border-2 border-coderbot-purple/30 shadow-lg ring-1 ring-black/5">
+                      <AvatarImage
+                        src={avatarPreview || profile?.avatar_url || undefined}
+                        alt="Profile"
                       />
-                      <AvatarFallback className="bg-primary/10 text-primary text-lg">
+                      <AvatarFallback className="bg-coderbot-purple/10 text-coderbot-purple text-lg">
                         {profile?.name ? profile.name.charAt(0) : <User />}
                       </AvatarFallback>
                     </Avatar>
@@ -252,11 +252,11 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
                       size="sm"
                       type="button"
                       onClick={triggerFileInput}
-                      className="relative group overflow-hidden"
+                      className="relative group overflow-hidden shadow-sm ring-1 ring-black/5 hover:shadow-md transition-all duration-200"
                     >
                       <Camera className="mr-2 h-4 w-4" />
                       Alterar Foto
-                      <span className="absolute inset-0 flex items-center justify-center bg-primary text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="absolute inset-0 flex items-center justify-center bg-coderbot-purple text-white opacity-0 group-hover:opacity-100 transition-opacity rounded">
                         Escolher arquivo
                       </span>
                     </Button>
@@ -309,7 +309,11 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
                   />
 
                   <div className="flex justify-end">
-                    <Button type="submit" disabled={updating}>
+                    <Button
+                      type="submit"
+                      disabled={updating}
+                      className="bg-gradient-to-r from-coderbot-purple to-purple-600 hover:from-coderbot-purple/90 hover:to-purple-600/90 shadow-sm ring-1 ring-black/5 hover:shadow-md transition-all duration-200"
+                    >
                       {updating ? "Salvando..." : "Salvar Alterações"}
                     </Button>
                   </div>
@@ -374,10 +378,10 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
       </TabsContent>
       
       <TabsContent value="invitations">
-        <Card>
-          <CardHeader>
-            <CardTitle>Convites para Turmas</CardTitle>
-            <CardDescription>
+        <Card className="bg-gradient-to-br from-background/90 to-background/50 backdrop-blur-sm border-sidebar-border/50 shadow-xl ring-1 ring-black/5 rounded-2xl">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl">Convites para Turmas</CardTitle>
+            <CardDescription className="text-muted-foreground/80">
               Gerencie os convites de professores para participar de turmas
             </CardDescription>
           </CardHeader>
@@ -391,7 +395,7 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
               <ScrollArea className="h-[300px]">
                 <div className="space-y-4">
                   {invitations.map((invitation) => (
-                    <Card key={invitation.id} className="overflow-hidden">
+                    <Card key={invitation.id} className="overflow-hidden bg-gradient-to-r from-background/80 to-background/40 border-sidebar-border/30 shadow-md ring-1 ring-black/5 rounded-xl">
                       <div className="p-4">
                         <div className="flex justify-between items-start mb-2">
                           <div>
@@ -407,17 +411,18 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
                         </div>
                         
                         <div className="flex justify-end gap-2 mt-4">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
-                            className="text-destructive border-destructive/50"
+                            className="text-destructive border-destructive/50 shadow-sm ring-1 ring-black/5 hover:shadow-md transition-all duration-200"
                             onClick={() => handleRejectInvitation(invitation.id)}
                           >
                             <XCircle className="mr-1 h-4 w-4" />
                             Recusar
                           </Button>
-                          <Button 
+                          <Button
                             size="sm"
+                            className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-500/90 hover:to-emerald-600/90 shadow-sm ring-1 ring-black/5 hover:shadow-md transition-all duration-200"
                             onClick={() => handleAcceptInvitation(invitation.id, invitation.classId)}
                           >
                             <CheckCircle className="mr-1 h-4 w-4" />

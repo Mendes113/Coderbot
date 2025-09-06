@@ -36,7 +36,7 @@ export function useIsMobile() {
         mql.removeListener(onChange)
       }
     }
-  }, [])
+  }, []) // Dependências vazias - só executar uma vez
 
   return isMobile
 }

@@ -28,21 +28,23 @@ const Index = () => {
     return "chat"; // fallback
   }, [location.pathname]);
 
-  // Atualizar currentNav apenas quando necessário
+  // Atualizar currentNav apenas quando necessário - comparar com valor atual para evitar loops
   useEffect(() => {
-    setCurrentNav(computedNav);
-  }, [computedNav]);
+    if (currentNav !== computedNav) {
+      setCurrentNav(computedNav);
+    }
+  }, [computedNav, currentNav]);
 
   return (
     <SidebarProvider defaultOpen={!isMobile}>
       <div className="flex h-screen w-full overflow-hidden bg-gray-50 dark:bg-gray-900">
         <AppSidebar currentNav={currentNav} onNavChange={setCurrentNav} />
         <main className={cn(
-          "flex-1 overflow-hidden relative",
+          "flex-1 overflow-auto relative",
           isMobile ? "w-full" : ""
         )}>
           {/* Conteúdo atual da rota */}
-          <div className="w-full h-full">
+          <div className="w-full min-h-full">
             <Outlet />
           </div>
         </main>

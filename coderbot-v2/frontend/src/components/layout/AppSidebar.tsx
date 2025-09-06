@@ -1,4 +1,4 @@
-import { User, MessageSquare, Code, GraduationCap, Presentation, Mail } from "lucide-react";
+import { User, MessageSquare, Code, GraduationCap, Presentation, Mail, BookOpen } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -42,7 +42,7 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
     const user = getCurrentUser();
     if (user) setUserRole(user.role);
     setIsLoading(false);
-  }, []);
+  }, []); // Dependência vazia é intencional - só executar uma vez na montagem
 
   const mainNavItems: NavItem[] = [
     { id: "chat", label: "Chat", icon: MessageSquare, accessKey: "c", path: "/dashboard/chat" },
@@ -64,18 +64,21 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
       roles: ["student", "teacher", "admin"],
     },
     { id: "whiteboard", label: "Quadro", icon: Presentation, accessKey: "w", path: "/dashboard/whiteboard" },
+    { id: "notes", label: "Notas", icon: BookOpen, accessKey: "n", path: "/dashboard/notes" },
     // New: Profile button (accessible to all roles)
     { id: "profile", label: "Perfil", icon: User, accessKey: "p", path: "/profile" },
   ];
 
-  const filteredNavItems = mainNavItems.filter((item) => {
-    if (!item.roles) return true;
-    const normalizedUserRole = (userRole || "").toLowerCase().trim();
-    // Fallback: mostrar itens com controle de role mesmo se a role ainda não estiver carregada
-    if (!normalizedUserRole) return true;
-    const allowed = item.roles.map(r => r.toLowerCase().trim());
-    return allowed.includes(normalizedUserRole);
-  });
+  const filteredNavItems = useMemo(() => {
+    return mainNavItems.filter((item) => {
+      if (!item.roles) return true;
+      const normalizedUserRole = (userRole || "").toLowerCase().trim();
+      // Fallback: mostrar itens com controle de role mesmo se a role ainda não estiver carregada
+      if (!normalizedUserRole) return true;
+      const allowed = item.roles.map(r => r.toLowerCase().trim());
+      return allowed.includes(normalizedUserRole);
+    });
+  }, [userRole]); // Só recalcular quando userRole mudar
 
   // Mapa de atalhos Alt+<tecla> - memoizado
   const accessKeyMap = useMemo(() => {

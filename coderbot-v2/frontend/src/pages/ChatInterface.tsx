@@ -8,14 +8,14 @@ const ChatInterface = ({ whiteboardContext }: { whiteboardContext?: any }) => {
 	if (!userId) {
 		console.log("No userId found, component will not render"); // Debug log
 		return (
-			<div className="h-screen flex flex-col items-center justify-center">
+			<div className="flex flex-col items-center justify-center h-full">
 				<p className="text-red-500">Usuário não autenticado. Por favor, faça login.</p>
 			</div>
 		);
 	}
 	
 	return (
-		<div className="h-screen flex flex-col">
+		<div className="flex flex-col h-full">
 				<ChatComponent
 					userId={userId}
 					whiteboardContext={whiteboardContext}

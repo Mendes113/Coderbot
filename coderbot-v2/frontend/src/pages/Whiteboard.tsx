@@ -12,7 +12,7 @@ import {
   registerUserAction,
 } from "@/integrations/pocketbase/client";
 import { useDrawings } from "@/hooks/useDrawings";
-import { DrawingList } from "@/Components/whiteboard/DrawingList";
+import { DrawingList } from "@/components/whiteboard/DrawingList";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 import { usePerformance } from "@/hooks/usePerformance";
@@ -98,7 +98,7 @@ const useWhiteboardAIContext = (apiRef: React.RefObject<ExcalidrawImperativeAPI>
     } finally {
       setIsGeneratingContext(false);
     }
-  }, [apiRef]);
+  }, []); // Remove apiRef das dependências para evitar re-renders infinitos
 
   return {
     context,
@@ -112,6 +112,12 @@ const useWhiteboardAIContext = (apiRef: React.RefObject<ExcalidrawImperativeAPI>
 const useDebouncedSave = (saveFunction: () => Promise<void>, delay: number = 2000) => {
   const timeoutRef = useRef<NodeJS.Timeout>();
   const lastSaveRef = useRef<number>(0);
+  const saveFunctionRef = useRef(saveFunction);
+
+  // Atualiza a referência da função sem causar re-renders
+  useEffect(() => {
+    saveFunctionRef.current = saveFunction;
+  }, [saveFunction]);
 
   const debouncedSave = useCallback(() => {
     if (timeoutRef.current) {
@@ -123,14 +129,14 @@ const useDebouncedSave = (saveFunction: () => Promise<void>, delay: number = 200
       // Evita salvamentos muito frequentes (mínimo 1 segundo entre salvamentos)
       if (now - lastSaveRef.current > 1000) {
         try {
-          await saveFunction();
+          await saveFunctionRef.current();
           lastSaveRef.current = now;
         } catch (error) {
           console.error('Erro no salvamento automático:', error);
         }
       }
     }, delay);
-  }, [saveFunction, delay]);
+  }, [delay]); // Remove saveFunction das dependências
 
   useEffect(() => {
     return () => {
@@ -145,35 +151,35 @@ const useDebouncedSave = (saveFunction: () => Promise<void>, delay: number = 200
 
 // Hook para cache inteligente de desenhos
 const useDrawingCache = () => {
-  const [cache, setCache] = useState<Map<string, { data: any; timestamp: number }>>(new Map());
+  const cacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
 
   const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 
   const getCached = useCallback((id: string) => {
-    const cached = cache.get(id);
+    const cached = cacheRef.current.get(id);
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
       return cached.data;
     }
     return null;
-  }, [cache]);
+  }, []); // Remove cache das dependências
 
   const setCached = useCallback((id: string, data: any) => {
-    setCache(prev => {
-      const newCache = new Map(prev);
-      newCache.set(id, { data, timestamp: Date.now() });
+    const newCache = new Map(cacheRef.current);
+    newCache.set(id, { data, timestamp: Date.now() });
 
-      // Limpa cache antigo (mantém apenas os 10 mais recentes)
-      if (newCache.size > 10) {
-        const sorted = Array.from(newCache.entries())
-          .sort(([,a], [,b]) => b.timestamp - a.timestamp);
-        return new Map(sorted.slice(0, 10));
-      }
-
-      return newCache;
-    });
+    // Limpa cache antigo (mantém apenas os 10 mais recentes)
+    if (newCache.size > 10) {
+      const sorted = Array.from(newCache.entries())
+        .sort(([,a], [,b]) => b.timestamp - a.timestamp);
+      cacheRef.current = new Map(sorted.slice(0, 10));
+    } else {
+      cacheRef.current = newCache;
+    }
   }, []);
 
-  const clearCache = useCallback(() => setCache(new Map()), []);
+  const clearCache = useCallback(() => {
+    cacheRef.current = new Map();
+  }, []);
 
   return { getCached, setCached, clearCache };
 };
@@ -200,6 +206,7 @@ const Whiteboard: React.FC = () => {
   const [motivationalMessage, setMotivationalMessage] = useState("");
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [lastContextUpdate, setLastContextUpdate] = useState<number>(0);
 
   // // Bônus diário ao acessar pela primeira vez no dia
   // React.useEffect(() => {
@@ -267,6 +274,16 @@ const Whiteboard: React.FC = () => {
 
   // Auto-save inteligente com debounce
   const debouncedAutoSave = useDebouncedSave(() => saveScene(true), isSlowConnection ? 5000 : 3000);
+
+  // Função otimizada para onChange - evita re-renders excessivos
+  const handleExcalidrawChange = useCallback(() => {
+    const now = Date.now();
+    // Só atualiza contexto IA se passaram pelo menos 3 segundos desde a última atualização
+    if (autoSaveEnabled && now - lastContextUpdate > 3000) {
+      setLastContextUpdate(now);
+      generateContext();
+    }
+  }, [autoSaveEnabled, lastContextUpdate, generateContext]);
 
   // Hook para detectar mudanças no quadro e acionar auto-save
   useEffect(() => {
@@ -409,7 +426,7 @@ const Whiteboard: React.FC = () => {
     }))
   ), []);
 
-  // Indicador de performance aprimorado
+  // Indicador de performance aprimorado (menor)
   const PerformanceIndicator = useMemo(() => {
     const getPerformanceColor = () => {
       if (isSlowConnection) return 'bg-orange-600';
@@ -418,51 +435,33 @@ const Whiteboard: React.FC = () => {
     };
 
     return (
-      <div className={`fixed top-4 right-4 z-30 ${getPerformanceColor()} text-white px-3 py-2 rounded-lg text-xs font-mono shadow-lg`}>
-        <div className="flex items-center gap-2">
+      <div className={`fixed top-12 right-4 z-30 ${getPerformanceColor()} text-white px-2 py-1 rounded-md text-xs font-mono shadow-md`}>
+        <div className="flex items-center gap-1">
           <Cpu className="w-3 h-3" />
-          <div className="flex flex-col">
-            <span className="font-medium">
-              {isSlowConnection ? 'Conexão Lenta' : 'Performance OK'}
-            </span>
-            {lastSaved && (
-              <span className="text-xs opacity-90">
-                Salvo: {lastSaved.toLocaleTimeString()}
-              </span>
-            )}
-            {context && (
-              <span className="text-xs opacity-90">
-                IA: {context.metadata.totalElements} elementos
-              </span>
-            )}
-          </div>
+          <span className="font-medium text-xs">
+            {isSlowConnection ? 'Lento' : 'OK'}
+          </span>
         </div>
       </div>
     );
-  }, [isSlowConnection, lastSaved, context?.metadata.totalElements, metrics.cls]);
+  }, [isSlowConnection, metrics.cls]);
 
-  // Indicador de contexto IA
+  // Indicador de contexto IA (discreto)
   const AIContextIndicator = useMemo(() => {
     if (!isGeneratingContext && !context) return null;
 
     return (
-      <div className="fixed bottom-20 right-4 z-30 bg-purple-600 text-white px-3 py-2 rounded-lg text-xs max-w-xs">
-        <div className="flex items-center gap-2">
+      <div className="fixed bottom-20 right-4 z-30 bg-purple-500/80 text-white px-2 py-1 rounded-md text-xs backdrop-blur-sm border border-purple-400/30">
+        <div className="flex items-center gap-1">
           {isGeneratingContext ? (
-            <>
-              <Loader2 className="w-3 h-3 animate-spin" />
-              <span>Analisando quadro...</span>
-            </>
+            <Loader2 className="w-3 h-3 animate-spin" />
           ) : (
-            <>
-              <Brain className="w-3 h-3" />
-              <span>IA pronta ({context?.metadata.totalElements} elementos)</span>
-            </>
+            <Brain className="w-3 h-3" />
           )}
         </div>
       </div>
     );
-  }, [isGeneratingContext, context?.metadata.totalElements]);
+  }, [isGeneratingContext, context]);
 
   // Função para obter o JSON atual do quadro
   const getCurrentSceneJSON = useCallback((): Record<string, any> | null => {
@@ -712,12 +711,7 @@ const Whiteboard: React.FC = () => {
                     }
                   }
                 }}
-                onChange={() => {
-                  // Trigger contexto IA update quando há mudanças
-                  if (autoSaveEnabled) {
-                    generateContext();
-                  }
-                }}
+                onChange={handleExcalidrawChange}
               />
             </Suspense>
           </div>
@@ -764,17 +758,16 @@ const Whiteboard: React.FC = () => {
             </SheetContent>
           </Sheet>
 
-          {/* Controles de Performance e IA */}
-          <div className="fixed top-20 right-4 z-30 flex flex-col gap-2">
+          {/* Controles de Performance e IA (menores) */}
+          <div className="fixed top-20 right-4 z-30 flex flex-col gap-1">
             <Button
               variant={autoSaveEnabled ? "default" : "outline"}
               size="sm"
               onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}
-              className="text-xs"
+              className="text-xs h-7 px-2"
               title="Ativar/desativar salvamento automático inteligente"
             >
-              <Database className="w-3 h-3 mr-1" />
-              Auto-save {autoSaveEnabled ? 'ON' : 'OFF'}
+              <Database className="w-3 h-3" />
             </Button>
 
             <Button
@@ -782,26 +775,24 @@ const Whiteboard: React.FC = () => {
               size="sm"
               onClick={generateContext}
               disabled={isGeneratingContext}
-              className="text-xs"
+              className="text-xs h-7 px-2"
               title="Atualizar contexto da IA com o quadro atual"
             >
               {isGeneratingContext ? (
-                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                <Loader2 className="w-3 h-3 animate-spin" />
               ) : (
-                <Brain className="w-3 h-3 mr-1" />
+                <Brain className="w-3 h-3" />
               )}
-              Atualizar IA
             </Button>
 
             <Button
               variant="outline"
               size="sm"
               onClick={clearCache}
-              className="text-xs"
+              className="text-xs h-7 px-2"
               title="Limpar cache de desenhos"
             >
-              <Database className="w-3 h-3 mr-1" />
-              Limpar Cache
+              <Zap className="w-3 h-3" />
             </Button>
           </div>
         </>

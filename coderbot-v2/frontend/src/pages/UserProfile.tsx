@@ -191,25 +191,37 @@ const UserProfile = () => {
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-8 max-w-6xl">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/dashboard/chat")}
-            className="flex-shrink-0"
-            title="Voltar ao dashboard"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-2xl font-bold">Perfil & Learning Analytics</h1>
+    <div className="h-full flex flex-col">
+      {/* Header com branding moderno (inspirado no AppSidebar) */}
+      <div className="relative flex items-center justify-between gap-3 border-b border-sidebar-border/50 p-4 bg-gradient-to-br from-coderbot-purple/20 via-transparent to-transparent backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <img
+            src="/coderbot_colorfull.png"
+            alt="Logo Coderbot"
+            className="w-10 h-10 rounded-xl shadow-sm ring-1 ring-black/5 object-contain"
+          />
+          <div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate("/dashboard/chat")}
+                className="flex-shrink-0 h-8 w-8"
+                title="Voltar ao dashboard"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <h1 className="text-xl font-semibold">Perfil & Learning Analytics</h1>
+            </div>
+            <div className="text-xs text-muted-foreground">Gerencie seu perfil e veja seu progresso</div>
+          </div>
         </div>
+
         <div className="flex gap-2">
           <Button
             variant="outline"
             onClick={handleGithubConnect}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 h-8"
             size="sm"
           >
             <Github className="h-4 w-4" />
@@ -218,7 +230,7 @@ const UserProfile = () => {
           <Button
             variant="outline"
             onClick={handleLogout}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 h-8"
             size="sm"
           >
             <LogOut className="h-4 w-4" />
@@ -226,6 +238,10 @@ const UserProfile = () => {
           </Button>
         </div>
       </div>
+
+      {/* Conteúdo principal */}
+      <div className="flex-1 overflow-auto">
+        <div className="container mx-auto py-6 space-y-6 max-w-6xl">
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
@@ -272,7 +288,7 @@ const UserProfile = () => {
 
         <TabsContent value="api-keys" className="space-y-6">
           <div className="max-w-md mx-auto">
-            <div className="bg-background/90 border border-border rounded-2xl p-8 mt-6 shadow-xl flex flex-col gap-6 items-center">
+            <div className="bg-gradient-to-br from-background/90 to-background/50 backdrop-blur-sm border border-sidebar-border/50 rounded-2xl p-8 mt-6 shadow-xl ring-1 ring-black/5 flex flex-col gap-6 items-center">
               <div className="flex flex-col items-center mb-2">
                 <span className="text-2xl text-foreground mb-1">🔑</span>
                 <h2 className="text-xl font-bold mb-1 text-foreground">Gerencie suas API Keys</h2>
@@ -285,7 +301,7 @@ const UserProfile = () => {
                     id="chatgpt-key"
                     type="text"
                     autoComplete="off"
-                    className="w-full border border-border rounded px-3 py-2 bg-background text-foreground focus:ring-2 focus:ring-violet-500 transition placeholder:text-muted-foreground"
+                    className="w-full border border-sidebar-border/50 rounded px-3 py-2 bg-background text-foreground focus:ring-2 focus:ring-coderbot-purple/50 transition-all duration-200 placeholder:text-muted-foreground shadow-sm ring-1 ring-black/5"
                     placeholder="Cole sua chave ChatGPT..."
                     value={apiKeys.chatgpt}
                     onChange={e => { setApiKeys(a => ({ ...a, chatgpt: e.target.value })); setApiKeySaved(false); }}
@@ -298,7 +314,7 @@ const UserProfile = () => {
                     id="deepseek-key"
                     type="text"
                     autoComplete="off"
-                    className="w-full border border-border rounded px-3 py-2 bg-background text-foreground focus:ring-2 focus:ring-violet-500 transition placeholder:text-muted-foreground"
+                    className="w-full border border-sidebar-border/50 rounded px-3 py-2 bg-background text-foreground focus:ring-2 focus:ring-coderbot-purple/50 transition-all duration-200 placeholder:text-muted-foreground shadow-sm ring-1 ring-black/5"
                     placeholder="Cole sua chave DeepSeek..."
                     value={apiKeys.deepseek}
                     onChange={e => { setApiKeys(a => ({ ...a, deepseek: e.target.value })); setApiKeySaved(false); }}
@@ -311,7 +327,7 @@ const UserProfile = () => {
                     id="openrouter-key"
                     type="text"
                     autoComplete="off"
-                    className="w-full border border-border rounded px-3 py-2 bg-background text-foreground focus:ring-2 focus:ring-violet-500 transition placeholder:text-muted-foreground"
+                    className="w-full border border-sidebar-border/50 rounded px-3 py-2 bg-background text-foreground focus:ring-2 focus:ring-coderbot-purple/50 transition-all duration-200 placeholder:text-muted-foreground shadow-sm ring-1 ring-black/5"
                     placeholder="Cole sua chave OpenRouter..."
                     value={apiKeys.openrouter}
                     onChange={e => { setApiKeys(a => ({ ...a, openrouter: e.target.value })); setApiKeySaved(false); }}
@@ -320,7 +336,7 @@ const UserProfile = () => {
                 </div>
                 <button
                   type="submit"
-                  className="w-full mt-2 py-2 rounded-lg text-lg font-semibold shadow bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white border-0 hover:from-violet-500/90 hover:to-fuchsia-600/90 transition focus:ring-2 focus:ring-violet-500/50"
+                  className="w-full mt-2 py-2 rounded-lg text-lg font-semibold shadow-lg bg-gradient-to-r from-coderbot-purple to-purple-600 text-white border-0 hover:from-coderbot-purple/90 hover:to-purple-600/90 transition-all duration-200 focus:ring-2 focus:ring-coderbot-purple/50 ring-1 ring-black/5 hover:shadow-xl"
                   disabled={apiKeyLoading}
                 >{apiKeyLoading ? 'Salvando...' : 'Salvar Todas as API Keys'}</button>
               </form>
@@ -335,6 +351,8 @@ const UserProfile = () => {
           <StudentInvitations />
         </TabsContent>
       </Tabs>
+        </div>
+      </div>
     </div>
   );
 };
