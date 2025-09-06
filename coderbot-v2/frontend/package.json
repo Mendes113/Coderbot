@@ -11,6 +11,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@emoji-mart/data": "^1.2.1",
+    "@emoji-mart/react": "^1.1.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@excalidraw/excalidraw": "^0.18.0",
@@ -74,8 +76,10 @@
     "framer-motion": "^12.16.0",
     "gsap": "^3.13.0",
     "highlight.js": "^11.11.1",
+    "html-to-image": "^1.11.13",
     "i18next": "^25.0.2",
     "input-otp": "^1.2.4",
+    "jspdf": "^3.0.2",
     "katex": "^0.16.22",
     "lowlight": "^3.3.0",
     "lucide-react": "^0.462.0",
@@ -110,6 +114,7 @@
     "rehype-prism-plus": "^2.0.1",
     "rehype-raw": "^7.0.0",
     "remark-breaks": "^4.0.0",
+    "remark-emoji": "^5.0.2",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
     "remark-wiki-link": "^2.0.1",
