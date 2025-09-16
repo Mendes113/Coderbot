@@ -19,7 +19,7 @@ services:
     environment:
       - POCKETBASE_ADMIN_EMAIL=${POCKETBASE_ADMIN_EMAIL}
       - POCKETBASE_ADMIN_PASSWORD=${POCKETBASE_ADMIN_PASSWORD}
-    command: ["sh","-lc","exec /pb/pocketbase serve --http 0.0.0.0:8090 --dir /pb/pb_data --migrationsDir /pb/pb_migrations"]
+    command: ["sh","-lc","exec /pb/pocketbase serve --http 0.0.0.0:8090 --dir /pb/pb_data --migrationsDir /pb/pb_migrations --origins='*'"]
     networks:
       - coderbot-network
     restart: unless-stopped
