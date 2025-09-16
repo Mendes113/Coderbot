@@ -106,7 +106,7 @@ services:
       context: ./frontend
       dockerfile: ../docker/Dockerfile.frontend
       args:
-        VITE_POCKETBASE_URL: http://localhost:8080/pb
+        VITE_POCKETBASE_URL: /pb
     container_name: coderbot-frontend
     ports:
       - "3002:3000"
