@@ -109,6 +109,11 @@ function Hero() {
           <Button asChild variant="outline" size="lg" className="border-white/40 bg-white/10 backdrop-blur">
             <a href="/auth">Saiba mais</a>
           </Button>
+          <Button asChild variant="outline" size="lg" className="border-purple-400/40 bg-purple-600/10 backdrop-blur hover:bg-purple-500/20">
+            <a href="/teacher/" target="_blank" rel="noopener noreferrer">
+              Dashboard Professor
+            </a>
+          </Button>
         </div>
       </div>
 
@@ -357,6 +362,19 @@ function CtaSection() {
                     <path d="M8 6.82v10.36c0 .79.87 1.27 1.54.84l8.14-5.18c.62-.39.62-1.29 0-1.69L9.54 5.98C8.87 5.55 8 6.03 8 6.82z" />
                   </svg>
                   Ver vídeo
+                </div>
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="border-indigo-200 bg-indigo-800/10 text-black backdrop-blur hover:bg-indigo-500/10 hover:text-black"
+                onClick={() => window.open('/teacher/', '_blank')}
+              >
+                <div className="flex items-center gap-2">
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                  Dashboard Professor
                 </div>
               </Button>
             </motion.div>
