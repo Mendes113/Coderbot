@@ -45,8 +45,12 @@ RUN echo 'server {' > /etc/nginx/conf.d/default.conf && \
     echo '    }' >> /etc/nginx/conf.d/default.conf && \
     echo '}' >> /etc/nginx/conf.d/default.conf
 
-# Copiar configuração customizada se existir (sobrescreve a padrão)
-COPY --from=builder /app/nginx.conf /etc/nginx/conf.d/default.conf 2>/dev/null || true
+# Copiar toda pasta do repositório temporariamente para verificar nginx.conf
+COPY --from=builder /app /tmp/chatbot-teacher
+RUN if [ -f /tmp/chatbot-teacher/nginx.conf ]; then \
+        cp /tmp/chatbot-teacher/nginx.conf /etc/nginx/conf.d/default.conf; \
+    fi && \
+    rm -rf /tmp/chatbot-teacher
 
 # Expor a porta
 EXPOSE 3000
