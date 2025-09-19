@@ -130,16 +130,18 @@ services:
         hard: 65536
     stop_grace_period: 10s
 
-  # Chatbot Teacher Dashboard (core profile)
+  # Chatbot Teacher Frontend (repositório separado - clonado do GitHub)
   chatbot-teacher:
     build:
-      context: ../../Chatbot-Teacher
-      dockerfile: Dockerfile
-    container_name: coderbot-teacher
+      context: .
+      dockerfile: docker/Dockerfile.chatbot-teacher
+    container_name: coderbot-chatbot-teacher
     ports:
       - "3001:3000"
     environment:
-      - VITE_POCKETBASE_URL=http://pocketbase:8090
+      - VITE_POCKETBASE_URL=/pb
+      - VITE_API_URL=/api
+      - NODE_ENV=production
     depends_on:
       pocketbase:
         condition: service_healthy
