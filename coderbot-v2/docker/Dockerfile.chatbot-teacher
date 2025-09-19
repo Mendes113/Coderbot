@@ -52,7 +52,7 @@ RUN if [ -f /tmp/chatbot-teacher/nginx.conf ]; then \
     fi && \
     rm -rf /tmp/chatbot-teacher
 
-# Expor a porta
+# Expor a porta (interna do container)
 EXPOSE 3000
 
 # Health check
