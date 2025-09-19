@@ -11,8 +11,8 @@ services:
       context: .
       dockerfile: docker/Dockerfile.pocketbase
     container_name: coderbot-pocketbase
-    # ports:
-    #   - "8090:8090"  # Removido - acessível apenas via nginx
+    ports:
+      - "8090:8090"  # Exposto diretamente para Dokploy (backup)
     volumes:
       - pocketbase_data:/pb/pb_data
       - ./pocketbase_0.27.2_linux_amd64/pb_migrations:/pb/pb_migrations:ro
@@ -43,8 +43,8 @@ services:
       context: ./backend
       dockerfile: ../docker/Dockerfile.backend
     container_name: coderbot-backend
-    # ports:
-    #   - "8000:8000"  # Removido - acessível apenas via nginx
+    ports:
+      - "8000:8000"  # Exposto diretamente para Dokploy (backup)
     environment:
       - DEEP_SEEK_API_KEY=${DEEP_SEEK_API_KEY}
       - DEEP_SEEK_API_URL=${DEEP_SEEK_API_URL}
@@ -108,8 +108,8 @@ services:
       args:
         VITE_POCKETBASE_URL: /pb
     container_name: coderbot-frontend
-    # ports:
-    #   - "3002:3000"  # Removido - acessível apenas via nginx
+    ports:
+      - "3002:3000"  # Exposto diretamente para Dokploy (backup)
     depends_on:
       backend:
         condition: service_healthy
@@ -136,8 +136,8 @@ services:
       context: .
       dockerfile: docker/Dockerfile.chatbot-teacher
     container_name: coderbot-chatbot-teacher
-    # ports:
-    #   - "3001:3000"  # Removido - acessível apenas via nginx
+    ports:
+      - "3001:3000"  # Exposto diretamente para Dokploy (backup)
     environment:
       - VITE_POCKETBASE_URL=/pb
       - VITE_API_URL=/api
@@ -176,7 +176,7 @@ services:
       pocketbase:
         condition: service_healthy
     ports:
-      - "8080:80"  # Nginx interno na 80, exposto na 8080 para Dokploy
+      - "9080:80"  # Nginx proxy (alternativa caso direto não funcione)
     networks:
       - coderbot-network
     restart: unless-stopped
