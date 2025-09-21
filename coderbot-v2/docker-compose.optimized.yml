@@ -19,7 +19,7 @@ services:
     environment:
       - POCKETBASE_ADMIN_EMAIL=${POCKETBASE_ADMIN_EMAIL}
       - POCKETBASE_ADMIN_PASSWORD=${POCKETBASE_ADMIN_PASSWORD}
-    command: ["sh","-lc","exec /pb/pocketbase serve --http 0.0.0.0:8090 --dir /pb/pb_data --migrationsDir /pb/pb_migrations"]
+    command: ["sh","-lc","exec /pb/pocketbase serve --http 0.0.0.0:8090 --dir /pb/pb_data --migrationsDir /pb/pb_migrations --origins='*'"]
     networks:
       - coderbot-network
     restart: unless-stopped
@@ -43,8 +43,8 @@ services:
       context: ./backend
       dockerfile: ../docker/Dockerfile.backend
     container_name: coderbot-backend
-    ports:
-      - "8000:8000"
+    # ports:
+    #   - "8000:8000"  # Acessível apenas via nginx
     environment:
       - DEEP_SEEK_API_KEY=${DEEP_SEEK_API_KEY}
       - DEEP_SEEK_API_URL=${DEEP_SEEK_API_URL}
@@ -105,9 +105,11 @@ services:
     build:
       context: ./frontend
       dockerfile: ../docker/Dockerfile.frontend
+      args:
+        VITE_POCKETBASE_URL: /pb
     container_name: coderbot-frontend
-    ports:
-      - "3000:3000"
+    # ports:
+    #   - "3002:3000"  # Acessível apenas via nginx
     depends_on:
       backend:
         condition: service_healthy
@@ -162,6 +164,7 @@ services:
         hard: 65536
     stop_grace_period: 10s
 
+
   # Reverse proxy para expor todos os serviços via uma única porta (nginx)
   nginx:
     image: nginx:alpine
@@ -171,12 +174,10 @@ services:
         condition: service_healthy
       frontend:
         condition: service_healthy
-      chatbot-teacher:
-        condition: service_healthy
       pocketbase:
         condition: service_healthy
     ports:
-      - "8080:80"
+      - "80:80"
     networks:
       - coderbot-network
     restart: unless-stopped
