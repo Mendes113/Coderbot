@@ -16,15 +16,10 @@ const UserProfile = React.lazy(() => import("./pages/UserProfile"));
 const Auth = React.lazy(() => import("./pages/Auth"));
 const ChatInterface = React.lazy(() => import("./pages/ChatInterface"));
 const ExerciseInterface = React.lazy(() => import("./pages/ExerciseInterface"));
-const LearningMetrics = React.lazy(() => import("./pages/LearningMetrics"));
 const TeacherDashboard = React.lazy(() => import("./pages/TeacherDashboard"));
 import StudentDashboard from "./pages/StudentDashboard";
 const Whiteboard = React.lazy(() => import("./pages/Whiteboard"));
 const Home = React.lazy(() => import("./home/Home"));
-const Mermaid = React.lazy(() => import("./pages/Mermaid"));
-const FlashCardPage = React.lazy(() => import("./pages/FlashCardPage"));
-const AdaptiveLearning = React.lazy(() => import("./pages/AdaptiveLearning"));
-const Analytics = React.lazy(() => import("./pages/Analytics"));
 const AboutProject = React.lazy(() => import("./pages/AboutProject"));
 const NotesPage = React.lazy(() => import("./pages/NotesPage"));
 
@@ -149,15 +144,12 @@ const App = () => {
                   <Route path="/about" element={<AboutProject />} />
                   <Route path="dashboard" element={<RequireAuth><Index /></RequireAuth>}>
                     <Route path="chat" element={<ChatInterface />} />
-                    <Route path="adaptive" element={<AdaptiveLearning />} />
-                    <Route path="analytics" element={<Analytics />} />
+                 
                     <Route path="exercises" element={<ExerciseInterface />} />
-                    <Route path="metrics" element={<LearningMetrics />} />
+                
                     <Route path="teacher" element={<TeacherDashboard />} />
                     <Route path="student" element={<StudentDashboard />} />
                     <Route path="whiteboard" element={<Whiteboard />} />
-                    <Route path="mermaid" element={<Mermaid />} />
-                    <Route path="flashcard" element={<FlashCardPage />} />
                     <Route path="notes" element={<NotesPage />} />
                   </Route>
                   <Route path="/profile" element={<RequireAuth><UserProfile /></RequireAuth>} />
