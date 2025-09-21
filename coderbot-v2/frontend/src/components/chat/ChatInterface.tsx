@@ -1773,9 +1773,7 @@ Obrigado pela paciência! 🤖✨`,
             />
           )}
           
-          {isLoading && (
-            <EmotionalLoadingIndicator messages={loadingMessages} />
-          )}
+         
           <div ref={messagesEndRef} />
         </div>
       </div>
