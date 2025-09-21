@@ -1040,7 +1040,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   };
 
   const handleSendMessage = async (input: string) => {
-    console.log("handleSendMessage called with:", input, "sessionId:", sessionId); // Debug log
+  
     
     if (!input.trim()) {
       console.log("Input is empty, returning");
