@@ -16,6 +16,9 @@ import {
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { getCurrentUser } from "@/integrations/pocketbase/client";
 
+// Temporarily disable NextAuth.js for hydration issues
+// import { useSession } from 'next-auth/react';
+
 type NavItem = {
   id: string;
   label: string;
@@ -26,8 +29,8 @@ type NavItem = {
 };
 
 type AppSidebarProps = {
-  currentNav: string;
-  onNavChange: (nav: string) => void;
+  currentNav?: string;
+  onNavChange?: (nav: string) => void;
 };
 
 export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
@@ -43,6 +46,9 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
     if (user) setUserRole(user.role);
     setIsLoading(false);
   }, []); // Dependência vazia é intencional - só executar uma vez na montagem
+
+  // Temporarily disable NextAuth.js for hydration issues
+  // const { data: session } = useSession();
 
   const mainNavItems: NavItem[] = [
     { id: "chat", label: "Chat", icon: MessageSquare, accessKey: "c", path: "/dashboard/chat" },
@@ -137,10 +143,10 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
         {/* Header com branding moderno (adapta para compacto) */}
         <div
           className={
-            "relative flex items-center gap-3 border-b border-sidebar-border/50 " +
+            "relative flex items-center gap-3 border-b border-sidebar-border/50 edu-card " +
             (state === "collapsed"
               ? "p-2 bg-transparent"
-              : "p-4 bg-gradient-to-br from-coderbot-purple/20 via-transparent to-transparent backdrop-blur-sm")
+              : "p-4 bg-gradient-to-br from-[hsl(var(--education-primary-light))] via-transparent to-transparent backdrop-blur-sm edu-card-hover")
           }
         >
           <img
@@ -149,21 +155,21 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
             className={(state === "collapsed" ? "w-9 h-9" : "w-10 h-10") + " rounded-xl shadow-sm ring-1 ring-black/5 object-contain"}
           />
           {state !== "collapsed" && (
-            <div>
-              <div className="font-semibold">CoderBot</div>
-              <div className="text-xs text-muted-foreground">Ambiente Educacional</div>
+            <div className="edu-spacing-xs">
+              <div className="edu-text-heading text-lg">CoderBot</div>
+              <div className="edu-text-muted">Ambiente Educacional</div>
             </div>
           )}
         </div>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Navegação</SidebarGroupLabel>
-          <SidebarGroupContent>
+        <SidebarGroup className="edu-spacing-4">
+          <SidebarGroupLabel className="edu-heading-h4">Navegação</SidebarGroupLabel>
+          <SidebarGroupContent className="edu-spacing-3">
             <SidebarMenu>
               {filteredNavItems.map((item) => (
-                <SidebarMenuItem key={item.id}>
-                  <SidebarMenuButton asChild isActive={isItemActive(item)}>
-                    <Link to={item.path} onClick={() => onNavChange(item.id)}>
+                <SidebarMenuItem key={item.id} className="edu-card-hover">
+                  <SidebarMenuButton asChild isActive={isItemActive(item)} className="edu-focus">
+                    <Link to={item.path} onClick={() => onNavChange && onNavChange(item.id)}>
                       <item.icon />
                       <span>{item.label}</span>
                     </Link>
