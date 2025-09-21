@@ -137,10 +137,10 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_APP_BASE_PATH: /teacher
-        VITE_POCKETBASE_URL: http://pocketbase:8090
+        VITE_POCKETBASE_URL: /pb
     container_name: coderbot-teacher
     environment:
-      - VITE_POCKETBASE_URL=http://pocketbase:8090
+      - VITE_POCKETBASE_URL=/pb
       - VITE_APP_BASE_PATH=/teacher
     depends_on:
       pocketbase:
