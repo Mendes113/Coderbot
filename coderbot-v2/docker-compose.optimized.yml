@@ -133,16 +133,15 @@ services:
   # Chatbot Teacher Dashboard (core profile)
   chatbot-teacher:
     build:
-      context: https://github.com/Mendes113/Chatbot-Teacher.git#main
+      context: https://github.com/Chatbot-educacional/Chatbot-teacher.git#main
       dockerfile: Dockerfile
       args:
         VITE_APP_BASE_PATH: /teacher
-        VITE_POCKETBASE_URL: http://pocketbase:8090
+        VITE_POCKETBASE_URL: /pb
     container_name: coderbot-teacher
-    ports:
-      - "3001:3000"
     environment:
-      - VITE_POCKETBASE_URL=http://pocketbase:8090
+      - VITE_POCKETBASE_URL=/pb
+
       - VITE_APP_BASE_PATH=/teacher
     depends_on:
       pocketbase:
@@ -174,10 +173,12 @@ services:
         condition: service_healthy
       frontend:
         condition: service_healthy
+      chatbot-teacher:
+        condition: service_healthy
       pocketbase:
         condition: service_healthy
     ports:
-      - "80:80"
+      - "8080:80"
     networks:
       - coderbot-network
     restart: unless-stopped

@@ -1,4 +1,4 @@
-import { User, MessageSquare, Code, GraduationCap, Presentation, Mail, BookOpen } from "lucide-react";
+import { User, MessageSquare, GraduationCap, Presentation, BookOpen } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/sidebar";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { getCurrentUser } from "@/integrations/pocketbase/client";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { useTheme } from "@/context/ThemeContext";
 
 // Temporarily disable NextAuth.js for hydration issues
 // import { useSession } from 'next-auth/react';
@@ -39,6 +41,7 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { state } = useSidebar();
+  const { theme } = useTheme();
 
   // Memoizar busca do usuário para evitar recálculos
   useEffect(() => {
@@ -180,7 +183,16 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="gap-3">
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-sidebar-border bg-white/80 px-3 py-2 text-xs text-slate-600 shadow-sm dark:bg-sidebar/30 dark:text-sidebar-foreground">
+          <div className="flex flex-col">
+            <span className="font-semibold">Tema</span>
+            <span className="text-[0.65rem] text-slate-500 dark:text-sidebar-foreground dark:opacity-70">
+              {theme === "dark" ? "Modo escuro" : "Modo claro"}
+            </span>
+          </div>
+          <ThemeToggle />
+        </div>
         <SidebarTrigger />
       </SidebarFooter>
     </Sidebar>
