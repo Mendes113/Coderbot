@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import deepseek_router, judge_router, exercises_router  # Importa os roteadores
+from app.routers import judge_router, exercises_router  # Importa os roteadores
 from app.config import settings  # Importa para garantir que a config seja lida na inicialização
 from supabase import create_client, Client
 from fastapi.middleware.cors import CORSMiddleware
