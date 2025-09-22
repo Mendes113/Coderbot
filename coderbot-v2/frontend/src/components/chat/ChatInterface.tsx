@@ -1624,9 +1624,11 @@ Obrigado pela paciência! 🤖✨`,
             </Select>
             {/* Dropdown de analogias */}
             <div className="relative">
-              
-              <button
+
+              <Button
                 type="button"
+                variant={analogiesEnabled ? "edu-light-active" : "edu-light"}
+                size="edu-sm"
                 aria-label={analogiesEnabled ? "Gerenciar analogias" : "Ativar analogias"}
                 title={analogiesEnabled ? "Gerenciar analogias" : "Ativar analogias"}
                 onClick={() => {
@@ -1639,9 +1641,7 @@ Obrigado pela paciência! 🤖✨`,
                 }}
                 className={cn(
                   "flex items-center gap-1 text-xs font-medium transition-all duration-200",
-                  analogiesEnabled
-                    ? "edu-btn-primary"
-                    : "edu-btn-secondary"
+                  analogiesEnabled ? "shadow-md" : ""
                 )}
                 tabIndex={0}
                 style={{ minHeight: 32 }}
@@ -1652,7 +1652,7 @@ Obrigado pela paciência! 🤖✨`,
                   fill="none" viewBox="0 0 20 20" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 8l4 4 4-4" />
                 </svg>
-              </button>
+              </Button>
               {/* Dropdown/colapsável */}
               {showAnalogyDropdown && (
                 <div className="absolute right-0 mt-2 w-72 edu-card shadow-lg z-20 p-4 animate-scale-in">

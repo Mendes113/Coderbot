@@ -29,6 +29,10 @@ const buttonVariants = cva(
           "bg-[hsl(var(--education-warning))] text-white hover:bg-[hsl(var(--education-warning-600))] edu-shadow-interactive edu-shadow-warning",
         "edu-error":
           "bg-[hsl(var(--education-error))] text-white hover:bg-[hsl(var(--education-error-600))] edu-shadow-interactive edu-shadow-error",
+        "edu-light":
+          "bg-[hsl(var(--education-primary-50))] text-[hsl(var(--education-primary-800))] border border-[hsl(var(--education-primary-200))] hover:bg-[hsl(var(--education-primary-100))] hover:text-[hsl(var(--education-primary-900))] shadow-sm hover:shadow-md transition-all duration-200 dark:bg-[hsl(var(--education-primary-500))] dark:text-white dark:border-[hsl(var(--education-primary-400))] dark:hover:bg-[hsl(var(--education-primary-400))]",
+        "edu-light-active":
+          "bg-[hsl(var(--education-primary-100))] text-[hsl(var(--education-primary-900))] border border-[hsl(var(--education-primary-300))] shadow-md hover:bg-[hsl(var(--education-primary-200))] ring-2 ring-[hsl(var(--education-primary-200))] ring-offset-2 ring-offset-background transition-all duration-200 dark:bg-[hsl(var(--education-primary-400))] dark:text-white dark:border-[hsl(var(--education-primary-300))] dark:hover:bg-[hsl(var(--education-primary-300))] dark:ring-[hsl(var(--education-primary-500))]",
         "edu-outline":
           "border-2 border-[hsl(var(--education-primary))] bg-transparent text-[hsl(var(--education-primary))] hover:bg-[hsl(var(--education-primary))] hover:text-white edu-shadow-interactive",
         "edu-ghost":

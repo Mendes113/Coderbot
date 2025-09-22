@@ -406,8 +406,8 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
         isAi ? "mr-auto" : "ml-auto",
         // distinct background, border and text colors + asymmetric corners
         isAi
-          ? "bg-[#0b1220] border-[#334155] text-[#e5e7eb] rounded-bl-none"
-          : "bg-[#1d4ed8] border-[#1e40af] text-white rounded-br-none"
+          ? "bg-[hsl(var(--education-primary-50))] border-[hsl(var(--education-primary-200))] text-[hsl(var(--education-text-primary))] rounded-bl-none dark:bg-[#0b1220] dark:border-[#334155] dark:text-[#e5e7eb]"
+          : "bg-[hsl(var(--education-primary-100))] border-[hsl(var(--education-primary-200))] text-[hsl(var(--education-text-primary))] rounded-br-none dark:bg-[#1d4ed8] dark:border-[#1e40af] dark:text-white"
       )}
     >
       <div className="flex items-center mb-2">
@@ -415,17 +415,24 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
           className={cn(
             "icon-container h-8 w-8 rounded-full flex items-center justify-center shadow-sm border transition-all duration-300 hover:scale-105",
             isAi
-              ? "bg-[#1d4ed8] border-white/10 hover:bg-[#1e40af]"
-              : "bg-white/15 border-white/20 hover:bg-white/20"
+              ? "bg-[hsl(var(--education-primary-200))] border-[hsl(var(--education-primary-300))] text-[hsl(var(--education-primary-800))] hover:bg-[hsl(var(--education-primary-300))] dark:bg-[#1d4ed8] dark:border-white/10 dark:text-white dark:hover:bg-[#1e40af]"
+              : "bg-[hsl(var(--education-primary-100))] border-[hsl(var(--education-primary-200))] text-[hsl(var(--education-primary-800))] hover:bg-[hsl(var(--education-primary-200))] dark:bg-white/15 dark:border-white/20 dark:text-white dark:hover:bg-white/20"
           )}
         >
           {isAi ? (
-            <Bot className="icon-bot h-4 w-4 text-white animate-subtle-pulse hover:animate-gentle-float transition-all duration-300" />
+            <Bot className="icon-bot h-4 w-4 text-[hsl(var(--education-primary-700))] dark:text-white animate-subtle-pulse hover:animate-gentle-float transition-all duration-300" />
           ) : (
-            <User className="icon-user h-4 w-4 text-white transition-all duration-300 hover:scale-110" />
+            <User className="icon-user h-4 w-4 text-[hsl(var(--education-primary-700))] dark:text-white transition-all duration-300 hover:scale-110" />
           )}
         </div>
-        <span className={cn("ml-2 font-semibold text-sm", isAi ? "text-white" : "text-white")}>{isAi ? "Assistente IA" : "Você"}</span>
+        <span
+          className={cn(
+            "ml-2 font-semibold text-sm text-[hsl(var(--education-text-primary))]",
+            "dark:text-white"
+          )}
+        >
+          {isAi ? "Assistente IA" : "Você"}
+        </span>
         {/* Segment chip (detect from markdown heading) */}
         {(() => {
           // Captura primeira linha do tipo ### Título
@@ -452,7 +459,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
       </div>
       <div className="ml-10">
         {isAi ? (
-          <div className="markdown-content prose prose-invert max-w-none">
+          <div className="markdown-content prose max-w-none text-[hsl(var(--education-text-primary))] dark:prose-invert">
             {/* Auto: render explanation (non-empty after removing headings and code); otherwise show final code editor */}
             {(() => {
               if (hasExplanationContent) {
@@ -761,7 +768,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
 
           </div>
         ) : (
-          <div className={cn("text-base whitespace-pre-wrap leading-relaxed", "text-white")}>{content}</div>
+          <div className={cn("text-base whitespace-pre-wrap leading-relaxed text-[hsl(var(--education-text-primary))]", "dark:text-white")}>{content}</div>
         )}
       </div>
     </div>
