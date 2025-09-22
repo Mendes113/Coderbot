@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+
 import {
   Bold,
   Code,
@@ -33,6 +34,7 @@ import TurndownService from "turndown";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import { cn } from "@/lib/utils";
 
 interface BlockNoteEditorProps {
@@ -47,6 +49,7 @@ interface BlockNoteEditorProps {
 }
 
 const DEFAULT_AUTO_SAVE_DELAY = 2000;
+
 const looksLikeHtml = (value: string) => /<[a-z][\s\S]*>/i.test(value);
 
 type MarkdownAction =
@@ -81,6 +84,8 @@ const convertHtmlToMarkdown = (value: string, service: TurndownService | null) =
   }
 };
 
+
+
 const BlockNoteEditor = ({
   initialContent = "",
   onChange,
@@ -103,6 +108,7 @@ const BlockNoteEditor = ({
   }
 
   const [value, setValue] = useState<string>(() => convertHtmlToMarkdown(initialContent ?? "", turndownRef.current));
+
   const [isFocused, setIsFocused] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
@@ -110,6 +116,7 @@ const BlockNoteEditor = ({
   const [activeTab, setActiveTab] = useState<"write" | "preview">(() => (readOnly ? "preview" : "write"));
 
   const isContentEmpty = useMemo(() => (value ?? "").trim().length === 0, [value]);
+
   const canSave = Boolean(onSave) && !readOnly;
 
   const runSave = useCallback(async () => {
@@ -347,6 +354,7 @@ const BlockNoteEditor = ({
     [commitValue, readOnly],
   );
 
+
   const handleManualSave = useCallback(() => {
     if (!onSave) {
       return;
@@ -396,6 +404,7 @@ const BlockNoteEditor = ({
       }
     },
     [applyFormatting, handleManualSave, readOnly],
+
   );
 
   useEffect(() => {
@@ -501,6 +510,7 @@ const BlockNoteEditor = ({
     [],
   );
 
+
   const statusMessage = useMemo(() => {
     if (!canSave) {
       return null;
@@ -512,6 +522,7 @@ const BlockNoteEditor = ({
 
     if (hasInteracted && lastSavedAt === null) {
       return autoSave ? "Alterações pendentes..." : "Clique em Salvar para guardar suas alterações.";
+
     }
 
     if (lastSavedAt) {
@@ -606,6 +617,7 @@ const BlockNoteEditor = ({
       />
     </div>
   );
+
 
   return (
     <div className={cn("flex flex-col gap-3", className)}>
@@ -710,5 +722,6 @@ const ToolbarButton = ({ icon, label, onClick, disabled }: ToolbarButtonProps) =
     {icon}
   </Button>
 );
+
 
 export default BlockNoteEditor;

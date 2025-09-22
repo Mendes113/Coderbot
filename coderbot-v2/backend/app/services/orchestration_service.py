@@ -16,7 +16,14 @@ from app.models.deepseek_models import ChatCompletionRequest
 from app.services.prompt_loader import PromptLoader
 from app.services.rag_service import RAGService
 from app.services.educational_methodology_service import EducationalMethodologyService, MethodologyType
-from app.services.deepseek_service import get_chat_completion_with_retrieval
+try:
+    from app.services.deepseek_service import get_chat_completion_with_retrieval  # type: ignore
+except ImportError:  # pragma: no cover - fallback when DeepSeek is not installed
+    async def get_chat_completion_with_retrieval(*args, **kwargs):  # type: ignore
+        raise RuntimeError(
+            "DeepSeek service is not available. Provide a custom `get_chat_completion_with_retrieval` "
+            "implementation or disable the orchestration flow."
+        )
 
 logger = logging.getLogger(__name__)
 

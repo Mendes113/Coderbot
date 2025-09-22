@@ -1,7 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from typing import Any, Dict, Optional, List
-from app.services.chat_service import ChatService
+from typing import Any, Dict, Optional, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.services.chat_service import ChatService  # pragma: no cover
+else:
+    ChatService = Any
+
 from app.services.whiteboard_ai_service import WhiteboardAIService
 from app.services.rag_service import RAGService
 from app.services.orchestration_service import create_orchestration_service, OrchestrationService

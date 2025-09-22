@@ -138,11 +138,15 @@ services:
       args:
         VITE_APP_BASE_PATH: /teacher
         VITE_POCKETBASE_URL: /pb
+        VITE_PUBLIC_POSTHOG_KEY: ${VITE_PUBLIC_POSTHOG_KEY:-}
+        VITE_PUBLIC_POSTHOG_HOST: ${VITE_PUBLIC_POSTHOG_HOST:-https://us.i.posthog.com}
     container_name: coderbot-teacher
     environment:
       - VITE_POCKETBASE_URL=/pb
 
       - VITE_APP_BASE_PATH=/teacher
+      - VITE_PUBLIC_POSTHOG_KEY=${VITE_PUBLIC_POSTHOG_KEY:-}
+      - VITE_PUBLIC_POSTHOG_HOST=${VITE_PUBLIC_POSTHOG_HOST:-https://us.i.posthog.com}
     depends_on:
       pocketbase:
         condition: service_healthy

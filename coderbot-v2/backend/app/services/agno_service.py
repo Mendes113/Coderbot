@@ -8,7 +8,11 @@ Agora com suporte para múltiplos provedores de IA (OpenAI e Claude).
 """
 
 from typing import Optional, Dict, Any, List
-from .agno_methodology_service import AgnoMethodologyService, MethodologyType
+from .agno_methodology_service import (
+    AgnoMethodologyService,
+    MethodologyType,
+    get_methodology_config,
+)
 import logging
 from .pocketbase_service import pb_service
 import os
@@ -230,46 +234,13 @@ class AgnoService:
         Returns:
             Dict[str, Any]: Informações sobre a metodologia
         """
-        methodology_info = {
-            MethodologyType.SEQUENTIAL_THINKING: {
-                "name": "Pensamento Sequencial",
-                "description": "Explica o raciocínio passo a passo de forma sequencial",
-                "use_cases": ["Problemas complexos", "Estudantes que precisam de estrutura"],
-                "xml_formatted": False
-            },
-            MethodologyType.ANALOGY: {
-                "name": "Analogias",
-                "description": "Usa analogias do cotidiano para facilitar o entendimento",
-                "use_cases": ["Conceitos abstratos", "Estudantes visuais"],
-                "xml_formatted": False
-            },
-            MethodologyType.SOCRATIC: {
-                "name": "Método Socrático",
-                "description": "Estimula o pensamento crítico através de perguntas",
-                "use_cases": ["Desenvolvimento de pensamento crítico", "Estudantes avançados"],
-                "xml_formatted": False
-            },
-            MethodologyType.SCAFFOLDING: {
-                "name": "Scaffolding",
-                "description": "Oferece dicas graduais removendo o suporte progressivamente",
-                "use_cases": ["Estudantes iniciantes", "Conceitos progressivos"],
-                "xml_formatted": False
-            },
-            MethodologyType.WORKED_EXAMPLES: {
-                "name": "Exemplos Resolvidos",
-                "description": "Ensina através de exemplos detalhadamente resolvidos",
-                "use_cases": ["Resolução de problemas", "Aprendizado de algoritmos"],
-                "xml_formatted": True
-            },
-            MethodologyType.DEFAULT: {
-                "name": "Padrão",
-                "description": "Resposta educacional padrão, clara e objetiva",
-                "use_cases": ["Uso geral", "Primeira interação"],
-                "xml_formatted": False
-            }
+        config = get_methodology_config(methodology)
+        return {
+            "name": config["display_name"],
+            "description": config["summary"],
+            "use_cases": config["use_cases"],
+            "xml_formatted": config["xml_formatted"],
         }
-        
-        return methodology_info.get(methodology, {})
     
     # === Novos métodos para suporte multi-provedor ===
     

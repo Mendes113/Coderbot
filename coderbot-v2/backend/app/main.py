@@ -1,10 +1,10 @@
 from fastapi import FastAPI
-from app.routers import deepseek_router, judge_router, exercises_router  # Importa os roteadores
+from app.routers import judge_router, exercises_router  # Importa os roteadores
 from app.config import settings  # Importa para garantir que a config seja lida na inicialização
 from supabase import create_client, Client
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers.whiteboard_router import router as whiteboard_router
-from app.routers.educational_chat_router import router as educational_chat_router
+# from app.routers.educational_chat_router import router as educational_chat_router
 # from app.routers.adaptive_learning_router import router as adaptive_learning_router
 # from app.routers.analytics_router import router as analytics_router
 from app.routers.agno_router import router as agno_router
@@ -109,5 +109,4 @@ async def health_check():
         "service": "CoderBot v2 Backend",
         "version": "2.0.0"
     }
-
 

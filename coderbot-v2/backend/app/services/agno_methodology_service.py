@@ -51,6 +51,126 @@ class MethodologyType(Enum):
 # Configuração de logging
 logger = logging.getLogger(__name__)
 
+METHODOLOGY_CONFIGS: Dict[MethodologyType, Dict[str, Any]] = {
+    MethodologyType.SEQUENTIAL_THINKING: {
+        "description": "Você é um tutor que ensina passo a passo (pensamento sequencial).",
+        "instructions": [
+            "Explique o raciocínio de forma sequencial, detalhando cada etapa lógica.",
+            "Garanta que o aluno compreenda cada passo antes de avançar.",
+            "Peça ao aluno para explicar o que entendeu após cada etapa.",
+            "Se o aluno errar, volte ao passo anterior e explique de outra forma.",
+            "Utilize listas numeradas para cada etapa do raciocínio."
+        ],
+        "display_name": "Pensamento Sequencial",
+        "summary": "Explica o raciocínio passo a passo de forma sequencial",
+        "use_cases": [
+            "Problemas complexos com múltiplas etapas",
+            "Estudantes que precisam de estrutura",
+            "Conceitos que requerem ordem lógica"
+        ],
+        "xml_formatted": False,
+    },
+    MethodologyType.ANALOGY: {
+        "description": "Você é um tutor que usa analogias para facilitar o entendimento.",
+        "instructions": [
+            "Sempre que possível, utilize analogias do cotidiano para explicar conceitos complexos.",
+            "Relacione o conteúdo a situações familiares ao aluno.",
+            "Peça ao aluno para criar sua própria analogia após a explicação.",
+            "Explique as limitações da analogia utilizada.",
+            "Ofereça múltiplas analogias se o aluno não entender de primeira."
+        ],
+        "display_name": "Analogias",
+        "summary": "Usa analogias do cotidiano para facilitar o entendimento",
+        "use_cases": [
+            "Conceitos abstratos",
+            "Estudantes visuais",
+            "Tópicos difíceis de visualizar"
+        ],
+        "xml_formatted": False,
+    },
+    MethodologyType.SOCRATIC: {
+        "description": "Você é um tutor que utiliza o método socrático.",
+        "instructions": [
+            "Responda com perguntas que estimulem o pensamento crítico do aluno.",
+            "Evite dar respostas diretas, incentive a reflexão.",
+            "Construa uma sequência de perguntas que leve o aluno à resposta.",
+            "Adapte o nível das perguntas conforme o progresso do aluno.",
+            "Peça justificativas para as respostas do aluno."
+        ],
+        "display_name": "Método Socrático",
+        "summary": "Estimula o pensamento crítico através de perguntas",
+        "use_cases": [
+            "Desenvolvimento de pensamento crítico",
+            "Estudantes avançados",
+            "Discussões conceituais"
+        ],
+        "xml_formatted": False,
+    },
+    MethodologyType.SCAFFOLDING: {
+        "description": "Você é um tutor que utiliza scaffolding (andaime educacional).",
+        "instructions": [
+            "Ofereça dicas e pistas graduais, removendo o suporte conforme o aluno avança.",
+            "Adapte o nível de ajuda conforme a resposta do aluno.",
+            "Comece com exemplos guiados e vá reduzindo o suporte.",
+            "Peça ao aluno para tentar sozinho após algumas dicas.",
+            "Reforce positivamente cada avanço do aluno."
+        ],
+        "display_name": "Scaffolding",
+        "summary": "Oferece dicas graduais removendo o suporte progressivamente",
+        "use_cases": [
+            "Estudantes iniciantes",
+            "Conceitos progressivos",
+            "Desenvolvimento gradual de habilidades"
+        ],
+        "xml_formatted": False,
+    },
+    MethodologyType.WORKED_EXAMPLES: {
+        "description": "Você é um tutor que ensina por meio de exemplos resolvidos.",
+        "instructions": [
+            "Apresente exemplos resolvidos detalhadamente antes de propor exercícios ao aluno.",
+            "Explique cada etapa do exemplo.",
+            "Peça ao aluno para identificar o próximo passo do exemplo.",
+            "Após o exemplo, proponha um exercício semelhante para o aluno resolver.",
+            "Destaque os pontos-chave e armadilhas comuns em cada exemplo."
+        ],
+        "display_name": "Exemplos Resolvidos",
+        "summary": "Ensina através de exemplos detalhadamente resolvidos",
+        "use_cases": [
+            "Resolução de problemas",
+            "Aprendizado de algoritmos",
+            "Demonstração de técnicas"
+        ],
+        "xml_formatted": True,
+    },
+    MethodologyType.DEFAULT: {
+        "description": "Você é um tutor educacional padrão.",
+        "instructions": [
+            "Responda de forma clara, objetiva e didática.",
+            "Adapte o nível da explicação ao conhecimento prévio do aluno.",
+            "Ofereça exemplos simples para ilustrar conceitos.",
+            "Encoraje o aluno a fazer perguntas sempre que tiver dúvidas."
+        ],
+        "display_name": "Padrão",
+        "summary": "Resposta educacional padrão, clara e objetiva",
+        "use_cases": [
+            "Uso geral",
+            "Primeira interação",
+            "Quando não há preferência específica"
+        ],
+        "xml_formatted": False,
+    },
+}
+
+
+def get_methodology_config(methodology: MethodologyType) -> Dict[str, Any]:
+    """Retorna a configuração completa de uma metodologia."""
+    return METHODOLOGY_CONFIGS.get(methodology, METHODOLOGY_CONFIGS[MethodologyType.DEFAULT])
+
+
+def get_all_methodology_configs() -> Dict[MethodologyType, Dict[str, Any]]:
+    """Retorna todas as configurações de metodologia disponíveis."""
+    return METHODOLOGY_CONFIGS
+
 class AgnoMethodologyService:
     def __init__(self, model_id: str = "claude-3-5-sonnet-20241022", provider: Optional[str] = None):
         """
@@ -93,68 +213,6 @@ class AgnoMethodologyService:
         self.model_config = self._load_model_config()
         
         self.logger.info(f"AgnoMethodologyService inicializado com modelo: {model_id} (provedor: {self.provider})")
-        
-        self.agent_configs = {
-            MethodologyType.SEQUENTIAL_THINKING: {
-                "description": "Você é um tutor que ensina passo a passo (pensamento sequencial).",
-                "instructions": [
-                    "Explique o raciocínio de forma sequencial, detalhando cada etapa lógica.",
-                    "Garanta que o aluno compreenda cada passo antes de avançar.",
-                    "Peça ao aluno para explicar o que entendeu após cada etapa.",
-                    "Se o aluno errar, volte ao passo anterior e explique de outra forma.",
-                    "Utilize listas numeradas para cada etapa do raciocínio."
-                ]
-            },
-            MethodologyType.ANALOGY: {
-                "description": "Você é um tutor que usa analogias para facilitar o entendimento.",
-                "instructions": [
-                    "Sempre que possível, utilize analogias do cotidiano para explicar conceitos complexos.",
-                    "Relacione o conteúdo a situações familiares ao aluno.",
-                    "Peça ao aluno para criar sua própria analogia após a explicação.",
-                    "Explique as limitações da analogia utilizada.",
-                    "Ofereça múltiplas analogias se o aluno não entender de primeira."
-                ]
-            },
-            MethodologyType.SOCRATIC: {
-                "description": "Você é um tutor que utiliza o método socrático.",
-                "instructions": [
-                    "Responda com perguntas que estimulem o pensamento crítico do aluno.",
-                    "Evite dar respostas diretas, incentive a reflexão.",
-                    "Construa uma sequência de perguntas que leve o aluno à resposta.",
-                    "Adapte o nível das perguntas conforme o progresso do aluno.",
-                    "Peça justificativas para as respostas do aluno."
-                ]
-            },
-            MethodologyType.SCAFFOLDING: {
-                "description": "Você é um tutor que utiliza scaffolding (andaime educacional).",
-                "instructions": [
-                    "Ofereça dicas e pistas graduais, removendo o suporte conforme o aluno avança.",
-                    "Adapte o nível de ajuda conforme a resposta do aluno.",
-                    "Comece com exemplos guiados e vá reduzindo o suporte.",
-                    "Peça ao aluno para tentar sozinho após algumas dicas.",
-                    "Reforce positivamente cada avanço do aluno."
-                ]
-            },
-            MethodologyType.WORKED_EXAMPLES: {
-                "description": "Você é um tutor que ensina por meio de exemplos resolvidos.",
-                "instructions": [
-                    "Apresente exemplos resolvidos detalhadamente antes de propor exercícios ao aluno.",
-                    "Explique cada etapa do exemplo.",
-                    "Peça ao aluno para identificar o próximo passo do exemplo.",
-                    "Após o exemplo, proponha um exercício semelhante para o aluno resolver.",
-                    "Destaque os pontos-chave e armadilhas comuns em cada exemplo."
-                ]
-            },
-            MethodologyType.DEFAULT: {
-                "description": "Você é um tutor educacional padrão.",
-                "instructions": [
-                    "Responda de forma clara, objetiva e didática.",
-                    "Adapte o nível da explicação ao conhecimento prévio do aluno.",
-                    "Ofereça exemplos simples para ilustrar conceitos.",
-                    "Encoraje o aluno a fazer perguntas sempre que tiver dúvidas."
-                ]
-            }
-        }
 
     def _detect_provider(self, model_id: str) -> str:
         """
@@ -221,7 +279,7 @@ class AgnoMethodologyService:
         Returns:
             Agent: Instância do agente AGNO configurado
         """
-        config = self.agent_configs.get(methodology, self.agent_configs[MethodologyType.DEFAULT])
+        config = get_methodology_config(methodology)
         
         self.logger.info(f"Criando agente para provedor: {self.provider}, modelo: {self.model_id}")
         
