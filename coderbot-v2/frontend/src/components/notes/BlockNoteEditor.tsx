@@ -84,6 +84,7 @@ const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
     const nextValue = editorRef.current.innerHTML;
     setHtml(nextValue);
     onChange?.(nextValue);
+    setLastSavedAt(null);
     scheduleSave();
   }, [onChange, scheduleSave]);
 
