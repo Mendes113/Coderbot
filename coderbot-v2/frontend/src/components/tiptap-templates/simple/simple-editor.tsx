@@ -3,7 +3,6 @@
 import * as React from "react"
 import { EditorContent, EditorContext, useEditor } from "@tiptap/react"
 
-// --- Tiptap Core Extensions ---
 import { StarterKit } from "@tiptap/starter-kit"
 import { Image } from "@tiptap/extension-image"
 import { TaskItem, TaskList } from "@tiptap/extension-list"
@@ -13,8 +12,8 @@ import { Highlight } from "@tiptap/extension-highlight"
 import { Subscript } from "@tiptap/extension-subscript"
 import { Superscript } from "@tiptap/extension-superscript"
 import { Selection } from "@tiptap/extensions"
+import Placeholder from "@tiptap/extension-placeholder"
 
-// --- UI Primitives ---
 import { Button } from "@/components/tiptap-ui-primitive/button"
 import { Spacer } from "@/components/tiptap-ui-primitive/spacer"
 import {
@@ -23,7 +22,6 @@ import {
   ToolbarSeparator,
 } from "@/components/tiptap-ui-primitive/toolbar"
 
-// --- Tiptap Node ---
 import { ImageUploadNode } from "@/components/tiptap-node/image-upload-node/image-upload-node-extension"
 import { HorizontalRule } from "@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension"
 import "@/components/tiptap-node/blockquote-node/blockquote-node.scss"
@@ -34,7 +32,6 @@ import "@/components/tiptap-node/image-node/image-node.scss"
 import "@/components/tiptap-node/heading-node/heading-node.scss"
 import "@/components/tiptap-node/paragraph-node/paragraph-node.scss"
 
-// --- Tiptap UI ---
 import { HeadingDropdownMenu } from "@/components/tiptap-ui/heading-dropdown-menu"
 import { ImageUploadButton } from "@/components/tiptap-ui/image-upload-button"
 import { ListDropdownMenu } from "@/components/tiptap-ui/list-dropdown-menu"
@@ -42,48 +39,42 @@ import { BlockquoteButton } from "@/components/tiptap-ui/blockquote-button"
 import { CodeBlockButton } from "@/components/tiptap-ui/code-block-button"
 import {
   ColorHighlightPopover,
-  ColorHighlightPopoverContent,
   ColorHighlightPopoverButton,
+  ColorHighlightPopoverContent,
 } from "@/components/tiptap-ui/color-highlight-popover"
 import {
-  LinkPopover,
-  LinkContent,
   LinkButton,
+  LinkContent,
+  LinkPopover,
 } from "@/components/tiptap-ui/link-popover"
 import { MarkButton } from "@/components/tiptap-ui/mark-button"
 import { TextAlignButton } from "@/components/tiptap-ui/text-align-button"
 import { UndoRedoButton } from "@/components/tiptap-ui/undo-redo-button"
 
-// --- Icons ---
 import { ArrowLeftIcon } from "@/components/tiptap-icons/arrow-left-icon"
 import { HighlighterIcon } from "@/components/tiptap-icons/highlighter-icon"
 import { LinkIcon } from "@/components/tiptap-icons/link-icon"
 
-// --- Hooks ---
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useWindowSize } from "@/hooks/use-window-size"
 import { useCursorVisibility } from "@/hooks/use-cursor-visibility"
 
-// --- Components ---
-import { ThemeToggle } from "@/components/tiptap-templates/simple/theme-toggle"
-
-// --- Lib ---
 import { handleImageUpload, MAX_FILE_SIZE } from "@/lib/tiptap-utils"
+import { cn } from "@/lib/utils"
 
-// --- Styles ---
 import "@/components/tiptap-templates/simple/simple-editor.scss"
 
-import content from "@/components/tiptap-templates/simple/data/content.json"
+interface MainToolbarContentProps {
+  onHighlighterClick: () => void
+  onLinkClick: () => void
+  isMobile: boolean
+}
 
 const MainToolbarContent = ({
   onHighlighterClick,
   onLinkClick,
   isMobile,
-}: {
-  onHighlighterClick: () => void
-  onLinkClick: () => void
-  isMobile: boolean
-}) => {
+}: MainToolbarContentProps) => {
   return (
     <>
       <Spacer />
@@ -140,27 +131,20 @@ const MainToolbarContent = ({
       <ToolbarSeparator />
 
       <ToolbarGroup>
-        <ImageUploadButton text="Add" />
+        <ImageUploadButton text="Inserir" />
       </ToolbarGroup>
 
       <Spacer />
-
-      {isMobile && <ToolbarSeparator />}
-
-      <ToolbarGroup>
-        <ThemeToggle />
-      </ToolbarGroup>
     </>
   )
 }
 
-const MobileToolbarContent = ({
-  type,
-  onBack,
-}: {
+interface MobileToolbarContentProps {
   type: "highlighter" | "link"
   onBack: () => void
-}) => (
+}
+
+const MobileToolbarContent = ({ type, onBack }: MobileToolbarContentProps) => (
   <>
     <ToolbarGroup>
       <Button data-style="ghost" onClick={onBack}>
@@ -183,7 +167,23 @@ const MobileToolbarContent = ({
   </>
 )
 
-export function SimpleEditor() {
+export interface SimpleEditorProps {
+  value: string
+  onChange: (html: string) => void
+  readOnly?: boolean
+  placeholder?: string
+  onFocusChange?: (isFocused: boolean) => void
+  className?: string
+}
+
+export function SimpleEditor({
+  value,
+  onChange,
+  readOnly = false,
+  placeholder = "Comece a escrever suas anotações...",
+  onFocusChange,
+  className,
+}: SimpleEditorProps) {
   const isMobile = useIsMobile()
   const { height } = useWindowSize()
   const [mobileView, setMobileView] = React.useState<
@@ -194,13 +194,15 @@ export function SimpleEditor() {
   const editor = useEditor({
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
+    editable: !readOnly,
+    content: value || "",
     editorProps: {
       attributes: {
         autocomplete: "off",
         autocorrect: "off",
         autocapitalize: "off",
-        "aria-label": "Main content area, start typing to enter text.",
-        class: "simple-editor",
+        "aria-label": "Área de edição",
+        class: cn("simple-editor", readOnly && "simple-editor--readonly"),
       },
     },
     extensions: [
@@ -211,6 +213,7 @@ export function SimpleEditor() {
           enableClickSelection: true,
         },
       }),
+      Placeholder.configure({ placeholder }),
       HorizontalRule,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       TaskList,
@@ -229,51 +232,95 @@ export function SimpleEditor() {
         onError: (error) => console.error("Upload failed:", error),
       }),
     ],
-    content,
-  })
+    onUpdate: ({ editor }) => {
+      if (readOnly) {
+        return
+      }
 
-  const rect = useCursorVisibility({
-    editor,
-    overlayHeight: toolbarRef.current?.getBoundingClientRect().height ?? 0,
+      const nextValue = editor.getHTML()
+      if (nextValue !== value) {
+        onChange(nextValue)
+      }
+    },
+    onFocus: () => {
+      onFocusChange?.(true)
+    },
+    onBlur: () => {
+      onFocusChange?.(false)
+    },
   })
 
   React.useEffect(() => {
-    if (!isMobile && mobileView !== "main") {
+    if (editor && editor.isEditable !== !readOnly) {
+      editor.setEditable(!readOnly)
+    }
+  }, [editor, readOnly])
+
+  React.useEffect(() => {
+    if (!editor) {
+      return
+    }
+
+    const current = editor.getHTML()
+    if (current !== value) {
+      editor.commands.setContent(value || "", false)
+    }
+  }, [editor, value])
+
+  React.useEffect(() => {
+    if (!isMobile || readOnly) {
       setMobileView("main")
     }
-  }, [isMobile, mobileView])
+  }, [isMobile, readOnly])
+
+  const overlayHeight = toolbarRef.current?.getBoundingClientRect().height ?? 0
+  const rect = useCursorVisibility({
+    editor: readOnly ? null : editor,
+    overlayHeight: readOnly ? 0 : overlayHeight,
+  })
 
   return (
-    <div className="simple-editor-wrapper">
+    <div
+      className={cn(
+        "simple-editor-wrapper",
+        readOnly && "simple-editor-wrapper--readonly",
+        className,
+      )}
+    >
       <EditorContext.Provider value={{ editor }}>
-        <Toolbar
-          ref={toolbarRef}
-          style={{
-            ...(isMobile
-              ? {
-                  bottom: `calc(100% - ${height - rect.y}px)`,
-                }
-              : {}),
-          }}
-        >
-          {mobileView === "main" ? (
-            <MainToolbarContent
-              onHighlighterClick={() => setMobileView("highlighter")}
-              onLinkClick={() => setMobileView("link")}
-              isMobile={isMobile}
-            />
-          ) : (
-            <MobileToolbarContent
-              type={mobileView === "highlighter" ? "highlighter" : "link"}
-              onBack={() => setMobileView("main")}
-            />
-          )}
-        </Toolbar>
+        {!readOnly && editor ? (
+          <Toolbar
+            ref={toolbarRef}
+            style={{
+              ...(isMobile
+                ? {
+                    bottom: `calc(100% - ${height - rect.y}px)`,
+                  }
+                : {}),
+            }}
+          >
+            {mobileView === "main" ? (
+              <MainToolbarContent
+                onHighlighterClick={() => setMobileView("highlighter")}
+                onLinkClick={() => setMobileView("link")}
+                isMobile={isMobile}
+              />
+            ) : (
+              <MobileToolbarContent
+                type={mobileView === "highlighter" ? "highlighter" : "link"}
+                onBack={() => setMobileView("main")}
+              />
+            )}
+          </Toolbar>
+        ) : null}
 
         <EditorContent
           editor={editor}
           role="presentation"
-          className="simple-editor-content"
+          className={cn(
+            "simple-editor-content",
+            readOnly && "simple-editor-content--readonly",
+          )}
         />
       </EditorContext.Provider>
     </div>
