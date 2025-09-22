@@ -36,8 +36,6 @@ const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
 }) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastInitialRef = useRef<string>(initialContent ?? "");
-
   const [html, setHtml] = useState<string>(initialContent ?? "");
   const [isFocused, setIsFocused] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -123,15 +121,12 @@ const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
   useEffect(() => {
     const normalized = initialContent ?? "";
 
-    if (normalized === lastInitialRef.current && normalized === html) {
-      return;
-    }
-
-    lastInitialRef.current = normalized;
-    setHtml(normalized);
-
     if (editorRef.current && editorRef.current.innerHTML !== normalized) {
       editorRef.current.innerHTML = normalized;
+    }
+
+    if (normalized !== html) {
+      setHtml(normalized);
     }
   }, [initialContent, html]);
 
@@ -186,7 +181,6 @@ const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           onKeyDown={handleKeyDown}
-          dangerouslySetInnerHTML={{ __html: html }}
         />
         {showPlaceholder && (
           <span className="pointer-events-none absolute left-4 top-3 text-sm text-muted-foreground/70">
