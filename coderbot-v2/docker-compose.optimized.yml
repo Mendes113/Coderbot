@@ -141,6 +141,7 @@ services:
     container_name: coderbot-teacher
     environment:
       - VITE_POCKETBASE_URL=/pb
+
       - VITE_APP_BASE_PATH=/teacher
     depends_on:
       pocketbase:
@@ -161,6 +162,7 @@ services:
         soft: 8192
         hard: 65536
     stop_grace_period: 10s
+
 
   # Reverse proxy para expor todos os serviços via uma única porta (nginx)
   nginx:

@@ -1,6 +1,7 @@
 // Home.tsx – Modern, impactful landing focused on conversion
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   ArrowRight,
   PlayCircle,
@@ -27,12 +28,12 @@ function Background() {
   return (
     <div aria-hidden className="absolute inset-0 -z-10 overflow-hidden">
       {/* Gradient backdrop (more purple, like the reference) */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#0e0a1f] via-[#161132] to-[#1f0e3a] dark:from-[#0e0a1f] dark:via-[#161132] dark:to-[#1f0e3a]" />
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-100 via-white to-white dark:from-[#0e0a1f] dark:via-[#161132] dark:to-[#1f0e3a]" />
       {/* Radial spotlights */}
-      <div className="absolute left-[60%] top-[-10%] h-[60rem] w-[60rem] -translate-x-1/2 rounded-full bg-fuchsia-500/20 blur-3xl dark:bg-fuchsia-500/20" />
-      <div className="absolute left-[-10%] top-[-20%] h-[40rem] w-[40rem] rounded-full bg-violet-600/20 blur-3xl" />
+      <div className="absolute left-[60%] top-[-10%] h-[60rem] w-[60rem] -translate-x-1/2 rounded-full bg-fuchsia-200/40 blur-3xl dark:bg-fuchsia-500/20" />
+      <div className="absolute left-[-10%] top-[-20%] h-[40rem] w-[40rem] rounded-full bg-violet-200/40 blur-3xl dark:bg-violet-600/20" />
       {/* Subtle grid overlay (reactbits-style) */}
-      <div className="pointer-events-none absolute inset-0 opacity-[0.08]
+      <div className="pointer-events-none absolute inset-0 opacity-[0.05]
                     [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]
                     bg-[linear-gradient(0deg,transparent_24%,rgba(0,0,0,.35)_25%,rgba(0,0,0,.35)_26%,transparent_27%,transparent_74%,rgba(0,0,0,.35)_75%,rgba(0,0,0,.35)_76%,transparent_77%),linear-gradient(90deg,transparent_24%,rgba(0,0,0,.35)_25%,rgba(0,0,0,.35)_26%,transparent_27%,transparent_74%,rgba(0,0,0,.35)_75%,rgba(0,0,0,.35)_76%,transparent_77%)]
                     bg-[length:38px_38px] dark:opacity-[0.12]" />
@@ -641,10 +642,13 @@ export default function Home() {
           <img src="/coderbot_colorfull.png" alt="CoderBot" className="h-7 w-7" />
           <span className="text-sm font-semibold tracking-tight text-slate-800 dark:text-white">CoderBot</span>
         </a>
-        <div className="hidden gap-2 sm:flex">
-          <a href="/about" className="text-sm text-slate-600 hover:text-slate-900 dark:text-white/70 dark:hover:text-white">Sobre</a>
-          <a href="/auth" className="text-sm text-slate-600 hover:text-slate-900 dark:text-white/70 dark:hover:text-white">Entrar</a>
-          <a href="/dashboard" className="text-sm text-slate-600 hover:text-slate-900 dark:text-white/70 dark:hover:text-white">Dashboard</a>
+        <div className="flex items-center gap-2">
+          <nav className="hidden gap-2 sm:flex">
+            <a href="/about" className="text-sm text-slate-600 hover:text-slate-900 dark:text-white/70 dark:hover:text-white">Sobre</a>
+            <a href="/auth" className="text-sm text-slate-600 hover:text-slate-900 dark:text-white/70 dark:hover:text-white">Entrar</a>
+            <a href="/dashboard" className="text-sm text-slate-600 hover:text-slate-900 dark:text-white/70 dark:hover:text-white">Dashboard</a>
+          </nav>
+          <ThemeToggle />
         </div>
       </div>
 
@@ -655,14 +659,14 @@ export default function Home() {
         <div className="group flex flex-col items-start">
           
 
-          <h1 className="mt-5 max-w-[16ch] text-[clamp(2rem,7vw,3.75rem)] font-extrabold leading-[1.15] tracking-tight text-white [text-wrap:balance] sm:leading-[1.1]">
+          <h1 className="mt-5 max-w-[16ch] text-[clamp(2rem,7vw,3.75rem)] font-extrabold leading-[1.15] tracking-tight text-slate-900 [text-wrap:balance] sm:leading-[1.1] dark:text-white">
             Aprenda programação com IA —
             <span className="bg-gradient-to-r from-violet-400 to-fuchsia-500 bg-clip-text text-transparent drop-shadow-sm transition-colors duration-300"> rápido</span>
             <span> e </span>
             <span className="bg-gradient-to-r from-violet-400 to-fuchsia-500 bg-clip-text text-transparent drop-shadow-sm transition-colors duration-300">divertido.</span>
           </h1>
 
-          <p className="mt-5 max-w-[62ch] text-[clamp(1rem,2.3vw,1.125rem)] leading-relaxed text-white/80 [text-wrap:pretty]">
+          <p className="mt-5 max-w-[62ch] text-[clamp(1rem,2.3vw,1.125rem)] leading-relaxed text-slate-700 [text-wrap:pretty] dark:text-white/80">
             Trilhas personalizadas, exercícios práticos e insights de aprendizagem. Tudo o que você precisa para evoluir com consistência.
           </p>
 
@@ -670,7 +674,7 @@ export default function Home() {
             <Button
               asChild
               size="lg"
-              className="group gap-2 w-full sm:w-auto bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white shadow-lg hover:from-violet-500/90 hover:to-fuchsia-600/90 border-0 focus-visible:ring-4 focus-visible:ring-violet-500/50 motion-reduce:transition-none"
+              className="group w-full gap-2 border-0 bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white shadow-lg hover:from-violet-500/90 hover:to-fuchsia-600/90 focus-visible:ring-4 focus-visible:ring-violet-500/50 motion-reduce:transition-none sm:w-auto"
             >
               <a href="/auth" aria-label="Começar de graça, criar conta e iniciar" className="inline-flex items-center">
                 Começar de graça <ArrowRight className="h-4 w-4 -translate-y-px transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
@@ -680,7 +684,7 @@ export default function Home() {
               asChild
               variant="secondary"
               size="lg"
-              className="group gap-2 bg-white/10 text-white hover:bg-white/15 focus-visible:ring-4 focus-visible:ring-white/40 motion-reduce:transition-none"
+              className="group gap-2 border border-slate-200 bg-white/90 text-slate-700 shadow-sm hover:bg-slate-50 focus-visible:ring-4 focus-visible:ring-indigo-200/60 dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/15 dark:focus-visible:ring-white/30"
             >
               <a href="/dashboard" aria-label="Ver demonstração do dashboard" className="inline-flex items-center">
                 <PlayCircle className="h-4 w-4" aria-hidden="true" /> Ver demo

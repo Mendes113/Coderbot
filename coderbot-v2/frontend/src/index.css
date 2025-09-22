@@ -32,26 +32,111 @@
     --input: 0 0% 89.8%;
     --ring: 0 0% 3.9%;
 
-    --radius: 0.5rem;
+    /* Otimizado para contexto educacional - radius maior para aparência mais amigável */
+    --radius: 0.75rem;
 
-    --sidebar-background: 262 80% 97%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 265 80% 70%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 265 70% 60%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 262 80% 90%;
-    --sidebar-ring: 265 80% 70%;
+    --sidebar-background: 265 100% 97%; /* Roxo muito claro para background */
+    --sidebar-foreground: 0 0% 15%; /* Texto principal escuro */
+    --sidebar-primary: var(--education-primary); /* Roxo educacional */
+    --sidebar-primary-foreground: 0 0% 98%; /* Texto branco */
+    --sidebar-accent: var(--education-primary-300); /* Roxo médio para hover */
+    --sidebar-accent-foreground: 0 0% 98%; /* Texto branco */
+    --sidebar-border: var(--education-primary-200); /* Roxo claro para bordas */
+    --sidebar-ring: var(--education-primary); /* Roxo para focus rings */
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --education-purple: 265 80% 70%; /* Roxo principal */
-    --education-purple-dark: 265 60% 50%;
+
+    /* Paleta Educacional Otimizada - Baseada em pesquisas de UX educacional */
+    /* Cores Primárias - Roxo Educacional */
+    --education-primary-50: 265 100% 97%;   /* Roxo muito claro para backgrounds */
+    --education-primary-100: 265 95% 93%;   /* Roxo claro para hover states */
+    --education-primary-200: 265 85% 85%;   /* Roxo claro para cards */
+    --education-primary-300: 265 75% 75%;   /* Roxo médio para elementos interativos */
+    --education-primary-400: 265 70% 70%;   /* Roxo para botões e destaques */
+    --education-primary-500: 265 80% 70%;   /* Roxo principal (padrão) */
+    --education-primary-600: 265 70% 55%;   /* Roxo escuro para hover/ativo */
+    --education-primary-700: 265 60% 45%;   /* Roxo mais escuro para texto */
+    --education-primary-800: 265 50% 35%;   /* Roxo muito escuro para contrastes */
+    --education-primary-900: 265 40% 25%;   /* Roxo escuro para backgrounds */
+
+    /* Cores Secundárias - Azul Educacional */
+    --education-secondary-50: 200 100% 95%; /* Azul muito claro para backgrounds */
+    --education-secondary-100: 200 90% 88%; /* Azul claro para hover */
+    --education-secondary-200: 200 80% 75%; /* Azul claro para cards */
+    --education-secondary-300: 200 70% 65%; /* Azul médio para elementos */
+    --education-secondary-400: 200 65% 55%; /* Azul para botões */
+    --education-secondary-500: 200 70% 65%; /* Azul principal (padrão) */
+    --education-secondary-600: 200 60% 50%; /* Azul escuro para hover */
+    --education-secondary-700: 200 50% 40%; /* Azul escuro para texto */
+    --education-secondary-800: 200 40% 30%; /* Azul muito escuro */
+    --education-secondary-900: 200 30% 20%; /* Azul escuro para backgrounds */
+
+    /* Estados Semânticos */
+    --education-success-50: 142 100% 95%;   /* Verde muito claro */
+    --education-success-100: 142 90% 85%;   /* Verde claro */
+    --education-success-200: 142 80% 70%;   /* Verde médio claro */
+    --education-success-300: 142 70% 55%;   /* Verde médio */
+    --education-success-400: 142 65% 45%;   /* Verde principal */
+    --education-success-500: 142 71% 45%;   /* Verde padrão */
+    --education-success-600: 142 60% 35%;   /* Verde escuro */
+    --education-success-700: 142 50% 25%;   /* Verde muito escuro */
+
+    --education-warning-50: 38 100% 95%;    /* Laranja muito claro */
+    --education-warning-100: 38 95% 85%;    /* Laranja claro */
+    --education-warning-200: 38 85% 70%;    /* Laranja médio claro */
+    --education-warning-300: 38 75% 55%;    /* Laranja médio */
+    --education-warning-400: 38 70% 45%;    /* Laranja principal */
+    --education-warning-500: 38 92% 50%;    /* Laranja padrão */
+    --education-warning-600: 38 80% 40%;    /* Laranja escuro */
+    --education-warning-700: 38 70% 30%;    /* Laranja muito escuro */
+
+    --education-error-50: 0 100% 95%;       /* Vermelho muito claro */
+    --education-error-100: 0 95% 85%;       /* Vermelho claro */
+    --education-error-200: 0 85% 70%;       /* Vermelho médio claro */
+    --education-error-300: 0 75% 55%;       /* Vermelho médio */
+    --education-error-400: 0 70% 45%;       /* Vermelho principal */
+    --education-error-500: 0 84% 60%;       /* Vermelho padrão */
+    --education-error-600: 0 70% 50%;       /* Vermelho escuro */
+    --education-error-700: 0 60% 40%;       /* Vermelho muito escuro */
+
+    /* Superfícies e Backgrounds */
+    --education-surface-50: 0 0% 99%;       /* Superfície muito clara */
+    --education-surface-100: 0 0% 98%;      /* Superfície clara (padrão) */
+    --education-surface-200: 0 0% 96%;      /* Superfície média clara */
+    --education-surface-300: 0 0% 94%;      /* Superfície média */
+    --education-surface-400: 0 0% 90%;      /* Superfície escura clara */
+    --education-surface-500: 0 0% 85%;      /* Superfície padrão */
+    --education-surface-600: 0 0% 75%;      /* Superfície escura */
+
+    /* Texto e Contraste */
+    --education-text-primary: 0 0% 15%;      /* Texto principal (padrão) */
+    --education-text-secondary: 0 0% 35%;    /* Texto secundário */
+    --education-text-muted: 0 0% 55%;        /* Texto sutil */
+    --education-text-disabled: 0 0% 70%;     /* Texto desabilitado */
+
+    /* Backward compatibility - mantendo nomes antigos */
+    --education-primary: var(--education-primary-500);
+    --education-primary-dark: var(--education-primary-600);
+    --education-primary-light: var(--education-primary-200);
+    --education-secondary: var(--education-secondary-500);
+    --education-success: var(--education-success-500);
+    --education-warning: var(--education-warning-500);
+    --education-error: var(--education-error-500);
+    --education-surface: var(--education-surface-100);
+    --education-surface-dark: var(--education-surface-200);
+    --education-text-primary: var(--education-text-primary);
+    --education-text-secondary: var(--education-text-secondary);
+    --education-text-muted: var(--education-text-muted);
+
+    /* Backward compatibility - mantendo nomes antigos */
+    --education-purple: var(--education-primary);
+    --education-purple-dark: var(--education-primary-dark);
     --education-user: 160 60% 92%; /* Verde claro para balão do usuário */
     --education-user-dark: 160 40% 30%;
-    --education-bot-bg: var(--education-purple);
+    --education-bot-bg: var(--education-primary);
     --education-user-bg: var(--education-user);
   }
 
@@ -84,24 +169,108 @@
     --input: 0 0% 14.9%;
     --ring: 0 0% 83.1%;
     
-    --sidebar-background: 260 15% 15%;
-    --sidebar-foreground: 263 10% 98%;
-    --sidebar-primary: 265 80% 70%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 265 30% 25%;
-    --sidebar-accent-foreground: 263 10% 98%;
-    --sidebar-border: 260 15% 25%;
-    --sidebar-ring: 265 80% 70%;
+    --sidebar-background: var(--education-primary-50); /* Roxo muito escuro para background */
+    --sidebar-foreground: 0 0% 95%; /* Texto principal claro */
+    --sidebar-primary: var(--education-primary); /* Roxo educacional */
+    --sidebar-primary-foreground: 0 0% 98%; /* Texto branco */
+    --sidebar-accent: var(--education-primary-300); /* Roxo médio para hover */
+    --sidebar-accent-foreground: 0 0% 98%; /* Texto branco */
+    --sidebar-border: var(--education-primary-200); /* Roxo claro para bordas */
+    --sidebar-ring: var(--education-primary); /* Roxo para focus rings */
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-    --education-purple: 265 80% 70%;
-    --education-purple-dark: 265 60% 50%;
+
+    /* Paleta Educacional Otimizada - Modo Escuro */
+    /* Cores Primárias - Roxo Educacional (Escuro) */
+    --education-primary-50: 265 20% 8%;     /* Roxo muito escuro */
+    --education-primary-100: 265 30% 12%;   /* Roxo escuro */
+    --education-primary-200: 265 40% 18%;   /* Roxo médio escuro */
+    --education-primary-300: 265 50% 25%;   /* Roxo médio */
+    --education-primary-400: 265 60% 35%;   /* Roxo claro escuro */
+    --education-primary-500: 265 70% 45%;   /* Roxo principal (escuro) */
+    --education-primary-600: 265 80% 55%;   /* Roxo claro para o escuro */
+    --education-primary-700: 265 90% 65%;   /* Roxo claro */
+    --education-primary-800: 265 95% 75%;   /* Roxo muito claro para o escuro */
+    --education-primary-900: 265 100% 85%;  /* Roxo branco para o escuro */
+
+    /* Cores Secundárias - Azul Educacional (Escuro) */
+    --education-secondary-50: 200 20% 8%;   /* Azul muito escuro */
+    --education-secondary-100: 200 30% 12%; /* Azul escuro */
+    --education-secondary-200: 200 40% 18%; /* Azul médio escuro */
+    --education-secondary-300: 200 50% 25%; /* Azul médio */
+    --education-secondary-400: 200 60% 35%; /* Azul claro escuro */
+    --education-secondary-500: 200 70% 45%; /* Azul principal (escuro) */
+    --education-secondary-600: 200 80% 55%; /* Azul claro */
+    --education-secondary-700: 200 90% 65%; /* Azul claro */
+    --education-secondary-800: 200 95% 75%; /* Azul muito claro para o escuro */
+    --education-secondary-900: 200 100% 85%; /* Azul branco para o escuro */
+
+    /* Estados Semânticos (Escuro) */
+    --education-success-50: 142 30% 8%;     /* Verde muito escuro */
+    --education-success-100: 142 40% 12%;   /* Verde escuro */
+    --education-success-200: 142 50% 18%;   /* Verde médio escuro */
+    --education-success-300: 142 60% 25%;   /* Verde médio */
+    --education-success-400: 142 70% 35%;   /* Verde claro escuro */
+    --education-success-500: 142 80% 45%;   /* Verde principal (escuro) */
+    --education-success-600: 142 90% 55%;   /* Verde claro */
+    --education-success-700: 142 100% 65%;  /* Verde claro */
+
+    --education-warning-50: 38 30% 8%;      /* Laranja muito escuro */
+    --education-warning-100: 38 40% 12%;    /* Laranja escuro */
+    --education-warning-200: 38 50% 18%;    /* Laranja médio escuro */
+    --education-warning-300: 38 60% 25%;    /* Laranja médio */
+    --education-warning-400: 38 70% 35%;    /* Laranja claro escuro */
+    --education-warning-500: 38 80% 45%;    /* Laranja principal (escuro) */
+    --education-warning-600: 38 90% 55%;    /* Laranja claro */
+    --education-warning-700: 38 100% 65%;   /* Laranja claro */
+
+    --education-error-50: 0 30% 8%;         /* Vermelho muito escuro */
+    --education-error-100: 0 40% 12%;       /* Vermelho escuro */
+    --education-error-200: 0 50% 18%;       /* Vermelho médio escuro */
+    --education-error-300: 0 60% 25%;       /* Vermelho médio */
+    --education-error-400: 0 70% 35%;       /* Vermelho claro escuro */
+    --education-error-500: 0 80% 45%;       /* Vermelho principal (escuro) */
+    --education-error-600: 0 90% 55%;       /* Vermelho claro */
+    --education-error-700: 0 100% 65%;      /* Vermelho claro */
+
+    /* Superfícies e Backgrounds (Escuro) */
+    --education-surface-50: 0 0% 3%;        /* Superfície muito escura */
+    --education-surface-100: 0 0% 6%;       /* Superfície escura (padrão) */
+    --education-surface-200: 0 0% 9%;       /* Superfície média escura */
+    --education-surface-300: 0 0% 12%;      /* Superfície média */
+    --education-surface-400: 0 0% 18%;      /* Superfície clara escura */
+    --education-surface-500: 0 0% 25%;      /* Superfície padrão */
+    --education-surface-600: 0 0% 35%;      /* Superfície clara */
+
+    /* Texto e Contraste (Escuro) */
+    --education-text-primary: 0 0% 95%;      /* Texto principal (escuro) */
+    --education-text-secondary: 0 0% 75%;    /* Texto secundário */
+    --education-text-muted: 0 0% 55%;        /* Texto sutil */
+    --education-text-disabled: 0 0% 35%;     /* Texto desabilitado */
+
+    /* Backward compatibility - mantendo nomes antigos */
+    --education-primary: var(--education-primary-500);
+    --education-primary-dark: var(--education-primary-600);
+    --education-primary-light: var(--education-primary-300);
+    --education-secondary: var(--education-secondary-500);
+    --education-success: var(--education-success-500);
+    --education-warning: var(--education-warning-500);
+    --education-error: var(--education-error-500);
+    --education-surface: var(--education-surface-100);
+    --education-surface-dark: var(--education-surface-200);
+    --education-text-primary: var(--education-text-primary);
+    --education-text-secondary: var(--education-text-secondary);
+    --education-text-muted: var(--education-text-muted);
+
+    /* Backward compatibility - mantendo nomes antigos */
+    --education-purple: var(--education-primary);
+    --education-purple-dark: var(--education-primary-dark);
     --education-user: 160 40% 20%;
     --education-user-dark: 160 40% 10%;
-    --education-bot-bg: var(--education-purple-dark);
+    --education-bot-bg: var(--education-primary-dark);
     --education-user-bg: var(--education-user);
   }
 }
@@ -162,14 +331,7 @@
   }
 }
 
-@keyframes spinSlow {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
+/* Removida animação spinSlow - duplicada com animate-spin */
 
 @keyframes fadeInOut {
   0%, 100% {
@@ -202,21 +364,15 @@
   animation: confetti 3s linear forwards;
 }
 
-.animate-wiggle {
-  animation: wiggle 0.5s ease-in-out;
-}
+/* Removida classe animate-wiggle duplicada */
 
 .animate-slide-in-left {
   animation: slideInLeft 0.3s ease-out;
 }
 
-.animate-fade-in-scale {
-  animation: fadeInScale 0.5s ease-out;
-}
+/* Removida classe animate-fade-in-scale duplicada */
 
-.animate-spin-slow {
-  animation: spinSlow 8s linear infinite;
-}
+/* Removida classe animate-spin-slow - não utilizada */
 
 .animate-fade-in-out {
   animation: fadeInOut 2s ease-in-out infinite;
@@ -230,11 +386,22 @@
   animation: pulse 2s ease-in-out infinite;
 }
 
-/* Animações customizadas para ChatInput */
-@keyframes fadeIn {
+/* Animações customizadas para ChatInput - Removendo duplicatas */
+
+/* Animações Educacionais Otimizadas - Mais sutis e profissionais */
+@keyframes bounceGentle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes slideInUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
@@ -242,33 +409,40 @@
   }
 }
 
-@keyframes fadeInScale {
+@keyframes scaleIn {
   from {
     opacity: 0;
-    transform: scale(0.8) translateY(10px);
+    transform: scale(0.9);
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: scale(1);
   }
 }
 
-@keyframes wiggle {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-3deg); }
-  75% { transform: rotate(3deg); }
+@keyframes progressBar {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+.animate-bounce-gentle {
+  animation: bounceGentle 0.6s ease-in-out;
 }
 
-.animate-fade-in-scale {
-  animation: fadeInScale 0.4s ease-out;
+.animate-slide-in-up {
+  animation: slideInUp 0.4s ease-out;
 }
 
-.animate-wiggle {
-  animation: wiggle 0.6s ease-in-out;
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out;
+}
+
+.animate-progress-bar {
+  animation: progressBar 2s ease-in-out;
 }
 
 /* Animações para ícones do ChatMessage */
@@ -449,4 +623,418 @@
 
 .animate-particle-float {
   animation: particleFloat 2s ease-out infinite;
+}
+
+/* Classes utilitárias para contexto educacional */
+@layer utilities {
+  /* Sistema de Espaçamento Educacional - Baseado em 8px grid */
+  /* Espaçamentos Verticais (Space-y) */
+  .edu-spacing-0 { @apply space-y-0; }
+  .edu-spacing-1 { @apply space-y-1; }     /* 4px */
+  .edu-spacing-2 { @apply space-y-2; }     /* 8px */
+  .edu-spacing-3 { @apply space-y-3; }     /* 12px */
+  .edu-spacing-4 { @apply space-y-4; }     /* 16px */
+  .edu-spacing-5 { @apply space-y-5; }     /* 20px */
+  .edu-spacing-6 { @apply space-y-6; }     /* 24px */
+  .edu-spacing-8 { @apply space-y-8; }     /* 32px */
+  .edu-spacing-10 { @apply space-y-10; }   /* 40px */
+  .edu-spacing-12 { @apply space-y-12; }   /* 48px */
+  .edu-spacing-16 { @apply space-y-16; }   /* 64px */
+  .edu-spacing-20 { @apply space-y-20; }   /* 80px */
+  .edu-spacing-24 { @apply space-y-24; }   /* 96px */
+  .edu-spacing-32 { @apply space-y-32; }   /* 128px */
+
+  /* Espaçamentos Horizontais (Gap) */
+  .edu-gap-0 { @apply gap-0; }
+  .edu-gap-1 { @apply gap-1; }             /* 4px */
+  .edu-gap-2 { @apply gap-2; }             /* 8px */
+  .edu-gap-3 { @apply gap-3; }             /* 12px */
+  .edu-gap-4 { @apply gap-4; }             /* 16px */
+  .edu-gap-5 { @apply gap-5; }             /* 20px */
+  .edu-gap-6 { @apply gap-6; }             /* 24px */
+  .edu-gap-8 { @apply gap-8; }             /* 32px */
+  .edu-gap-10 { @apply gap-10; }           /* 40px */
+  .edu-gap-12 { @apply gap-12; }           /* 48px */
+  .edu-gap-16 { @apply gap-16; }           /* 64px */
+  .edu-gap-20 { @apply gap-20; }           /* 80px */
+
+  /* Padding Educacional */
+  .edu-p-0 { @apply p-0; }
+  .edu-p-1 { @apply p-1; }                 /* 4px */
+  .edu-p-2 { @apply p-2; }                 /* 8px */
+  .edu-p-3 { @apply p-3; }                 /* 12px */
+  .edu-p-4 { @apply p-4; }                 /* 16px */
+  .edu-p-5 { @apply p-5; }                 /* 20px */
+  .edu-p-6 { @apply p-6; }                 /* 24px */
+  .edu-p-8 { @apply p-8; }                 /* 32px */
+  .edu-p-10 { @apply p-10; }               /* 40px */
+  .edu-p-12 { @apply p-12; }               /* 48px */
+  .edu-p-16 { @apply p-16; }               /* 64px */
+  .edu-p-20 { @apply p-20; }               /* 80px */
+
+  /* Padding Horizontal */
+  .edu-px-0 { @apply px-0; }
+  .edu-px-1 { @apply px-1; }
+  .edu-px-2 { @apply px-2; }
+  .edu-px-3 { @apply px-3; }
+  .edu-px-4 { @apply px-4; }
+  .edu-px-5 { @apply px-5; }
+  .edu-px-6 { @apply px-6; }
+  .edu-px-8 { @apply px-8; }
+  .edu-px-10 { @apply px-10; }
+  .edu-px-12 { @apply px-12; }
+  .edu-px-16 { @apply px-16; }
+  .edu-px-20 { @apply px-20; }
+
+  /* Padding Vertical */
+  .edu-py-0 { @apply py-0; }
+  .edu-py-1 { @apply py-1; }
+  .edu-py-2 { @apply py-2; }
+  .edu-py-3 { @apply py-3; }
+  .edu-py-4 { @apply py-4; }
+  .edu-py-5 { @apply py-5; }
+  .edu-py-6 { @apply py-6; }
+  .edu-py-8 { @apply py-8; }
+  .edu-py-10 { @apply py-10; }
+  .edu-py-12 { @apply py-12; }
+  .edu-py-16 { @apply py-16; }
+  .edu-py-20 { @apply py-20; }
+
+  /* Margin Educacional */
+  .edu-m-0 { @apply m-0; }
+  .edu-m-1 { @apply m-1; }
+  .edu-m-2 { @apply m-2; }
+  .edu-m-3 { @apply m-3; }
+  .edu-m-4 { @apply m-4; }
+  .edu-m-5 { @apply m-5; }
+  .edu-m-6 { @apply m-6; }
+  .edu-m-8 { @apply m-8; }
+  .edu-m-10 { @apply m-10; }
+  .edu-m-12 { @apply m-12; }
+  .edu-m-16 { @apply m-16; }
+  .edu-m-20 { @apply m-20; }
+
+  /* Espaçamentos Semânticos */
+  .edu-section-spacing { @apply space-y-12; }  /* Espaçamento entre seções */
+  .edu-component-spacing { @apply space-y-6; } /* Espaçamento entre componentes */
+  .edu-element-spacing { @apply space-y-4; }   /* Espaçamento entre elementos */
+  .edu-item-spacing { @apply space-y-3; }      /* Espaçamento entre itens */
+  .edu-tight-spacing { @apply space-y-2; }     /* Espaçamento apertado */
+
+  /* Backward compatibility - mantendo nomes antigos */
+  .edu-spacing-xs { @apply edu-spacing-2; }
+  .edu-spacing-sm { @apply edu-spacing-3; }
+  .edu-spacing-md { @apply edu-spacing-4; }
+  .edu-spacing-lg { @apply edu-spacing-6; }
+  .edu-spacing-xl { @apply edu-spacing-8; }
+
+  /* Bordas otimizadas para cards educacionais */
+  .edu-card {
+    @apply bg-[hsl(var(--education-surface))] dark:bg-[hsl(var(--education-surface))] border border-[hsl(var(--border))] rounded-[calc(var(--radius)+0.25rem)] shadow-sm;
+  }
+
+  .edu-card-hover {
+    @apply hover:bg-[hsl(var(--education-surface-dark))] dark:hover:bg-[hsl(var(--education-surface-dark))] hover:shadow-md transition-all duration-200;
+  }
+
+  /* Botões educacionais com melhor feedback visual */
+  .edu-btn-primary {
+    @apply bg-[hsl(var(--education-primary))] hover:bg-[hsl(var(--education-primary-dark))] text-white font-medium px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-200;
+  }
+
+  .edu-btn-secondary {
+    @apply bg-[hsl(var(--education-secondary))] hover:bg-[hsl(var(--education-secondary))/80] text-[hsl(var(--education-text-primary))] font-medium px-4 py-2 rounded-lg border border-[hsl(var(--border))] hover:border-[hsl(var(--education-secondary))] shadow-sm hover:shadow-md transition-all duration-200;
+  }
+
+  /* Estados de sucesso/aviso/erro otimizados */
+  .edu-success {
+    @apply bg-[hsl(var(--education-success))/10] border border-[hsl(var(--education-success))/20] text-[hsl(var(--education-success))];
+  }
+
+  .edu-warning {
+    @apply bg-[hsl(var(--education-warning))/10] border border-[hsl(var(--education-warning))/20] text-[hsl(var(--education-warning))];
+  }
+
+  .edu-error {
+    @apply bg-[hsl(var(--education-error))/10] border border-[hsl(var(--education-error))/20] text-[hsl(var(--education-error))];
+  }
+
+  /* Sistema de Tipografia Educacional - Hierarquia Completa */
+  /* Títulos e Headings */
+  .edu-heading-display {
+    @apply text-[hsl(var(--education-text-primary))] font-bold text-3xl md:text-4xl lg:text-5xl leading-tight tracking-tight;
+  }
+
+  .edu-heading-h1 {
+    @apply text-[hsl(var(--education-text-primary))] font-bold text-2xl md:text-3xl leading-tight tracking-tight;
+  }
+
+  .edu-heading-h2 {
+    @apply text-[hsl(var(--education-text-primary))] font-semibold text-xl md:text-2xl leading-tight;
+  }
+
+  .edu-heading-h3 {
+    @apply text-[hsl(var(--education-text-primary))] font-semibold text-lg md:text-xl leading-snug;
+  }
+
+  .edu-heading-h4 {
+    @apply text-[hsl(var(--education-text-primary))] font-medium text-base md:text-lg leading-snug;
+  }
+
+  .edu-heading-h5 {
+    @apply text-[hsl(var(--education-text-primary))] font-medium text-sm md:text-base leading-normal;
+  }
+
+  .edu-heading-h6 {
+    @apply text-[hsl(var(--education-text-primary))] font-medium text-xs md:text-sm leading-normal uppercase tracking-wide;
+  }
+
+  /* Texto Principal */
+  .edu-text-body-large {
+    @apply text-[hsl(var(--education-text-primary))] text-lg leading-relaxed;
+  }
+
+  .edu-text-body {
+    @apply text-[hsl(var(--education-text-primary))] text-base leading-relaxed;
+  }
+
+  .edu-text-body-small {
+    @apply text-[hsl(var(--education-text-primary))] text-sm leading-relaxed;
+  }
+
+  /* Texto Secundário */
+  .edu-text-secondary-large {
+    @apply text-[hsl(var(--education-text-secondary))] text-lg leading-relaxed;
+  }
+
+  .edu-text-secondary {
+    @apply text-[hsl(var(--education-text-secondary))] text-base leading-relaxed;
+  }
+
+  .edu-text-secondary-small {
+    @apply text-[hsl(var(--education-text-secondary))] text-sm leading-relaxed;
+  }
+
+  /* Texto Auxiliar */
+  .edu-text-muted-large {
+    @apply text-[hsl(0_0%_55%)] text-lg leading-relaxed;
+  }
+
+  /* .edu-text-muted {
+    @apply text-[hsl(0_0%_55%)] text-base leading-relaxed;
+  } */
+
+  .edu-text-muted-small {
+    @apply text-[hsl(0_0%_55%)] text-sm leading-relaxed;
+  }
+
+  /* Texto Desabilitado */
+  .edu-text-disabled {
+    @apply text-[hsl(0_0%_70%)] text-base leading-relaxed;
+  }
+
+  .edu-text-disabled-small {
+    @apply text-[hsl(0_0%_70%)] text-sm leading-relaxed;
+  }
+
+  /* Texto com Ênfase */
+  .edu-text-accent {
+    @apply text-[hsl(var(--education-primary))] font-medium text-base leading-relaxed;
+  }
+
+  .edu-text-accent-small {
+    @apply text-[hsl(var(--education-primary))] font-medium text-sm leading-relaxed;
+  }
+
+  /* Links Educacionais */
+  .edu-link {
+    @apply text-[hsl(var(--education-primary))] hover:text-[hsl(var(--education-primary-dark))] underline underline-offset-2 transition-colors duration-200;
+  }
+
+  .edu-link-subtle {
+    @apply text-[hsl(var(--education-text-secondary))] hover:text-[hsl(var(--education-primary))] underline underline-offset-2 transition-colors duration-200;
+  }
+
+  /* Labels e Captions */
+  .edu-label {
+    @apply text-[hsl(var(--education-text-secondary))] font-medium text-sm uppercase tracking-wide;
+  }
+
+  .edu-caption {
+    @apply text-[hsl(0_0%_55%)] text-xs leading-normal;
+  }
+
+  /* Backward compatibility - mantendo nomes antigos */
+  .edu-text-heading {
+    @apply edu-heading-h3;
+  }
+
+  /* .edu-text-muted {
+    @apply edu-text-muted;
+  } */
+
+  /* Foco melhorado para acessibilidade */
+  .edu-focus {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--education-primary))] focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Scroll suave para conteúdo longo */
+  .edu-scroll {
+    @apply scroll-smooth overflow-y-auto;
+  }
+
+  /* Grid responsivo para exercícios */
+  .edu-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4;
+  }
+
+  /* Sistema de Sombras Educacional - Profundidade Visual */
+  /* Sombras sutis para elementos elevados */
+  .edu-shadow-xs {
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+
+  .edu-shadow-sm {
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  }
+
+  .edu-shadow-md {
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  }
+
+  .edu-shadow-lg {
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  }
+
+  .edu-shadow-xl {
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  }
+
+  .edu-shadow-2xl {
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  }
+
+  /* Sombras coloridas para contexto educacional */
+  .edu-shadow-primary {
+    box-shadow: 0 4px 14px 0 hsl(var(--education-primary) / 0.15), 0 2px 6px -2px hsl(var(--education-primary) / 0.1);
+  }
+
+  .edu-shadow-primary-sm {
+    box-shadow: 0 2px 8px 0 hsl(var(--education-primary) / 0.12), 0 1px 4px -1px hsl(var(--education-primary) / 0.08);
+  }
+
+  .edu-shadow-primary-lg {
+    box-shadow: 0 10px 25px 0 hsl(var(--education-primary) / 0.2), 0 6px 12px -4px hsl(var(--education-primary) / 0.15);
+  }
+
+  /* Sombras para diferentes estados */
+  .edu-shadow-success {
+    box-shadow: 0 4px 14px 0 hsl(var(--education-success) / 0.15), 0 2px 6px -2px hsl(var(--education-success) / 0.1);
+  }
+
+  .edu-shadow-warning {
+    box-shadow: 0 4px 14px 0 hsl(var(--education-warning) / 0.15), 0 2px 6px -2px hsl(var(--education-warning) / 0.1);
+  }
+
+  .edu-shadow-error {
+    box-shadow: 0 4px 14px 0 hsl(var(--education-error) / 0.15), 0 2px 6px -2px hsl(var(--education-error) / 0.1);
+  }
+
+  /* Sombras internas para profundidade */
+  .edu-shadow-inner {
+    box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+  }
+
+  .edu-shadow-inner-sm {
+    box-shadow: inset 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+
+  .edu-shadow-inner-md {
+    box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.1);
+  }
+
+  /* Sombras para elementos elevados (elevação) */
+  .edu-elevation-0 {
+    box-shadow: none;
+  }
+
+  .edu-elevation-1 {
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.24);
+  }
+
+  .edu-elevation-2 {
+    box-shadow: 0 3px 6px rgb(0 0 0 / 0.15), 0 2px 4px rgb(0 0 0 / 0.12);
+  }
+
+  .edu-elevation-3 {
+    box-shadow: 0 10px 20px rgb(0 0 0 / 0.15), 0 3px 6px rgb(0 0 0 / 0.10);
+  }
+
+  .edu-elevation-4 {
+    box-shadow: 0 14px 25px rgb(0 0 0 / 0.15), 0 10px 10px rgb(0 0 0 / 0.04);
+  }
+
+  .edu-elevation-5 {
+    box-shadow: 0 19px 38px rgb(0 0 0 / 0.30), 0 15px 12px rgb(0 0 0 / 0.22);
+  }
+
+  /* Sombras para modo escuro - mais suaves */
+  .dark .edu-shadow-xs {
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.15);
+  }
+
+  .dark .edu-shadow-sm {
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.25), 0 1px 2px -1px rgb(0 0 0 / 0.25);
+  }
+
+  .dark .edu-shadow-md {
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.25), 0 2px 4px -2px rgb(0 0 0 / 0.25);
+  }
+
+  .dark .edu-shadow-lg {
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.25), 0 4px 6px -4px rgb(0 0 0 / 0.25);
+  }
+
+  .dark .edu-shadow-xl {
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.25), 0 8px 10px -6px rgb(0 0 0 / 0.25);
+  }
+
+  /* Sombras para elementos flutuantes */
+  .edu-shadow-floating {
+    box-shadow: 0 8px 32px rgb(0 0 0 / 0.12), 0 4px 16px rgb(0 0 0 / 0.08);
+  }
+
+  .edu-shadow-floating-primary {
+    box-shadow: 0 8px 32px hsl(var(--education-primary) / 0.2), 0 4px 16px hsl(var(--education-primary) / 0.15);
+  }
+
+  /* Sombras para elementos interativos */
+  .edu-shadow-interactive {
+    @apply edu-shadow-sm;
+    transition: box-shadow 0.2s ease-in-out;
+  }
+
+  .edu-shadow-interactive:hover {
+    @apply edu-shadow-md;
+  }
+
+  .edu-shadow-interactive:active {
+    @apply edu-shadow-lg;
+  }
+
+  /* Sombras para cards educacionais */
+  .edu-card {
+    @apply bg-[hsl(var(--education-surface))] dark:bg-[hsl(var(--education-surface))] border border-[hsl(var(--border))] rounded-[calc(var(--radius)+0.25rem)] edu-shadow-sm;
+  }
+                                                                    
+  .edu-card-hover {
+    @apply hover:bg-[hsl(var(--education-surface-dark))] dark:hover:bg-[hsl(var(--education-surface-dark))] hover:edu-shadow-md transition-all duration-200;
+  }
+
+  /* Backward compatibility - mantendo nomes antigos
+  .edu-card {
+    @apply edu-card;
+  } */
+
+
 }

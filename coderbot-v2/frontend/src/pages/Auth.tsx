@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { startGithubOAuth } from "@/integrations/pocketbase/client";
 import AuthForm from "@/components/auth/AuthForm";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -19,6 +20,9 @@ export default function Auth() {
       aria-busy={isLoading}
       className="relative isolate min-h-screen overflow-hidden bg-gradient-to-b from-indigo-50 to-white text-slate-900 dark:from-slate-950 dark:to-slate-950 dark:text-white"
     >
+      <div className="pointer-events-none absolute right-4 top-4 sm:right-6 sm:top-6">
+        <ThemeToggle className="pointer-events-auto" />
+      </div>
       {/* Global loading overlay */}
       {isLoading && (
         <div
