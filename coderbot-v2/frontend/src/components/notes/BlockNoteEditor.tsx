@@ -1,653 +1,714 @@
-// import { useEditor, EditorContent } from "@tiptap/react";
-// import StarterKit from "@tiptap/starter-kit";
-// import Placeholder from "@tiptap/extension-placeholder";
-// import CharacterCount from "@tiptap/extension-character-count";
-// import TextAlign from "@tiptap/extension-text-align";
-// import Link from "@tiptap/extension-link";
-// import Image from "@tiptap/extension-image";
-// import Highlight from "@tiptap/extension-highlight";
-// import TaskList from "@tiptap/extension-task-list";
-// import TaskItem from "@tiptap/extension-task-item";
-// import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
-// import { common, createLowlight } from "lowlight";
-// import { useEffect, useState } from "react";
-// import TurndownService from "turndown";
-// import { Button } from "@/components/ui/button";
-// import { Separator } from "@/components/ui/separator";
-// import { Badge } from "@/components/ui/badge";
-// import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-// import { motion, AnimatePresence } from "framer-motion";
-// import {
-//   Bold,
-//   Italic,
-//   Strikethrough,
-//   Code,
-//   Heading1,
-//   Heading2,
-//   List,
-//   ListOrdered,
-//   Quote,
-//   AlignLeft,
-//   AlignCenter,
-//   AlignRight,
-//   Undo,
-//   Redo,
-//   Palette,
-//   CheckSquare,
-//   Sparkles,
-//   Save,
-//   Eye,
-//   FileText,
-//   Code2,
-//   Hash,
-// } from "lucide-react";
+import {
+  type ChangeEvent,
+  type KeyboardEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  Bold,
+  Code,
+  Heading,
+  Image as ImageIcon,
+  Italic,
+  Link as LinkIcon,
+  List,
+  ListOrdered,
+  ListTodo,
+  Minus,
+  Save,
+  Strikethrough,
+  Table,
+  TextQuote,
+} from "lucide-react";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import TurndownService from "turndown";
 
-// interface BlockNoteEditorProps {
-//   initialContent?: string;
-//   onChange?: (content: string) => void;
-//   placeholder?: string;
-//   readOnly?: boolean;
-//   onSave?: () => void;
-//   autoSave?: boolean;
-// }
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 
-// export function BlockNoteEditor({
-//   initialContent,
-//   onChange,
-//   placeholder = "Comece a escrever suas anotações...",
-//   readOnly = false,
-//   onSave,
-//   autoSave = true,
-// }: BlockNoteEditorProps) {
-//   const [isSaving, setIsSaving] = useState(false);
-//   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-//   const [wordCount, setWordCount] = useState(0);
-//   const [charCount, setCharCount] = useState(0);
-//   const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
-//   const [isPreviewMode, setIsPreviewMode] = useState(false);
+interface BlockNoteEditorProps {
+  initialContent?: string;
+  onChange?: (content: string) => void;
+  placeholder?: string;
+  readOnly?: boolean;
+  onSave?: () => void | Promise<void>;
+  autoSave?: boolean;
+  autoSaveDelayMs?: number;
+  className?: string;
+}
 
-//   const lowlight = createLowlight(common);
+const DEFAULT_AUTO_SAVE_DELAY = 2000;
+const looksLikeHtml = (value: string) => /<[a-z][\s\S]*>/i.test(value);
 
-//   const downloadAsMarkdown = () => {
-//     if (!editor) return;
+type MarkdownAction =
+  | "bold"
+  | "italic"
+  | "strike"
+  | "heading"
+  | "code"
+  | "quote"
+  | "link"
+  | "image"
+  | "unordered-list"
+  | "ordered-list"
+  | "task-list"
+  | "table"
+  | "hr";
 
-//     const html = editor.getHTML();
-//     const turndownService = new TurndownService({
-//       headingStyle: 'atx',
-//       codeBlockStyle: 'fenced',
-//       bulletListMarker: '-',
-//       strongDelimiter: '**',
-//       emDelimiter: '*'
-//     });
+const convertHtmlToMarkdown = (value: string, service: TurndownService | null) => {
+  if (!value) {
+    return "";
+  }
 
-//     let markdown = turndownService.turndown(html);
+  if (!looksLikeHtml(value) || !service) {
+    return value;
+  }
 
-//     const blob = new Blob([markdown], { type: 'text/markdown' });
-//     const url = URL.createObjectURL(blob);
-//     const a = document.createElement('a');
-//     a.href = url;
-//     a.download = 'notas.md';
-//     document.body.appendChild(a);
-//     a.click();
-//     document.body.removeChild(a);
-//     URL.revokeObjectURL(url);
-//   };
+  try {
+    return service.turndown(value);
+  } catch (error) {
+    console.warn("BlockNoteEditor: failed to convert HTML to Markdown", error);
+    return value;
+  }
+};
 
+const BlockNoteEditor = ({
+  initialContent = "",
+  onChange,
+  placeholder = "Comece a escrever suas anotações...",
+  readOnly = false,
+  onSave,
+  autoSave = true,
+  autoSaveDelayMs = DEFAULT_AUTO_SAVE_DELAY,
+  className,
+}: BlockNoteEditorProps) => {
+  const editorRef = useRef<HTMLTextAreaElement | null>(null);
+  const turndownRef = useRef<TurndownService | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  if (!turndownRef.current) {
+    turndownRef.current = new TurndownService({
+      headingStyle: "atx",
+      codeBlockStyle: "fenced",
+    });
+  }
 
-//   const editor = useEditor({
-//     extensions: [
-//       StarterKit.configure({
-//         codeBlock: false, // Disable default code block to use CodeBlockLowlight
-//       }),
-//       CodeBlockLowlight.configure({
-//         lowlight,
-//       }),
-//       Placeholder.configure({
-//         placeholder,
-//       }),
-//       CharacterCount,
-//       TextAlign.configure({
-//         types: ["heading", "paragraph"],
-//       }),
-//       Link.configure({
-//         openOnClick: false,
-//         HTMLAttributes: {
-//           class: "text-blue-600 hover:text-blue-800 underline",
-//         },
-//       }),
-//       Image.configure({
-//         inline: true,
-//         allowBase64: true,
-//         HTMLAttributes: {
-//           class: "rounded-lg max-w-full h-auto",
-//         },
-//       }),
-//       Highlight.configure({
-//         multicolor: true,
-//       }),
-//       TaskList.configure({
-//         HTMLAttributes: {
-//           class: "my-4",
-//         },
-//       }),
-//       TaskItem.configure({
-//         nested: true,
-//         HTMLAttributes: {
-//           class: "flex items-center gap-2",
-//         },
-//       }),
-//     ],
-//     content: initialContent || "",
-//     editable: !readOnly,
-//     onUpdate: ({ editor }) => {
-//       const html = editor.getHTML();
-//       onChange?.(html);
+  const [value, setValue] = useState<string>(() => convertHtmlToMarkdown(initialContent ?? "", turndownRef.current));
+  const [isFocused, setIsFocused] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const [activeTab, setActiveTab] = useState<"write" | "preview">(() => (readOnly ? "preview" : "write"));
 
-//       // Update stats
-//       setWordCount(editor.storage.characterCount.words());
-//       setCharCount(editor.storage.characterCount.characters());
+  const isContentEmpty = useMemo(() => (value ?? "").trim().length === 0, [value]);
+  const canSave = Boolean(onSave) && !readOnly;
 
-//       // Debounced auto-save
-//       if (autoSave && !isSaving) {
-//         debouncedAutoSave();
-//       }
-//     },
-//   });
+  const runSave = useCallback(async () => {
+    if (!onSave) {
+      return;
+    }
 
-//   // Update content when initialContent changes
-//   useEffect(() => {
-//     if (initialContent && initialContent.trim() && editor) {
-//       editor.commands.setContent(initialContent);
-//     }
-//   }, [editor, initialContent]);
+    setIsSaving(true);
+    try {
+      await onSave();
+      setLastSavedAt(new Date());
+      setHasInteracted(false);
+    } catch (error) {
+      console.error("BlockNoteEditor auto-save failed", error);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [onSave]);
 
-//   // Update stats on mount
-//   useEffect(() => {
-//     if (editor) {
-//       setWordCount(editor.storage.characterCount.words());
-//       setCharCount(editor.storage.characterCount.characters());
-//     }
-//   }, [editor]);
+  const scheduleSave = useCallback(() => {
+    if (!autoSave || !onSave) {
+      return;
+    }
 
-//   // Cleanup debounce timer on unmount
-//   useEffect(() => {
-//     return () => {
-//       if (debounceTimer) {
-//         clearTimeout(debounceTimer);
-//       }
-//     };
-//   }, [debounceTimer]);
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
 
-//   const handleAutoSave = async () => {
-//     if (!autoSave || !onSave) return;
+    saveTimeoutRef.current = setTimeout(() => {
+      runSave().catch(() => undefined);
+      saveTimeoutRef.current = null;
+    }, autoSaveDelayMs);
+  }, [autoSave, autoSaveDelayMs, onSave, runSave]);
 
-//     setIsSaving(true);
-//     try {
-//       await onSave();
-//       setLastSaved(new Date());
-//     } catch (error) {
-//       console.error("Auto-save failed:", error);
-//     } finally {
-//       setIsSaving(false);
-//     }
-//   };
+  const commitValue = useCallback(
+    (nextValue: string) => {
+      setValue(nextValue);
+      onChange?.(nextValue);
+      setLastSavedAt(null);
+      setHasInteracted(true);
+      scheduleSave();
+    },
+    [onChange, scheduleSave],
+  );
 
-//   const debouncedAutoSave = () => {
-//     // Clear existing timer
-//     if (debounceTimer) {
-//       clearTimeout(debounceTimer);
-//     }
+  const applyFormatting = useCallback(
+    (action: MarkdownAction) => {
+      const textarea = editorRef.current;
+      if (!textarea || readOnly) {
+        return;
+      }
 
-//     // Set new timer for 5 seconds
-//     const timer = setTimeout(() => {
-//       handleAutoSave();
-//       setDebounceTimer(null); // Clear timer after execution
-//     }, 5000);
+      const { selectionStart, selectionEnd, value: currentValue } = textarea;
+      const selectedText = currentValue.slice(selectionStart, selectionEnd);
+      const before = currentValue.slice(0, selectionStart);
+      const after = currentValue.slice(selectionEnd);
 
-//     setDebounceTimer(timer);
-//   };
+      const ensureSelection = (start: number, end: number) => {
+        requestAnimationFrame(() => {
+          textarea.focus();
+          textarea.setSelectionRange(start, end);
+        });
+      };
 
-//   if (!editor) {
-//     return (
-//       <motion.div
-//         initial={{ opacity: 0, y: 20 }}
-//         animate={{ opacity: 1, y: 0 }}
-//         className="min-h-[400px] p-4 border rounded-lg bg-muted animate-pulse"
-//       >
-//         <div className="space-y-2">
-//           <div className="h-4 bg-muted-foreground/20 rounded w-3/4"></div>
-//           <div className="h-4 bg-muted-foreground/20 rounded w-1/2"></div>
-//           <div className="h-4 bg-muted-foreground/20 rounded w-5/6"></div>
-//         </div>
-//       </motion.div>
-//     );
-//   }
+      const pushValue = (updated: string, selectionStartIndex: number, selectionEndIndex: number) => {
+        setValue(updated);
+        onChange?.(updated);
+        setLastSavedAt(null);
+        setHasInteracted(true);
+        scheduleSave();
+        ensureSelection(selectionStartIndex, selectionEndIndex);
+      };
 
-//   const ToolbarButton = ({
-//     onClick,
-//     isActive = false,
-//     children,
-//     title,
-//     shortcut,
-//   }: {
-//     onClick: () => void;
-//     isActive?: boolean;
-//     children: React.ReactNode;
-//     title: string;
-//     shortcut?: string;
-//   }) => (
-//     <TooltipProvider>
-//       <Tooltip>
-//         <TooltipTrigger asChild>
-//           <Button
-//             variant={isActive ? "default" : "ghost"}
-//             size="sm"
-//             onClick={onClick}
-//             className={`transition-all duration-200 hover:scale-105 ${
-//               isActive ? "shadow-md" : ""
-//             }`}
-//             type="button"
-//           >
-//             {children}
-//           </Button>
-//         </TooltipTrigger>
-//         <TooltipContent>
-//           <p>{title}</p>
-//           {shortcut && <p className="text-xs opacity-70">{shortcut}</p>}
-//         </TooltipContent>
-//       </Tooltip>
-//     </TooltipProvider>
-//   );
+      const defaultPlaceholder = {
+        bold: "texto em negrito",
+        italic: "texto em itálico",
+        strike: "texto riscado",
+        heading: "Título",
+        code: "seu código",
+        link: "texto do link",
+        image: "descrição da imagem",
+      } as const;
 
-//   return (
-//     <TooltipProvider>
-//       <motion.div
-//         initial={{ opacity: 0, y: 20 }}
-//         animate={{ opacity: 1, y: 0 }}
-//         transition={{ duration: 0.3 }}
-//         className="w-full space-y-4"
-//       >
-//         {/* Header with status */}
-//         <div className="flex items-center justify-between">
-//           <div className="flex items-center gap-4">
-//             <div className="flex items-center gap-2">
-//               <Sparkles className="h-5 w-5 text-primary" />
-//               <h3 className="text-lg font-semibold">Editor Inteligente</h3>
-//               <Badge variant="outline" className="text-xs">
-//                 WYSIWYG
-//               </Badge>
-//             </div>
+      switch (action) {
+        case "bold": {
+          const insertion = selectedText || defaultPlaceholder.bold;
+          const updated = `${before}**${insertion}**${after}`;
+          const start = selectionStart + 2;
+          const end = start + insertion.length;
+          pushValue(updated, start, end);
+          break;
+        }
+        case "italic": {
+          const insertion = selectedText || defaultPlaceholder.italic;
+          const updated = `${before}*${insertion}*${after}`;
+          const start = selectionStart + 1;
+          const end = start + insertion.length;
+          pushValue(updated, start, end);
+          break;
+        }
+        case "strike": {
+          const insertion = selectedText || defaultPlaceholder.strike;
+          const updated = `${before}~~${insertion}~~${after}`;
+          const start = selectionStart + 2;
+          const end = start + insertion.length;
+          pushValue(updated, start, end);
+          break;
+        }
+        case "heading": {
+          const insertion = (selectedText || defaultPlaceholder.heading)
+            .split("\n")
+            .map(line => line.replace(/^#{1,6}\s*/, ""))
+            .map(line => `# ${line || defaultPlaceholder.heading}`)
+            .join("\n");
+          const updated = `${before}${insertion}${after}`;
+          const start = before.length;
+          const end = start + insertion.length;
+          pushValue(updated, start, end);
+          break;
+        }
+        case "code": {
+          if (selectedText.includes("\n")) {
+            const insertion = selectedText || defaultPlaceholder.code;
+            const block = `\n\n\`\`\`\n${insertion}\n\`\`\`\n`;
+            const updated = `${before}${block}${after}`;
+            const start = before.length + 4;
+            const end = start + insertion.length;
+            pushValue(updated, start, end);
+          } else {
+            const insertion = selectedText || defaultPlaceholder.code;
+            const updated = `${before}\`${insertion}\`${after}`;
+            const start = selectionStart + 1;
+            const end = start + insertion.length;
+            pushValue(updated, start, end);
+          }
+          break;
+        }
+        case "quote": {
+          const insertion = (selectedText || "Texto destacado")
+            .split("\n")
+            .map(line => line.replace(/^>\s?/, ""))
+            .map(line => `> ${line || "Texto destacado"}`)
+            .join("\n");
+          const updated = `${before}${insertion}${after}`;
+          const start = before.length;
+          const end = start + insertion.length;
+          pushValue(updated, start, end);
+          break;
+        }
+        case "link": {
+          const label = selectedText || defaultPlaceholder.link;
+          const urlPlaceholder = "https://";
+          const insertion = `[${label}](${urlPlaceholder})`;
+          const updated = `${before}${insertion}${after}`;
+          const urlStart = before.length + label.length + 3;
+          const urlEnd = urlStart + urlPlaceholder.length;
+          pushValue(updated, urlStart, urlEnd);
+          break;
+        }
+        case "image": {
+          const altText = selectedText || defaultPlaceholder.image;
+          const urlPlaceholder = "https://";
+          const insertion = `![${altText}](${urlPlaceholder})`;
+          const updated = `${before}${insertion}${after}`;
+          const urlStart = before.length + altText.length + 4;
+          const urlEnd = urlStart + urlPlaceholder.length;
+          pushValue(updated, urlStart, urlEnd);
+          break;
+        }
+        case "unordered-list": {
+          const insertion = (selectedText || "Item da lista")
+            .split("\n")
+            .map(line => line.replace(/^[-*+]\s+/, ""))
+            .map(line => `- ${line || "Item da lista"}`)
+            .join("\n");
+          const updated = `${before}${insertion}${after}`;
+          const start = before.length;
+          const end = start + insertion.length;
+          pushValue(updated, start, end);
+          break;
+        }
+        case "ordered-list": {
+          const insertion = (selectedText || "Item numerado")
+            .split("\n")
+            .map(line => line.replace(/^\d+[.)]\s+/, ""))
+            .map((line, index) => `${index + 1}. ${line || "Item numerado"}`)
+            .join("\n");
+          const updated = `${before}${insertion}${after}`;
+          const start = before.length;
+          const end = start + insertion.length;
+          pushValue(updated, start, end);
+          break;
+        }
+        case "task-list": {
+          const insertion = (selectedText || "Tarefa pendente")
+            .split("\n")
+            .map(line => line.replace(/^[-*+]\s+\[[xX\s]\]\s+/, ""))
+            .map(line => `- [ ] ${line || "Tarefa pendente"}`)
+            .join("\n");
+          const updated = `${before}${insertion}${after}`;
+          const start = before.length;
+          const end = start + insertion.length;
+          pushValue(updated, start, end);
+          break;
+        }
+        case "table": {
+          const tableTemplate = "| Coluna A | Coluna B |\n| -------- | -------- |\n| Valor 1  | Valor 2  |\n";
+          const updated = `${before}${tableTemplate}${after}`;
+          const start = before.length;
+          const end = start + tableTemplate.length;
+          pushValue(updated, start, end);
+          break;
+        }
+        case "hr": {
+          const hrTemplate = `${before}\n\n---\n\n${after}`;
+          const start = before.length + 2;
+          const end = start + 3;
+          pushValue(hrTemplate, start, end);
+          break;
+        }
+        default:
+          break;
+      }
+    },
+    [onChange, readOnly, scheduleSave],
+  );
 
-//             <AnimatePresence>
-//               {isSaving && (
-//                 <motion.div
-//                   initial={{ opacity: 0, scale: 0.8 }}
-//                   animate={{ opacity: 1, scale: 1 }}
-//                   exit={{ opacity: 0, scale: 0.8 }}
-//                   className="flex items-center gap-2"
-//                 >
-//                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-//                   <span className="text-sm text-muted-foreground">Salvando...</span>
-//                 </motion.div>
-//               )}
-//             </AnimatePresence>
+  const handleInput = useCallback(
+    (event: ChangeEvent<HTMLTextAreaElement>) => {
+      if (readOnly) {
+        return;
+      }
+      commitValue(event.target.value);
+    },
+    [commitValue, readOnly],
+  );
 
-//             {lastSaved && (
-//               <Badge variant="secondary" className="text-xs">
-//                 <Save className="h-3 w-3 mr-1" />
-//                 Salvo {lastSaved.toLocaleTimeString()}
-//               </Badge>
-//             )}
-//           </div>
+  const handleManualSave = useCallback(() => {
+    if (!onSave) {
+      return;
+    }
 
-//           <div className="flex items-center gap-4 text-xs text-muted-foreground">
-//             <span>{charCount} caracteres</span>
-//             <span>{wordCount} palavras</span>
-//             <span>{Math.ceil(wordCount / 200)} min de leitura</span>
-//           </div>
-//         </div>
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
 
-//         {/* Enhanced Toolbar */}
-//         {!readOnly && (
-//           <motion.div
-//             initial={{ opacity: 0, y: -10 }}
-//             animate={{ opacity: 1, y: 0 }}
-//             transition={{ delay: 0.1 }}
-//             className="flex flex-wrap items-center gap-1 p-3 border rounded-xl bg-gradient-to-r from-muted/50 to-muted/30 backdrop-blur-sm"
-//           >
-//             {/* Preview and Export Controls */}
-//             {!isPreviewMode && (
-//               <div className="flex items-center gap-1 mr-2">
-//                 <ToolbarButton
-//                   onClick={() => setIsPreviewMode(true)}
-//                   title="Visualizar"
-//                   shortcut="Ctrl+Shift+P"
-//                 >
-//                   <Eye className="h-4 w-4" />
-//                 </ToolbarButton>
+    runSave().catch(() => undefined);
+  }, [onSave, runSave]);
 
-//                 <ToolbarButton
-//                   onClick={downloadAsMarkdown}
-//                   title="Exportar como Markdown"
-//                   shortcut="Ctrl+Shift+E"
-//                 >
-//                   <FileText className="h-4 w-4" />
-//                 </ToolbarButton>
-//               </div>
-//             )}
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLTextAreaElement>) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        handleManualSave();
+        return;
+      }
 
-//             {/* Exit Preview Mode */}
-//             {isPreviewMode && (
-//               <div className="flex items-center gap-1 mr-2">
-//                 <ToolbarButton
-//                   onClick={() => setIsPreviewMode(false)}
-//                   title="Voltar ao editor"
-//                   shortcut="Ctrl+Shift+P"
-//                 >
-//                   <Eye className="h-4 w-4" />
-//                 </ToolbarButton>
+      if (readOnly) {
+        return;
+      }
 
-//                 <ToolbarButton
-//                   onClick={downloadAsMarkdown}
-//                   title="Exportar como Markdown"
-//                   shortcut="Ctrl+Shift+E"
-//                 >
-//                   <FileText className="h-4 w-4" />
-//                 </ToolbarButton>
-//               </div>
-//             )}
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        applyFormatting("bold");
+      } else if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "i") {
+        event.preventDefault();
+        applyFormatting("italic");
+      } else if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "x") {
+        event.preventDefault();
+        applyFormatting("strike");
+      } else if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        applyFormatting("link");
+      } else if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "7") {
+        event.preventDefault();
+        applyFormatting("ordered-list");
+      } else if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "8") {
+        event.preventDefault();
+        applyFormatting("unordered-list");
+      } else if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "9") {
+        event.preventDefault();
+        applyFormatting("task-list");
+      }
+    },
+    [applyFormatting, handleManualSave, readOnly],
+  );
 
-//             {!isPreviewMode && (
-//               <>
-//                 {/* Text Formatting */}
-//                 <div className="flex items-center gap-1">
-//                   <ToolbarButton
-//                     onClick={() => editor.chain().focus().toggleBold().run()}
-//                     isActive={editor.isActive("bold")}
-//                     title="Negrito"
-//                     shortcut="Ctrl+B"
-//                   >
-//                     <Bold className="h-4 w-4" />
-//                   </ToolbarButton>
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
-//                   <ToolbarButton
-//                     onClick={() => editor.chain().focus().toggleItalic().run()}
-//                     isActive={editor.isActive("italic")}
-//                     title="Itálico"
-//                     shortcut="Ctrl+I"
-//                   >
-//                     <Italic className="h-4 w-4" />
-//                   </ToolbarButton>
+  useEffect(() => {
+    const normalized = convertHtmlToMarkdown(initialContent ?? "", turndownRef.current);
 
-//                   <ToolbarButton
-//                     onClick={() => editor.chain().focus().toggleStrike().run()}
-//                     isActive={editor.isActive("strike")}
-//                     title="Riscado"
-//                     shortcut="Ctrl+Shift+X"
-//                   >
-//                     <Strikethrough className="h-4 w-4" />
-//                   </ToolbarButton>
+    if (editorRef.current && editorRef.current.value !== normalized) {
+      editorRef.current.value = normalized;
+    }
 
-//                   <ToolbarButton
-//                     onClick={() => editor.chain().focus().toggleCode().run()}
-//                     isActive={editor.isActive("code")}
-//                     title="Código inline"
-//                     shortcut="Ctrl+E"
-//                   >
-//                     <Code className="h-4 w-4" />
-//                   </ToolbarButton>
+    if (normalized !== value) {
+      setValue(normalized);
+      setLastSavedAt(null);
+      setHasInteracted(false);
+    }
+  }, [initialContent, value]);
 
-//                   <ToolbarButton
-//                     onClick={() => editor.chain().focus().toggleHighlight().run()}
-//                     isActive={editor.isActive("highlight")}
-//                     title="Destacar"
-//                     shortcut="Ctrl+Shift+H"
-//                   >
-//                     <Palette className="h-4 w-4" />
-//                   </ToolbarButton>
-//                 </div>
+  useEffect(() => {
+    setActiveTab(readOnly ? "preview" : "write");
+  }, [readOnly]);
 
-//                 <Separator orientation="vertical" className="h-8 mx-2" />
+  const markdownComponents = useMemo<Components>(
+    () => ({
+      code({ inline, className, children, ...props }) {
+        const match = /language-(\w+)/.exec(className || "");
+        const content = String(children).replace(/\n$/, "");
 
-//                 {/* Headings */}
-//                 <div className="flex items-center gap-1">
-//                   <ToolbarButton
-//                     onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-//                     isActive={editor.isActive("heading", { level: 1 })}
-//                     title="Título Principal"
-//                     shortcut="Ctrl+Alt+1"
-//                   >
-//                     <Heading1 className="h-4 w-4" />
-//                   </ToolbarButton>
+        if (!inline && match) {
+          return (
+            <SyntaxHighlighter
+              {...props}
+              language={match[1]}
+              style={oneDark}
+              PreTag="div"
+              customStyle={{
+                margin: 0,
+                borderRadius: "8px",
+                fontSize: "14px",
+                lineHeight: "1.6",
+                padding: "16px",
+              }}
+              wrapLines
+            >
+              {content}
+            </SyntaxHighlighter>
+          );
+        }
 
-//                   <ToolbarButton
-//                     onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-//                     isActive={editor.isActive("heading", { level: 2 })}
-//                     title="Subtítulo"
-//                     shortcut="Ctrl+Alt+2"
-//                   >
-//                     <Heading2 className="h-4 w-4" />
-//                   </ToolbarButton>
-//                 </div>
+        return (
+          <code
+            className={cn(
+              "rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground",
+              className,
+            )}
+            {...props}
+          >
+            {children}
+          </code>
+        );
+      },
+      table({ className, ...props }) {
+        return (
+          <div className="overflow-x-auto">
+            <table
+              className={cn("w-full border border-border text-sm", className)}
+              {...props}
+            />
+          </div>
+        );
+      },
+      th({ className, ...props }) {
+        return (
+          <th
+            className={cn("border border-border bg-muted px-3 py-2 text-left font-semibold", className)}
+            {...props}
+          />
+        );
+      },
+      td({ className, ...props }) {
+        return <td className={cn("border border-border px-3 py-2 align-top", className)} {...props} />;
+      },
+      a({ className, ...props }) {
+        return (
+          <a
+            className={cn(
+              "text-primary underline decoration-transparent underline-offset-4 transition hover:decoration-primary",
+              className,
+            )}
+            target="_blank"
+            rel="noopener noreferrer"
+            {...props}
+          />
+        );
+      },
+    }),
+    [],
+  );
 
-//                 <Separator orientation="vertical" className="h-8 mx-2" />
+  const statusMessage = useMemo(() => {
+    if (!canSave) {
+      return null;
+    }
 
-//                 {/* Lists and Tasks */}
-//                 <div className="flex items-center gap-1">
-//                   <ToolbarButton
-//                     onClick={() => editor.chain().focus().toggleBulletList().run()}
-//                     isActive={editor.isActive("bulletList")}
-//                     title="Lista de marcadores"
-//                     shortcut="Ctrl+Shift+8"
-//                   >
-//                     <List className="h-4 w-4" />
-//                   </ToolbarButton>
+    if (isSaving) {
+      return "Salvando...";
+    }
 
-//                   <ToolbarButton
-//                     onClick={() => editor.chain().focus().toggleOrderedList().run()}
-//                     isActive={editor.isActive("orderedList")}
-//                     title="Lista numerada"
-//                     shortcut="Ctrl+Shift+7"
-//                   >
-//                     <ListOrdered className="h-4 w-4" />
-//                   </ToolbarButton>
+    if (hasInteracted && lastSavedAt === null) {
+      return autoSave ? "Alterações pendentes..." : "Clique em Salvar para guardar suas alterações.";
+    }
 
-//                   <ToolbarButton
-//                     onClick={() => editor.chain().focus().toggleTaskList().run()}
-//                     isActive={editor.isActive("taskList")}
-//                     title="Lista de tarefas"
-//                     shortcut="Ctrl+Shift+9"
-//                   >
-//                     <CheckSquare className="h-4 w-4" />
-//                   </ToolbarButton>
+    if (lastSavedAt) {
+      return `Salvo às ${lastSavedAt.toLocaleTimeString()}`;
+    }
 
-//                   <ToolbarButton
-//                     onClick={() => editor.chain().focus().toggleBlockquote().run()}
-//                     isActive={editor.isActive("blockquote")}
-//                     title="Citação"
-//                     shortcut="Ctrl+Shift+B"
-//                   >
-//                     <Quote className="h-4 w-4" />
-//                   </ToolbarButton>
-//                 </div>
+    return autoSave ? "Alterações são salvas automaticamente." : "Use o botão para salvar suas alterações.";
+  }, [autoSave, canSave, hasInteracted, isSaving, lastSavedAt]);
 
-//                 <Separator orientation="vertical" className="h-8 mx-2" />
+  const toolbar = (
+    <div className="flex flex-wrap items-center gap-1 rounded-md border border-border bg-muted/40 p-1">
+      <ToolbarButton
+        icon={<Bold className="h-4 w-4" />}
+        label="Negrito (Ctrl+B)"
+        onClick={() => applyFormatting("bold")}
+        disabled={readOnly}
+      />
+      <ToolbarButton
+        icon={<Italic className="h-4 w-4" />}
+        label="Itálico (Ctrl+I)"
+        onClick={() => applyFormatting("italic")}
+        disabled={readOnly}
+      />
+      <ToolbarButton
+        icon={<Strikethrough className="h-4 w-4" />}
+        label="Tachado (Ctrl+Shift+X)"
+        onClick={() => applyFormatting("strike")}
+        disabled={readOnly}
+      />
+      <div className="mx-1 hidden h-6 w-px bg-border sm:block" />
+      <ToolbarButton
+        icon={<Heading className="h-4 w-4" />}
+        label="Título"
+        onClick={() => applyFormatting("heading")}
+        disabled={readOnly}
+      />
+      <ToolbarButton
+        icon={<TextQuote className="h-4 w-4" />}
+        label="Bloco de citação"
+        onClick={() => applyFormatting("quote")}
+        disabled={readOnly}
+      />
+      <ToolbarButton
+        icon={<Code className="h-4 w-4" />}
+        label="Código"
+        onClick={() => applyFormatting("code")}
+        disabled={readOnly}
+      />
+      <div className="mx-1 hidden h-6 w-px bg-border sm:block" />
+      <ToolbarButton
+        icon={<LinkIcon className="h-4 w-4" />}
+        label="Link (Ctrl+K)"
+        onClick={() => applyFormatting("link")}
+        disabled={readOnly}
+      />
+      <ToolbarButton
+        icon={<ImageIcon className="h-4 w-4" />}
+        label="Imagem"
+        onClick={() => applyFormatting("image")}
+        disabled={readOnly}
+      />
+      <div className="mx-1 hidden h-6 w-px bg-border sm:block" />
+      <ToolbarButton
+        icon={<List className="h-4 w-4" />}
+        label="Lista não ordenada (Ctrl+Shift+8)"
+        onClick={() => applyFormatting("unordered-list")}
+        disabled={readOnly}
+      />
+      <ToolbarButton
+        icon={<ListOrdered className="h-4 w-4" />}
+        label="Lista ordenada (Ctrl+Shift+7)"
+        onClick={() => applyFormatting("ordered-list")}
+        disabled={readOnly}
+      />
+      <ToolbarButton
+        icon={<ListTodo className="h-4 w-4" />}
+        label="Lista de tarefas (Ctrl+Shift+9)"
+        onClick={() => applyFormatting("task-list")}
+        disabled={readOnly}
+      />
+      <ToolbarButton
+        icon={<Table className="h-4 w-4" />}
+        label="Tabela"
+        onClick={() => applyFormatting("table")}
+        disabled={readOnly}
+      />
+      <ToolbarButton
+        icon={<Minus className="h-4 w-4" />}
+        label="Linha horizontal"
+        onClick={() => applyFormatting("hr")}
+        disabled={readOnly}
+      />
+    </div>
+  );
 
-//                 {/* Alignment */}
-//                 <div className="flex items-center gap-1">
-//                   <ToolbarButton
-//                     onClick={() => editor.chain().focus().setTextAlign("left").run()}
-//                     isActive={editor.isActive({ textAlign: "left" })}
-//                     title="Alinhar à esquerda"
-//                   >
-//                     <AlignLeft className="h-4 w-4" />
-//                   </ToolbarButton>
+  return (
+    <div className={cn("flex flex-col gap-3", className)}>
+      {canSave && (
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>{statusMessage}</span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleManualSave}
+            disabled={isSaving}
+            type="button"
+          >
+            <Save className="mr-2 h-4 w-4" />
+            Salvar
+          </Button>
+        </div>
+      )}
 
-//                   <ToolbarButton
-//                     onClick={() => editor.chain().focus().setTextAlign("center").run()}
-//                     isActive={editor.isActive({ textAlign: "center" })}
-//                     title="Centralizar"
-//                   >
-//                     <AlignCenter className="h-4 w-4" />
-//                   </ToolbarButton>
+      {readOnly ? (
+        <div className="rounded-lg border border-input bg-background px-4 py-3 text-sm">
+          {isContentEmpty ? (
+            <p className="text-muted-foreground">Nenhum conteúdo disponível.</p>
+          ) : (
+            <ReactMarkdown
+              className="prose prose-sm dark:prose-invert max-w-none"
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeRaw]}
+              components={markdownComponents}
+            >
+              {value}
+            </ReactMarkdown>
+          )}
+        </div>
+      ) : (
+        <Tabs value={activeTab} onValueChange={tab => setActiveTab(tab as "write" | "preview")}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <TabsList className="h-9">
+              <TabsTrigger value="write">Escrever</TabsTrigger>
+              <TabsTrigger value="preview">Pré-visualizar</TabsTrigger>
+            </TabsList>
+            {activeTab === "write" && toolbar}
+          </div>
+          <TabsContent value="write">
+            <textarea
+              ref={editorRef}
+              value={value}
+              onChange={handleInput}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              spellCheck
+              className={cn(
+                "min-h-[400px] w-full resize-y rounded-lg border border-input bg-background px-4 py-3 font-mono text-sm leading-relaxed text-foreground shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2",
+                isFocused ? "ring-2 ring-primary/40" : "",
+              )}
+            />
+          </TabsContent>
+          <TabsContent value="preview">
+            <div className="min-h-[400px] rounded-lg border border-dashed border-border bg-muted/40 px-4 py-3 text-sm">
+              {isContentEmpty ? (
+                <p className="text-muted-foreground">
+                  Nada para pré-visualizar ainda. Escreva no editor para ver o resultado em Markdown.
+                </p>
+              ) : (
+                <ReactMarkdown
+                  className="prose prose-sm dark:prose-invert max-w-none"
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
+                  components={markdownComponents}
+                >
+                  {value}
+                </ReactMarkdown>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
+      )}
+    </div>
+  );
+};
 
-//                   <ToolbarButton
-//                     onClick={() => editor.chain().focus().setTextAlign("right").run()}
-//                     isActive={editor.isActive({ textAlign: "right" })}
-//                     title="Alinhar à direita"
-//                   >
-//                     <AlignRight className="h-4 w-4" />
-//                   </ToolbarButton>
-//                 </div>
+interface ToolbarButtonProps {
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
 
-//                 <Separator orientation="vertical" className="h-8 mx-2" />
-
-//                 {/* Code and Headings */}
-//                 <div className="flex items-center gap-1">
-//                   <ToolbarButton
-//                     onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-//                     isActive={editor.isActive("codeBlock")}
-//                     title="Bloco de código"
-//                     shortcut="Ctrl+Alt+C"
-//                   >
-//                     <Code2 className="h-4 w-4" />
-//                   </ToolbarButton>
-
-//                   <ToolbarButton
-//                     onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-//                     isActive={editor.isActive("heading", { level: 3 })}
-//                     title="Subtítulo (H3)"
-//                     shortcut="Ctrl+Alt+3"
-//                   >
-//                     <Hash className="h-4 w-4" />
-//                   </ToolbarButton>
-//                 </div>
-
-//                 <Separator orientation="vertical" className="h-8 mx-2" />
-
-//                 {/* Actions */}
-//                 <div className="flex items-center gap-1">
-//                   <ToolbarButton
-//                     onClick={() => editor.chain().focus().undo().run()}
-//                     title="Desfazer"
-//                     shortcut="Ctrl+Z"
-//                   >
-//                     <Undo className="h-4 w-4" />
-//                   </ToolbarButton>
-
-//                   <ToolbarButton
-//                     onClick={() => editor.chain().focus().redo().run()}
-//                     title="Refazer"
-//                     shortcut="Ctrl+Y"
-//                   >
-//                     <Redo className="h-4 w-4" />
-//                   </ToolbarButton>
-
-//                   <ToolbarButton
-//                     onClick={downloadAsMarkdown}
-//                     title="Exportar como Markdown"
-//                     shortcut="Ctrl+Shift+M"
-//                   >
-//                     <FileText className="h-4 w-4" />
-//                   </ToolbarButton>
-//                 </div>
-//               </>
-//             )}
-//           </motion.div>
-//         )}
-
-//         {/* Enhanced Editor */}
-//         <motion.div
-//           initial={{ opacity: 0, y: 10 }}
-//           animate={{ opacity: 1, y: 0 }}
-//           transition={{ delay: 0.2 }}
-//           className="relative"
-//         >
-//           {isPreviewMode ? (
-//             <div className="min-h-[600px] p-8 border-2 rounded-xl bg-gradient-to-br from-background to-muted/20 shadow-lg">
-//               <div
-//                 className="min-h-[500px] p-4 [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mb-4 [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:mb-3 [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mb-2 [&_ul]:list-disc [&_ul]:ml-6 [&_ol]:list-decimal [&_ol]:ml-6 [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-muted-foreground [&_strong]:font-semibold [&_em]:italic [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm [&_code]:font-mono"
-//                 dangerouslySetInnerHTML={{ __html: editor?.getHTML() || '' }}
-//               />
-//             </div>
-//           ) : (
-//             <div
-//               className="min-h-[600px] p-8 border-2 border-dashed rounded-xl focus-within:ring-2 focus-within:ring-primary/50 focus-within:ring-offset-2 focus-within:border-primary/50 focus-within:border-solid hover:border-primary/30 transition-all duration-300 prose prose-sm max-w-none focus:outline-none bg-gradient-to-br from-background to-muted/20 shadow-lg cursor-text"
-//               onClick={() => {
-//                 if (editor && !readOnly) {
-//                   editor.commands.focus();
-//                 }
-//               }}
-//             >
-//               <EditorContent
-//                 editor={editor}
-//                 className="focus:outline-none min-h-[500px] p-4 [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mb-4 [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:mb-3 [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mb-2 [&_ul]:list-disc [&_ul]:ml-6 [&_ol]:list-decimal [&_ol]:ml-6 [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-muted-foreground [&_strong]:font-semibold [&_em]:italic [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm [&_code]:font-mono"
-//               />
-//             </div>
-//           )}
-
-//           {/* Floating save indicator */}
-//           <AnimatePresence>
-//             {lastSaved && (
-//               <motion.div
-//                 initial={{ opacity: 0, scale: 0.8 }}
-//                 animate={{ opacity: 1, scale: 1 }}
-//                 exit={{ opacity: 0, scale: 0.8 }}
-//                 className="absolute top-4 right-4"
-//               >
-//                 <Badge variant="secondary" className="shadow-md">
-//                   <Save className="h-3 w-3 mr-1" />
-//                   Auto-salvo
-//                 </Badge>
-//               </motion.div>
-//             )}
-//           </AnimatePresence>
-//         </motion.div>
-
-//         {/* Enhanced Status Bar */}
-//         <motion.div
-//           initial={{ opacity: 0 }}
-//           animate={{ opacity: 1 }}
-//           transition={{ delay: 0.3 }}
-//           className="flex items-center justify-between p-3 bg-muted/50 rounded-lg text-sm"
-//         >
-//           <div className="flex items-center gap-6">
-//             <div className="flex items-center gap-2">
-//               <div className="h-2 w-2 rounded-full bg-green-500" />
-//               <span>Editor ativo</span>
-//             </div>
-//             <span>{charCount} caracteres • {wordCount} palavras</span>
-//             <span>{Math.ceil(wordCount / 200)} min de leitura</span>
-//           </div>
-
-//           <div className="flex items-center gap-2">
-//             {lastSaved && (
-//               <span className="text-muted-foreground">
-//                 Último salvamento: {lastSaved.toLocaleTimeString()}
-//               </span>
-//             )}
-//             {!readOnly && onSave && (
-//               <Button
-//                 size="sm"
-//                 variant="outline"
-//                 onClick={handleAutoSave}
-//                 disabled={isSaving}
-//                 className="flex items-center gap-2"
-//               >
-//                 {isSaving ? (
-//                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-//                 ) : (
-//                   <Save className="h-4 w-4" />
-//                 )}
-//                 {isSaving ? "Salvando..." : "Salvar"}
-//               </Button>
-//             )}
-//           </div>
-//         </motion.div>
-//       </motion.div>
-//     </TooltipProvider>
-//   );
-// }
+const ToolbarButton = ({ icon, label, onClick, disabled }: ToolbarButtonProps) => (
+  <Button
+    type="button"
+    variant="ghost"
+    size="icon"
+    className="h-8 w-8"
+    onClick={onClick}
+    disabled={disabled}
+    title={label}
+    aria-label={label}
+  >
+    {icon}
+  </Button>
+);
 
 export default BlockNoteEditor;
