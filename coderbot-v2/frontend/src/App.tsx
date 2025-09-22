@@ -32,8 +32,6 @@ const queryClient = new QueryClient();
 
 const App = () => {
   useEffect(() => {
-    document.documentElement.classList.add('dark');
-
     const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY || import.meta.env.VITE_POSTHOG_KEY;
     const posthogHost = import.meta.env.VITE_PUBLIC_POSTHOG_HOST || import.meta.env.VITE_POSTHOG_HOST || "https://us.i.posthog.com";
 
