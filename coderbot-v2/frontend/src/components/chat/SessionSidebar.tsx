@@ -136,7 +136,8 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
         <div className="flex gap-2">
           <Button
             onClick={onNewSession}
-            className="flex-1 flex items-center justify-center gap-2 rounded-lg"
+            variant="edu-light"
+            className="flex-1 flex items-center justify-center gap-2"
           >
             <MessageSquarePlus size={16} />
             {t('sidebar.newConversation')}
