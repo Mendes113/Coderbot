@@ -22,7 +22,11 @@ from datetime import datetime
 from app.services.pocketbase_service import pb_service
 from app.models.adaptive_models import LearningSession
 
-from app.services.agno_methodology_service import AgnoMethodologyService, MethodologyType
+from app.services.agno_methodology_service import (
+    AgnoMethodologyService,
+    MethodologyType,
+    get_methodology_config,
+)
 from app.services.agno_team_service import AgnoTeamService
 
 router = APIRouter(
@@ -172,18 +176,19 @@ async def get_methodologies(
     """
     try:
         methodologies = [methodology.value for methodology in MethodologyType]
-        
+
         methodology_info = []
         for methodology in MethodologyType:
+            config = get_methodology_config(methodology)
             info = MethodologyInfo(
                 id=methodology.value,
-                name=_get_methodology_name(methodology),
-                description=_get_methodology_description(methodology),
-                recommended_for=_get_methodology_recommendations(methodology),
-                is_xml_formatted=(methodology == MethodologyType.WORKED_EXAMPLES)
+                name=config["display_name"],
+                description=config["summary"],
+                recommended_for=config["use_cases"],
+                is_xml_formatted=config["xml_formatted"],
             )
             methodology_info.append(info)
-        
+
         return MethodologiesResponse(
             methodologies=methodologies,
             methodology_info=methodology_info
@@ -780,60 +785,14 @@ def _is_valid_methodology(methodology: str) -> bool:
 
 def _get_methodology_name(methodology: MethodologyType) -> str:
     """Retorna o nome legível de uma metodologia."""
-    names = {
-        MethodologyType.SEQUENTIAL_THINKING: "Pensamento Sequencial",
-        MethodologyType.ANALOGY: "Analogias",
-        MethodologyType.SOCRATIC: "Método Socrático",
-        MethodologyType.SCAFFOLDING: "Scaffolding",
-        MethodologyType.WORKED_EXAMPLES: "Exemplos Resolvidos",
-        MethodologyType.DEFAULT: "Padrão"
-    }
-    return names.get(methodology, "Desconhecido")
+    return get_methodology_config(methodology)["display_name"]
+
 
 def _get_methodology_description(methodology: MethodologyType) -> str:
     """Retorna a descrição de uma metodologia."""
-    descriptions = {
-        MethodologyType.SEQUENTIAL_THINKING: "Explica o raciocínio passo a passo de forma sequencial",
-        MethodologyType.ANALOGY: "Usa analogias do cotidiano para facilitar o entendimento",
-        MethodologyType.SOCRATIC: "Estimula o pensamento crítico através de perguntas",
-        MethodologyType.SCAFFOLDING: "Oferece dicas graduais removendo o suporte progressivamente",
-        MethodologyType.WORKED_EXAMPLES: "Ensina através de exemplos detalhadamente resolvidos",
-        MethodologyType.DEFAULT: "Resposta educacional padrão, clara e objetiva"
-    }
-    return descriptions.get(methodology, "Descrição não disponível")
+    return get_methodology_config(methodology)["summary"]
+
 
 def _get_methodology_recommendations(methodology: MethodologyType) -> List[str]:
     """Retorna recomendações de uso para uma metodologia."""
-    recommendations = {
-        MethodologyType.SEQUENTIAL_THINKING: [
-            "Problemas complexos com múltiplas etapas",
-            "Estudantes que precisam de estrutura",
-            "Conceitos que requerem ordem lógica"
-        ],
-        MethodologyType.ANALOGY: [
-            "Conceitos abstratos",
-            "Estudantes visuais",
-            "Tópicos difíceis de visualizar"
-        ],
-        MethodologyType.SOCRATIC: [
-            "Desenvolvimento de pensamento crítico",
-            "Estudantes avançados",
-            "Discussões conceituais"
-        ],
-        MethodologyType.SCAFFOLDING: [
-            "Estudantes iniciantes",
-            "Conceitos progressivos",
-            "Desenvolvimento gradual de habilidades"
-        ],
-        MethodologyType.WORKED_EXAMPLES: [
-            "Resolução de problemas",
-            "Aprendizado de algoritmos",
-            "Demonstração de técnicas"
-        ],
-        MethodologyType.DEFAULT: [
-            "Uso geral",
-            "Primeira interação",
-            "Quando não há preferência específica"
-        ]
-    }
-    return recommendations.get(methodology, []) 
+    return get_methodology_config(methodology)["use_cases"]
