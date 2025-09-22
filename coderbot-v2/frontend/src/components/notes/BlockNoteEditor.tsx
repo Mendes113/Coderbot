@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +31,7 @@ const sanitizeText = (value: string) =>
     .replace(/<[^>]*>/g, "")
     .trim();
 
-const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
+const BlockNoteEditor = ({
   initialContent = "",
   onChange,
   placeholder = "Comece a escrever suas anotações...",
@@ -33,13 +40,14 @@ const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
   autoSave = true,
   autoSaveDelayMs = DEFAULT_AUTO_SAVE_DELAY,
   className,
-}) => {
+}: BlockNoteEditorProps) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [html, setHtml] = useState<string>(initialContent ?? "");
   const [isFocused, setIsFocused] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [hasInteracted, setHasInteracted] = useState(false);
 
   const isContentEmpty = useMemo(() => sanitizeText(html).length === 0, [html]);
   const showPlaceholder = !readOnly && !isFocused && isContentEmpty;
@@ -54,6 +62,7 @@ const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
     try {
       await onSave();
       setLastSavedAt(new Date());
+      setHasInteracted(false);
     } catch (error) {
       console.error("BlockNoteEditor auto-save failed", error);
     } finally {
@@ -85,6 +94,7 @@ const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
     setHtml(nextValue);
     onChange?.(nextValue);
     setLastSavedAt(null);
+    setHasInteracted(true);
     scheduleSave();
   }, [onChange, scheduleSave]);
 
@@ -102,7 +112,7 @@ const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
   }, [onSave, runSave]);
 
   const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
+    (event: KeyboardEvent<HTMLDivElement>) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
         handleManualSave();
@@ -128,6 +138,8 @@ const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
 
     if (normalized !== html) {
       setHtml(normalized);
+      setLastSavedAt(null);
+      setHasInteracted(false);
     }
   }, [initialContent, html]);
 
@@ -140,12 +152,18 @@ const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
       return "Salvando...";
     }
 
+    if (hasInteracted && lastSavedAt === null) {
+      return autoSave
+        ? "Alterações pendentes..."
+        : "Clique em Salvar para guardar suas alterações.";
+    }
+
     if (lastSavedAt) {
       return `Salvo às ${lastSavedAt.toLocaleTimeString()}`;
     }
 
     return autoSave ? "Alterações são salvas automaticamente." : "Use o botão para salvar suas alterações.";
-  }, [autoSave, canSave, isSaving, lastSavedAt]);
+  }, [autoSave, canSave, hasInteracted, isSaving, lastSavedAt]);
 
   return (
     <div className={cn("flex flex-col gap-3", className)}>
