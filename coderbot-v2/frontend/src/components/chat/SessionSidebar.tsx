@@ -121,9 +121,9 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   );
 
   return (
-    <div className="flex flex-col h-full border-r bg-background/70 backdrop-blur-sm">
-      <div className="p-4 border-b">
-        <h2 className="text-lg font-semibold mb-3">{t('sidebar.yourConversations')}</h2>
+    <div className="flex flex-col h-full w-full border-r bg-background/70 backdrop-blur-sm edu-shadow-sm">
+      <div className="flex-shrink-0 p-4 border-b edu-card">
+        <h2 className="edu-text-body font-semibold mb-3">{t('sidebar.yourConversations')}</h2>
         <div className="relative mb-4">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -134,8 +134,8 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
           />
         </div>
         <div className="flex gap-2">
-          <Button 
-            onClick={onNewSession} 
+          <Button
+            onClick={onNewSession}
             className="flex-1 flex items-center justify-center gap-2 rounded-lg"
           >
             <MessageSquarePlus size={16} />
@@ -172,7 +172,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="flex-1 overflow-y-auto p-3 edu-scroll">
         {loading ? (
           <p className="text-center py-4 text-muted-foreground">{t('sidebar.loading')}</p>
         ) : filteredSessions.length === 0 ? (

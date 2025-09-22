@@ -167,147 +167,8 @@ const ConfettiExplosion = ({ onComplete }: { onComplete: () => void }) => {
   );
 };
 
-// Componente de streak/progresso (inspirado no Duolingo)
-const StreakTracker = ({ streak, target = 5 }: { streak: number; target?: number }) => {
-  const progress = Math.min(streak / target, 1);
-  
-  return (
-    <div className="flex items-center gap-2 bg-gradient-to-r from-orange-100 to-red-100 px-3 py-2 rounded-full">
-      <Flame className={`w-4 h-4 ${streak > 0 ? 'text-orange-500 animate-pulse' : 'text-gray-400'}`} />
-      <span className="text-sm font-medium text-orange-700">
-        {streak} de {target}
-      </span>
-      <div className="w-16 h-2 bg-orange-200 rounded-full overflow-hidden">
-        <div 
-          className="h-full bg-gradient-to-r from-orange-400 to-red-500 transition-all duration-500 ease-out"
-          style={{ width: `${progress * 100}%` }}
-        />
-      </div>
-    </div>
-  );
-};
+;
 
-// Sistema de conquistas (badges)
-const AchievementBadge = ({ type, unlocked = false }: { type: 'first_chat' | 'streak_5' | 'curious_learner' | 'problem_solver'; unlocked?: boolean }) => {
-  const badges = {
-    first_chat: { icon: Heart, label: 'Primeiro Chat', color: 'from-pink-400 to-purple-400' },
-    streak_5: { icon: Flame, label: 'Sequência de 5', color: 'from-orange-400 to-red-400' },
-    curious_learner: { icon: Brain, label: 'Curioso', color: 'from-blue-400 to-indigo-400' },
-    problem_solver: { icon: Target, label: 'Solucionador', color: 'from-green-400 to-emerald-400' }
-  };
-
-  const badge = badges[type];
-  const IconComponent = badge.icon;
-
-  return (
-    <div className={`relative ${unlocked ? 'animate-pulse' : 'opacity-50'}`}>
-      <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${badge.color} flex items-center justify-center shadow-lg ${unlocked ? 'animate-bounce' : ''}`}>
-        <IconComponent className="w-6 h-6 text-white" />
-      </div>
-      {unlocked && (
-        <div className="absolute -top-1 -right-1">
-          <Star className="w-4 h-4 text-yellow-400 animate-spin" />
-        </div>
-      )}
-      <div className="text-xs text-center mt-1 font-medium">{badge.label}</div>
-    </div>
-  );
-};
-
-// Componente de carregamento emocional/humanizado
-const EmotionalLoadingIndicator = ({ messages }: { messages: string[] }) => {
-  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
-  
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentMessageIndex((prev) => (prev + 1) % messages.length);
-    }, 2000);
-    
-    return () => clearInterval(interval);
-  }, [messages.length]);
-
-  return (
-    <div className="flex flex-col items-center justify-center py-8 px-4">
-      <div className="mb-5">
-        <CodeBotMascot emotion="thinking" size="large" />
-      </div>
-      <div className="w-full max-w-md">
-        <div className="relative overflow-hidden rounded-2xl border border-purple-100/60 bg-white/80 dark:bg-neutral-900/60 shadow-lg backdrop-blur-md">
-          <div className="absolute inset-0 pointer-events-none bg-gradient-to-br from-purple-50/60 to-fuchsia-50/40 dark:from-purple-900/20 dark:to-fuchsia-900/10"></div>
-          <div className="relative p-4">
-            <div className="flex items-center gap-3">
-              <div className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 bg-purple-50 text-purple-700">
-                <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
-                <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
-                <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-              </div>
-              <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-                {messages[currentMessageIndex]}
-              </p>
-            </div>
-            <div className="mt-4 h-1.5 w-full bg-purple-100/60 dark:bg-purple-900/30 rounded-full overflow-hidden">
-              <div className="h-full w-2/3 bg-gradient-to-r from-purple-500 to-fuchsia-500 animate-pulse"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Componente de boas-vindas emocional
-const EmotionalWelcome = ({ onStartChat }: { onStartChat: () => void }) => {
-  return (
-    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-      {/* CodeBot animado */}
-      <div className="mb-6">
-        <CodeBotMascot emotion="happy" size="large" />
-      </div>
-      
-      <h2 className="text-2xl font-bold text-gray-800 mb-2">
-        Olá! Eu sou o CodeBot ✨
-      </h2>
-      
-      <p className="text-gray-600 mb-6 max-w-md leading-relaxed">
-        Estou aqui para tornar seu aprendizado mais divertido e envolvente. 
-        Que tal começarmos esta jornada juntos?
-      </p>
-      
-      <Button 
-        onClick={onStartChat}
-        className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-6 py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-      >
-        <Zap className="w-4 h-4 mr-2" />
-        Vamos começar!
-      </Button>
-      
-      {/* Mini badges de demonstração */}
-      <div className="flex gap-4 mt-8">
-        <AchievementBadge type="first_chat" unlocked={false} />
-        <AchievementBadge type="curious_learner" unlocked={false} />
-        <AchievementBadge type="problem_solver" unlocked={false} />
-      </div>
-    </div>
-  );
-};
-
-// Componente de feedback de conquista
-const AchievementFeedback = ({ message, onClose }: { message: string; onClose: () => void }) => {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 3000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
-  return (
-    <div className="fixed top-4 right-4 z-50 bg-gradient-to-r from-green-400 to-blue-500 text-white px-6 py-3 rounded-full shadow-lg animate-bounce">
-      <div className="flex items-center gap-2">
-        <Trophy className="w-5 h-5 animate-pulse" />
-        <span className="font-medium">{message}</span>
-        <Sparkles className="w-4 h-4 animate-spin" />
-      </div>
-    </div>
-  );
-};
 
 // Componente de reações emotivas do CodeBot
 const CodeBotReaction = ({ type }: { type: 'encouragement' | 'celebration' | 'thinking' | 'supportive' }) => {
@@ -407,81 +268,81 @@ const SystemStatusIndicators = ({
     }
   };
 
-  return (
-    <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-blue-50/50 to-purple-50/50 border-b border-blue-100/50 dark:from-blue-950/20 dark:to-purple-950/20 dark:border-blue-900/30">
-      <div className="flex items-center gap-3">
-        {/* Status do Sistema */}
-        <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${getConnectionColor(connectionStatus)} animate-pulse`}></div>
-          <span className={`text-xs font-medium ${getStatusColor(systemStatus)}`}>
-            {getStatusText(systemStatus)}
-          </span>
-        </div>
+  // return (
+  //   <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-blue-50/50 to-purple-50/50 border-b border-blue-100/50 dark:from-blue-950/20 dark:to-purple-950/20 dark:border-blue-900/30">
+  //     <div className="flex items-center gap-3">
+  //       {/* Status do Sistema */}
+  //       <div className="flex items-center gap-2">
+  //         <div className={`w-2 h-2 rounded-full ${getConnectionColor(connectionStatus)} animate-pulse`}></div>
+  //         <span className={`text-xs font-medium ${getStatusColor(systemStatus)}`}>
+  //           {getStatusText(systemStatus)}
+  //         </span>
+  //       </div>
 
-        {/* Indicador de Contexto do Whiteboard */}
-        {whiteboardContext && (
-          <div className="flex items-center gap-1 px-3 py-1 bg-purple-100/60 dark:bg-purple-900/30 rounded-full border border-purple-200/50">
-            <Brain className="w-3 h-3 text-purple-600 animate-pulse" />
-            <span className="text-xs text-purple-700 dark:text-purple-300 font-medium">
-              {whiteboardContext?.whiteboard?.elementCount || 0} elementos • IA integrada
-            </span>
-          </div>
-        )}
+  //       {/* Indicador de Contexto do Whiteboard */}
+  //       {whiteboardContext && (
+  //         <div className="flex items-center gap-1 px-3 py-1 bg-purple-100/60 dark:bg-purple-900/30 rounded-full border border-purple-200/50">
+  //           <Brain className="w-3 h-3 text-purple-600 animate-pulse" />
+  //           <span className="text-xs text-purple-700 dark:text-purple-300 font-medium">
+  //             {whiteboardContext?.whiteboard?.elementCount || 0} elementos • IA integrada
+  //           </span>
+  //         </div>
+  //       )}
 
-        {/* Contador de Mensagens */}
-        <div className="flex items-center gap-1 px-2 py-1 bg-gray-100/60 dark:bg-gray-800/50 rounded-full">
-          <MessageSquarePlus className="w-3 h-3 text-gray-600 dark:text-gray-400" />
-          <span className="text-xs text-gray-700 dark:text-gray-300">
-            {messagesCount} mensagens
-          </span>
-        </div>
-      </div>
+  //       {/* Contador de Mensagens */}
+  //       <div className="flex items-center gap-1 px-2 py-1 bg-gray-100/60 dark:bg-gray-800/50 rounded-full">
+  //         <MessageSquarePlus className="w-3 h-3 text-gray-600 dark:text-gray-400" />
+  //         <span className="text-xs text-gray-700 dark:text-gray-300">
+  //           {messagesCount} mensagens
+  //         </span>
+  //       </div>
+  //     </div>
 
-      {/* Status da Sessão e Detalhes */}
-      <div className="flex items-center gap-2">
-        {/* Botão de informações do sistema */}
-        <button
-          onClick={() => setShowSystemDetails(!showSystemDetails)}
-          className="flex items-center gap-1 px-2 py-1 bg-blue-100/60 dark:bg-blue-900/30 rounded-full hover:bg-blue-200/60 dark:hover:bg-blue-800/30 transition-colors"
-          title="Mostrar detalhes do sistema"
-        >
-          <Settings className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-          <span className="text-xs text-blue-700 dark:text-blue-300">
-            Sistema
-          </span>
-        </button>
+  //     {/* Status da Sessão e Detalhes */}
+  //     <div className="flex items-center gap-2">
+  //       {/* Botão de informações do sistema */}
+  //       <button
+  //         onClick={() => setShowSystemDetails(!showSystemDetails)}
+  //         className="flex items-center gap-1 px-2 py-1 bg-blue-100/60 dark:bg-blue-900/30 rounded-full hover:bg-blue-200/60 dark:hover:bg-blue-800/30 transition-colors"
+  //         title="Mostrar detalhes do sistema"
+  //       >
+  //         <Settings className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+  //         <span className="text-xs text-blue-700 dark:text-blue-300">
+  //           Sistema
+  //         </span>
+  //       </button>
 
-        {sessionId && (
-          <div className="flex items-center gap-1 px-2 py-1 bg-green-100/60 dark:bg-green-900/30 rounded-full">
-            <Zap className="w-3 h-3 text-green-600" />
-            <span className="text-xs text-green-700 dark:text-green-300">
-              Sessão ativa
-            </span>
-          </div>
-        )}
-      </div>
+  //       {sessionId && (
+  //         <div className="flex items-center gap-1 px-2 py-1 bg-green-100/60 dark:bg-green-900/30 rounded-full">
+  //           <Zap className="w-3 h-3 text-green-600" />
+  //           <span className="text-xs text-green-700 dark:text-green-300">
+  //             Sessão ativa
+  //           </span>
+  //         </div>
+  //       )}
+  //     </div>
 
-      {/* Detalhes do Sistema (expandível) */}
-      {showSystemDetails && (
-        <div className="absolute top-full left-0 right-0 mt-1 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
-          <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">📊 Status do Sistema</h4>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div><span className="font-medium">Modelo:</span> {aiModel}</div>
-            <div><span className="font-medium">Metodologia:</span> {agnoMethodology}</div>
-            <div><span className="font-medium">Analogias:</span> {analogiesEnabled ? 'Ativo' : 'Inativo'}</div>
-            <div><span className="font-medium">Mensagens:</span> {messagesCount}</div>
-            {whiteboardContext && (
-              <>
-                <div className="col-span-2"><span className="font-medium">🎨 Contexto Whiteboard:</span></div>
-                <div><span className="font-medium">Elementos:</span> {whiteboardContext?.whiteboard?.elementCount || 0}</div>
-                <div><span className="font-medium">Complexidade:</span> {whiteboardContext?.whiteboard?.complexity || 'N/A'}</div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  //     {/* Detalhes do Sistema (expandível) */}
+  //     {showSystemDetails && (
+  //       <div className="absolute top-full left-0 right-0 mt-1 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
+  //         <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">📊 Status do Sistema</h4>
+  //         <div className="grid grid-cols-2 gap-2 text-xs">
+  //           <div><span className="font-medium">Modelo:</span> {aiModel}</div>
+  //           <div><span className="font-medium">Metodologia:</span> {agnoMethodology}</div>
+  //           <div><span className="font-medium">Analogias:</span> {analogiesEnabled ? 'Ativo' : 'Inativo'}</div>
+  //           <div><span className="font-medium">Mensagens:</span> {messagesCount}</div>
+  //           {whiteboardContext && (
+  //             <>
+  //               <div className="col-span-2"><span className="font-medium">🎨 Contexto Whiteboard:</span></div>
+  //               <div><span className="font-medium">Elementos:</span> {whiteboardContext?.whiteboard?.elementCount || 0}</div>
+  //               <div><span className="font-medium">Complexidade:</span> {whiteboardContext?.whiteboard?.complexity || 'N/A'}</div>
+  //             </>
+  //           )}
+  //         </div>
+  //       </div>
+  //     )}
+  //   </div>
+  // );
 };
 
 // Componente de estado idle - versão ultra sutil e discreta
@@ -598,42 +459,6 @@ const DesktopSettingsView: React.FC<SettingsProps> = (props) => (
   </div>
 );
 
-// MobileSettingsDrawerView: REMOVE methodology dropdown (keep only analogy and model)
-const MobileSettingsDrawerView: React.FC<SettingsProps> = (props) => (
-  <Drawer>
-    <DrawerTrigger asChild>
-      <Button variant="outline" size="icon" className="h-8 w-8">
-        <Settings className="h-4 w-4" />
-      </Button>
-    </DrawerTrigger>
-    <DrawerContent className="px-4 pb-6 pt-2">
-      <div className="mt-4">
-        <h3 className="text-lg font-medium mb-3">Configurações do Chat</h3>
-        <AnalogySettings {...props} />
-        <div className="mt-4">
-          <h3 className="text-sm font-medium mb-2">Modelo de IA</h3>
-          <Select value={props.aiModel} onValueChange={props.setAiModel}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Selecione o modelo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
-              <SelectItem value="gpt-4">GPT-4</SelectItem>
-              <SelectItem value="claude-3-sonnet">Claude 3.5 Sonnet</SelectItem>
-              <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        {/* Methodology dropdown removed from settings */}
-      </div>
-      <div className="flex justify-end mt-4">
-        <DrawerClose asChild>
-          <Button variant="default">Fechar</Button>
-        </DrawerClose>
-      </div>
-    </DrawerContent>
-  </Drawer>
-);
 
 // Analytics helper (privacy-safe)
 const trackEvent = (name: string, props?: Record<string, any>) => {
@@ -1215,7 +1040,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   };
 
   const handleSendMessage = async (input: string) => {
-    console.log("handleSendMessage called with:", input, "sessionId:", sessionId); // Debug log
+  
     
     if (!input.trim()) {
       console.log("Input is empty, returning");
@@ -1636,65 +1461,65 @@ Obrigado pela paciência! 🤖✨`,
     return (
       <div className="relative flex h-full w-full">
         <div className="flex-1 flex flex-col">
-          <div className="px-4 py-3 border-b shrink-0 sticky top-0 z-40 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
+          <div className="px-4 py-3 border-b shrink-0 sticky top-0 z-40 edu-card backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-purple-500 to-pink-500">
                 <Loader2 className="w-6 h-6 text-white animate-spin" />
               </div>
-              <div>
-                <h1 className="text-xl font-semibold text-primary">CodeBot</h1>
-                <p className="text-sm text-muted-foreground">Inicializando sistema...</p>
+              <div className="edu-spacing-2">
+                <h1 className="edu-heading-h2">CodeBot</h1>
+                <p className="edu-text-muted">Inicializando sistema...</p>
               </div>
             </div>
           </div>
 
-          <div className="flex-1 flex items-center justify-center px-4">
-            <div className="text-center space-y-6 max-w-md">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-r from-blue-400 to-purple-500">
+          <div className="flex-1 flex items-center justify-center edu-px-4">
+            <div className="text-center edu-spacing-8 max-w-md">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-r from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] edu-card edu-shadow-lg">
                 <Brain className="w-10 h-10 text-white animate-pulse" />
               </div>
 
-              <div className="space-y-2">
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+              <div className="edu-spacing-3">
+                <h2 className="edu-heading-h2">
                   Preparando sua experiência
                 </h2>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="edu-text-body">
                   Carregando modelos de IA, configurando sessão e conectando sistemas...
                 </p>
               </div>
 
-              <div className="space-y-3">
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                  <div className="bg-gradient-to-r from-blue-400 to-purple-500 h-2 rounded-full animate-pulse"
-                       style={{ width: '75%', animation: 'pulse 1.5s ease-in-out infinite' }}>
+              <div className="edu-spacing-3">
+                <div className="w-full edu-card rounded-full h-2 overflow-hidden">
+                  <div className="bg-gradient-to-r from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] h-full rounded-full animate-progress-bar"
+                       style={{ width: '75%' }}>
                   </div>
                 </div>
 
-                <div className="flex justify-center items-center gap-2 text-sm text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div className="flex justify-center items-center edu-gap-2 edu-text-muted">
+                  <div className="flex items-center edu-gap-1">
+                    <div className="w-2 h-2 bg-[hsl(var(--education-primary))] rounded-full animate-bounce-gentle" style={{ animationDelay: '0s' }}></div>
+                    <div className="w-2 h-2 bg-[hsl(var(--education-primary))] rounded-full animate-bounce-gentle" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-[hsl(var(--education-primary))] rounded-full animate-bounce-gentle" style={{ animationDelay: '0.2s' }}></div>
                   </div>
                   <span>Conectando...</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-xs text-gray-500">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+              <div className="edu-grid edu-text-caption">
+                <div className="flex items-center edu-gap-2 edu-success">
+                  <div className="w-1.5 h-1.5 bg-[hsl(var(--education-success))] rounded-full"></div>
                   <span>Modelo IA</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                <div className="flex items-center edu-gap-2 edu-success">
+                  <div className="w-1.5 h-1.5 bg-[hsl(var(--education-success))] rounded-full"></div>
                   <span>Sessão criada</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                <div className="flex items-center edu-gap-2 edu-success">
+                  <div className="w-1.5 h-1.5 bg-[hsl(var(--education-success))] rounded-full"></div>
                   <span>Backend conectado</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
+                <div className="flex items-center edu-gap-2">
+                  <div className="w-1.5 h-1.5 bg-[hsl(var(--education-primary))] rounded-full animate-pulse"></div>
                   <span>Finalizando...</span>
                 </div>
               </div>
@@ -1706,12 +1531,12 @@ Obrigado pela paciência! 🤖✨`,
   }
 
   return (
-    <div className="relative flex h-full w-full">
+    <div className="relative flex h-screen w-full overflow-hidden">
       {/* Sidebar */}
       {showSidebar && (
         <div className={cn(
-          "border-r bg-background/50 backdrop-blur-sm transition-all duration-300",
-          isMobile ? "absolute left-0 top-0 z-50 h-full w-80 shadow-lg" : "w-80 flex-shrink-0"
+          "flex-shrink-0 h-full",
+          isMobile ? "absolute left-0 top-0 z-50 w-80 edu-shadow-lg" : "w-80"
         )}>
           <SessionSidebar
             currentSessionId={sessionId}
@@ -1720,17 +1545,17 @@ Obrigado pela paciência! 🤖✨`,
           />
         </div>
       )}
-      
+
       {/* Conteúdo principal */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Header sempre visível */}
-      <div className="px-4 py-3 border-b shrink-0 sticky top-0 z-40 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
+      <div className="px-4 py-3 border-b shrink-0 sticky top-0 z-40 edu-card backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
           <div className="flex items-center gap-2">
             {isMobile && (
-              <Button 
-                variant="outline" 
-                size="icon" 
+              <Button
+                variant="outline"
+                size="icon"
                 className="h-8 w-8 mr-2"
                 onClick={() => setShowSidebar(!showSidebar)}
               >
@@ -1743,21 +1568,21 @@ Obrigado pela paciência! 🤖✨`,
                 emotionalState === 'celebrating' ? "bg-gradient-to-br from-yellow-400 to-orange-400 animate-bounce" :
                 emotionalState === 'encouraging' ? "bg-gradient-to-br from-green-400 to-blue-400 animate-pulse" :
                 emotionalState === 'supportive' ? "bg-gradient-to-br from-purple-400 to-pink-400" :
-                "bg-gradient-to-br from-purple-500 to-pink-500"
+                "bg-gradient-to-br from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))]"
               )}>
                 <Brain className={cn(
                   "w-6 h-6 text-white transition-transform duration-300",
                   isLoading ? "animate-bounce" : ""
                 )} />
               </div>
-              <div>
-                <h1 className="text-xl font-semibold text-primary">
+              <div className="edu-spacing-2">
+                <h1 className="edu-heading-h2">
                   {emotionalState === 'celebrating' ? "Parabéns! 🎉" :
                    emotionalState === 'encouraging' ? "Você está indo bem! ✨" :
                    "Assistente de Aprendizado"}
                 </h1>
-                <p className="text-sm text-muted-foreground">
-                  {isLoading ? "Pensando em como ajudar você... 🤔" : 
+                <p className="edu-text-body">
+                  {isLoading ? "Pensando em como ajudar você... 🤔" :
                    celebrationCount > 10 ? "Que aprendiz dedicado! Continue assim! 🌟" :
                    celebrationCount > 5 ? "Ótimas perguntas! Vamos continuar! 💪" :
                    "Sistema educacional adaptativo ativo ✨"}
@@ -1777,7 +1602,7 @@ Obrigado pela paciência! 🤖✨`,
                 <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
               </SelectContent>
             </Select>
-            
+
             {/* Seletor de metodologia educacional AGNO */}
             <Select value={agnoMethodology} onValueChange={(value) => setAgnoMethodology(value as MethodologyType)}>
               <SelectTrigger className="w-[140px] h-8 text-xs">
@@ -1799,6 +1624,7 @@ Obrigado pela paciência! 🤖✨`,
             </Select>
             {/* Dropdown de analogias */}
             <div className="relative">
+              
               <button
                 type="button"
                 aria-label={analogiesEnabled ? "Gerenciar analogias" : "Ativar analogias"}
@@ -1812,13 +1638,13 @@ Obrigado pela paciência! 🤖✨`,
                   }
                 }}
                 className={cn(
-                  "flex items-center gap-1 px-2 py-1 rounded-full border border-gray-200 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+                  "flex items-center gap-1 text-xs font-medium transition-all duration-200",
                   analogiesEnabled
-                    ? "bg-[hsl(var(--education-purple)/0.12)] text-[hsl(var(--education-purple))] border-[hsl(var(--education-purple))]"
-                    : "bg-white text-gray-500 hover:text-[hsl(var(--education-purple))] hover:border-[hsl(var(--education-purple))]"
+                    ? "edu-btn-primary"
+                    : "edu-btn-secondary"
                 )}
                 tabIndex={0}
-                style={{ minHeight: 28 }}
+                style={{ minHeight: 32 }}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                 <span>Analogias</span>
@@ -1829,22 +1655,22 @@ Obrigado pela paciência! 🤖✨`,
               </button>
               {/* Dropdown/colapsável */}
               {showAnalogyDropdown && (
-                <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-3 animate-fade-in">
-                  <label htmlFor="knowledge-base" className="block text-xs font-medium text-gray-700 mb-1">O que você já sabe ou quer usar como analogia?</label>
+                <div className="absolute right-0 mt-2 w-72 edu-card shadow-lg z-20 p-4 animate-scale-in">
+                  <label htmlFor="knowledge-base" className="block edu-text-heading text-sm mb-2">O que você já sabe ou quer usar como analogia?</label>
                   <textarea
                     id="knowledge-base"
                     value={knowledgeBase}
                     onChange={e => setKnowledgeBase(e.target.value)}
                     rows={3}
                     placeholder="Ex: Já sei variáveis, quero analogias com futebol..."
-                    className="w-full rounded-lg border border-gray-200 bg-white text-gray-900 px-3 py-2 text-sm focus:border-[hsl(var(--education-purple))] focus:ring-2 focus:ring-[hsl(var(--education-purple))] transition-all outline-none resize-none"
+                    className="w-full edu-card border-2 border-[hsl(var(--border))] text-[hsl(var(--education-text-primary))] px-3 py-2 text-sm edu-focus resize-none"
                     style={{ minHeight: 36, maxHeight: 100 }}
                     autoFocus
                   />
                   <Button
-                    variant="link"
-                    size="sm"
-                    className="text-xs text-red-600 hover:text-red-700 mt-2 p-0 h-auto font-medium"
+                    variant="edu-ghost"
+                    size="edu-sm"
+                    className="text-xs mt-3 p-0 h-auto font-medium justify-start"
                     onClick={() => {
                       setAnalogiesEnabled(false);    // Turn OFF analogies feature
                       setShowAnalogyDropdown(false); // And hide the dropdown
@@ -1865,7 +1691,7 @@ Obrigado pela paciência! 🤖✨`,
       {/* Área de mensagens com scroll */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto px-4 bg-gradient-to-b from-purple-50/30 to-transparent dark:from-purple-900/10"
+        className="flex-1 edu-scroll px-4 bg-gradient-to-b from-[hsl(var(--education-primary-light))/20] to-transparent dark:from-[hsl(var(--education-primary-light))/5]"
         style={{
           height: 0,
           scrollBehavior: 'smooth',
@@ -1875,7 +1701,7 @@ Obrigado pela paciência! 🤖✨`,
         tabIndex={0}
       >
         {/* Indicadores visuais do sistema */}
-        <SystemStatusIndicators
+        {/* <SystemStatusIndicators
           systemStatus={systemStatus}
           connectionStatus={connectionStatus}
           sessionId={sessionId}
@@ -1886,9 +1712,9 @@ Obrigado pela paciência! 🤖✨`,
           analogiesEnabled={analogiesEnabled}
           showSystemDetails={showSystemDetails}
           setShowSystemDetails={setShowSystemDetails}
-        />
+        /> */}
 
-        <div className="flex flex-col space-y-6 max-w-3xl mx-auto py-6">
+        <div className="flex flex-col edu-spacing-6 max-w-3xl mx-auto edu-py-6">
           {/* Header com progresso e streak - inspirado no Duolingo */}
          
 
@@ -1948,29 +1774,27 @@ Obrigado pela paciência! 🤖✨`,
             />
           )}
           
-          {isLoading && (
-            <EmotionalLoadingIndicator messages={loadingMessages} />
-          )}
+         
           <div ref={messagesEndRef} />
         </div>
       </div>
       {/* Input fixo no rodapé */}
       <div className={cn(
-        "border-t p-4 backdrop-blur shrink-0 bg-background/70 supports-[backdrop-filter]:bg-background/60 sticky bottom-0",
+        "border-t p-4 edu-card backdrop-blur shrink-0 bg-background/70 supports-[backdrop-filter]:bg-background/60 sticky bottom-0",
         isMobile ? "pb-6" : ""
       )}>
         {/* Barra de avanço de etapas (quando há segmentos pendentes) */}
         {(pendingSegments.length > 0 || segmentMessageIds.length > 1) && !isLoading && !showWelcomeMessages && (
-          <div className="max-w-3xl mx-auto mb-2 flex items-center justify-between rounded-xl border bg-background/90 shadow-sm px-3 py-2">
-            <div className="text-xs text-muted-foreground">
+          <div className="max-w-3xl mx-auto edu-mb-4 edu-card flex items-center justify-between edu-px-4 edu-py-3">
+            <div className="edu-text-muted">
               Etapas restantes: {pendingSegments.length}
             </div>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={handlePrevSegment} disabled={segmentMessageIds.length <= 1} className="h-8">
+              <Button size="sm" variant="outline" onClick={handlePrevSegment} disabled={segmentMessageIds.length <= 1}>
                 Voltar etapa
               </Button>
               {pendingSegments.length > 0 && (
-                <Button size="sm" onClick={handleNextSegment} className="h-8">
+                <Button size="sm" variant="default" onClick={handleNextSegment}>
                   {getNextStepButtonLabel()}
                 </Button>
               )}
@@ -1978,7 +1802,7 @@ Obrigado pela paciência! 🤖✨`,
           </div>
         )}
 
-        <div className="max-w-3xl mx-auto rounded-2xl border bg-background/90 shadow-sm p-2">
+        <div className="max-w-3xl mx-auto edu-card edu-p-3">
           <ChatInput
             onSendMessage={handleSendMessage}
             isLoading={isLoading}
