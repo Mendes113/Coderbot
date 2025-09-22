@@ -184,15 +184,21 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="gap-3">
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-sidebar-border bg-white/80 px-3 py-2 text-xs text-slate-600 shadow-sm dark:bg-sidebar/30 dark:text-sidebar-foreground">
-          <div className="flex flex-col">
-            <span className="font-semibold">Tema</span>
-            <span className="text-[0.65rem] text-slate-500 dark:text-sidebar-foreground dark:opacity-70">
-              {theme === "dark" ? "Modo escuro" : "Modo claro"}
-            </span>
+        {state === "collapsed" ? (
+          <div className="flex justify-center">
+            <ThemeToggle />
           </div>
-          <ThemeToggle />
-        </div>
+        ) : (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-sidebar-border bg-white/80 px-3 py-2 text-xs text-slate-600 shadow-sm dark:bg-sidebar/30 dark:text-sidebar-foreground">
+            <div className="flex flex-col">
+              <span className="font-semibold">Tema</span>
+              <span className="text-[0.65rem] text-slate-500 dark:text-sidebar-foreground dark:opacity-70">
+                {theme === "dark" ? "Modo escuro" : "Modo claro"}
+              </span>
+            </div>
+            <ThemeToggle />
+          </div>
+        )}
         <SidebarTrigger />
       </SidebarFooter>
     </Sidebar>
