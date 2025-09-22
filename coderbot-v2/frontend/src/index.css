@@ -127,9 +127,9 @@
     --education-error: var(--education-error-500);
     --education-surface: var(--education-surface-100);
     --education-surface-dark: var(--education-surface-200);
-    --education-text-primary: var(--education-text-primary);
-    --education-text-secondary: var(--education-text-secondary);
-    --education-text-muted: var(--education-text-muted);
+    --education-text: var(--education-text-primary);
+    --education-subtext: var(--education-text-secondary);
+    --education-muted: var(--education-text-muted);
 
     /* Backward compatibility - mantendo nomes antigos */
     --education-purple: var(--education-primary);
@@ -261,9 +261,9 @@
     --education-error: var(--education-error-500);
     --education-surface: var(--education-surface-100);
     --education-surface-dark: var(--education-surface-200);
-    --education-text-primary: var(--education-text-primary);
-    --education-text-secondary: var(--education-text-secondary);
-    --education-text-muted: var(--education-text-muted);
+    --education-text: var(--education-text-primary);
+    --education-subtext: var(--education-text-secondary);
+    --education-muted: var(--education-text-muted);
 
     /* Backward compatibility - mantendo nomes antigos */
     --education-purple: var(--education-primary);

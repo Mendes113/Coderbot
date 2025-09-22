@@ -28,7 +28,7 @@ import {
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import SyntaxHighlighter from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import TurndownService from "turndown";
 
@@ -151,6 +151,25 @@ const BlockNoteEditor = ({
     }, autoSaveDelayMs);
   }, [autoSave, autoSaveDelayMs, onSave, runSave]);
 
+  const updateValueWithSelection = useCallback(
+    (nextValue: string, selectionStartIndex: number, selectionEndIndex: number) => {
+      setValue(nextValue);
+      onChange?.(nextValue);
+      setLastSavedAt(null);
+      setHasInteracted(true);
+      scheduleSave();
+      requestAnimationFrame(() => {
+        const textarea = editorRef.current;
+        if (!textarea) {
+          return;
+        }
+        textarea.focus();
+        textarea.setSelectionRange(selectionStartIndex, selectionEndIndex);
+      });
+    },
+    [onChange, scheduleSave],
+  );
+
   const commitValue = useCallback(
     (nextValue: string) => {
       setValue(nextValue);
@@ -174,22 +193,6 @@ const BlockNoteEditor = ({
       const before = currentValue.slice(0, selectionStart);
       const after = currentValue.slice(selectionEnd);
 
-      const ensureSelection = (start: number, end: number) => {
-        requestAnimationFrame(() => {
-          textarea.focus();
-          textarea.setSelectionRange(start, end);
-        });
-      };
-
-      const pushValue = (updated: string, selectionStartIndex: number, selectionEndIndex: number) => {
-        setValue(updated);
-        onChange?.(updated);
-        setLastSavedAt(null);
-        setHasInteracted(true);
-        scheduleSave();
-        ensureSelection(selectionStartIndex, selectionEndIndex);
-      };
-
       const defaultPlaceholder = {
         bold: "texto em negrito",
         italic: "texto em itálico",
@@ -206,7 +209,7 @@ const BlockNoteEditor = ({
           const updated = `${before}**${insertion}**${after}`;
           const start = selectionStart + 2;
           const end = start + insertion.length;
-          pushValue(updated, start, end);
+          updateValueWithSelection(updated, start, end);
           break;
         }
         case "italic": {
@@ -214,7 +217,7 @@ const BlockNoteEditor = ({
           const updated = `${before}*${insertion}*${after}`;
           const start = selectionStart + 1;
           const end = start + insertion.length;
-          pushValue(updated, start, end);
+          updateValueWithSelection(updated, start, end);
           break;
         }
         case "strike": {
@@ -222,7 +225,7 @@ const BlockNoteEditor = ({
           const updated = `${before}~~${insertion}~~${after}`;
           const start = selectionStart + 2;
           const end = start + insertion.length;
-          pushValue(updated, start, end);
+          updateValueWithSelection(updated, start, end);
           break;
         }
         case "heading": {
@@ -234,7 +237,7 @@ const BlockNoteEditor = ({
           const updated = `${before}${insertion}${after}`;
           const start = before.length;
           const end = start + insertion.length;
-          pushValue(updated, start, end);
+          updateValueWithSelection(updated, start, end);
           break;
         }
         case "code": {
@@ -244,13 +247,13 @@ const BlockNoteEditor = ({
             const updated = `${before}${block}${after}`;
             const start = before.length + 4;
             const end = start + insertion.length;
-            pushValue(updated, start, end);
+            updateValueWithSelection(updated, start, end);
           } else {
             const insertion = selectedText || defaultPlaceholder.code;
             const updated = `${before}\`${insertion}\`${after}`;
             const start = selectionStart + 1;
             const end = start + insertion.length;
-            pushValue(updated, start, end);
+            updateValueWithSelection(updated, start, end);
           }
           break;
         }
@@ -263,7 +266,7 @@ const BlockNoteEditor = ({
           const updated = `${before}${insertion}${after}`;
           const start = before.length;
           const end = start + insertion.length;
-          pushValue(updated, start, end);
+          updateValueWithSelection(updated, start, end);
           break;
         }
         case "link": {
@@ -273,7 +276,7 @@ const BlockNoteEditor = ({
           const updated = `${before}${insertion}${after}`;
           const urlStart = before.length + label.length + 3;
           const urlEnd = urlStart + urlPlaceholder.length;
-          pushValue(updated, urlStart, urlEnd);
+          updateValueWithSelection(updated, urlStart, urlEnd);
           break;
         }
         case "image": {
@@ -283,7 +286,7 @@ const BlockNoteEditor = ({
           const updated = `${before}${insertion}${after}`;
           const urlStart = before.length + altText.length + 4;
           const urlEnd = urlStart + urlPlaceholder.length;
-          pushValue(updated, urlStart, urlEnd);
+          updateValueWithSelection(updated, urlStart, urlEnd);
           break;
         }
         case "unordered-list": {
@@ -295,7 +298,7 @@ const BlockNoteEditor = ({
           const updated = `${before}${insertion}${after}`;
           const start = before.length;
           const end = start + insertion.length;
-          pushValue(updated, start, end);
+          updateValueWithSelection(updated, start, end);
           break;
         }
         case "ordered-list": {
@@ -307,7 +310,7 @@ const BlockNoteEditor = ({
           const updated = `${before}${insertion}${after}`;
           const start = before.length;
           const end = start + insertion.length;
-          pushValue(updated, start, end);
+          updateValueWithSelection(updated, start, end);
           break;
         }
         case "task-list": {
@@ -319,7 +322,7 @@ const BlockNoteEditor = ({
           const updated = `${before}${insertion}${after}`;
           const start = before.length;
           const end = start + insertion.length;
-          pushValue(updated, start, end);
+          updateValueWithSelection(updated, start, end);
           break;
         }
         case "table": {
@@ -327,21 +330,21 @@ const BlockNoteEditor = ({
           const updated = `${before}${tableTemplate}${after}`;
           const start = before.length;
           const end = start + tableTemplate.length;
-          pushValue(updated, start, end);
+          updateValueWithSelection(updated, start, end);
           break;
         }
         case "hr": {
           const hrTemplate = `${before}\n\n---\n\n${after}`;
           const start = before.length + 2;
           const end = start + 3;
-          pushValue(hrTemplate, start, end);
+          updateValueWithSelection(hrTemplate, start, end);
           break;
         }
         default:
           break;
       }
     },
-    [onChange, readOnly, scheduleSave],
+    [readOnly, updateValueWithSelection],
   );
 
   const handleInput = useCallback(
@@ -368,6 +371,155 @@ const BlockNoteEditor = ({
     runSave().catch(() => undefined);
   }, [onSave, runSave]);
 
+  const indentSelection = useCallback(() => {
+    const textarea = editorRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    const { selectionStart, selectionEnd, value: currentValue } = textarea;
+    const indentToken = "  ";
+
+    if (selectionStart === selectionEnd) {
+      const updated = `${currentValue.slice(0, selectionStart)}${indentToken}${currentValue.slice(selectionEnd)}`;
+      const cursor = selectionStart + indentToken.length;
+      updateValueWithSelection(updated, cursor, cursor);
+      return;
+    }
+
+    const lineStart = currentValue.lastIndexOf("\n", selectionStart - 1) + 1;
+    const lineEndIdx = currentValue.indexOf("\n", selectionEnd);
+    const lineEnd = lineEndIdx === -1 ? currentValue.length : lineEndIdx;
+    const selectedSegment = currentValue.slice(lineStart, lineEnd);
+    const lines = selectedSegment.split("\n");
+    const updatedSegment = lines.map(line => `${indentToken}${line}`).join("\n");
+    const updatedValue = `${currentValue.slice(0, lineStart)}${updatedSegment}${currentValue.slice(lineEnd)}`;
+    const newStart = selectionStart + indentToken.length;
+    const newEnd = selectionEnd + indentToken.length * lines.length;
+    updateValueWithSelection(updatedValue, newStart, newEnd);
+  }, [updateValueWithSelection]);
+
+  const outdentSelection = useCallback(() => {
+    const textarea = editorRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    const { selectionStart, selectionEnd, value: currentValue } = textarea;
+    const indentToken = "  ";
+
+    const lineStart = currentValue.lastIndexOf("\n", selectionStart - 1) + 1;
+    const lineEndIdx = currentValue.indexOf("\n", selectionEnd);
+    const lineEnd = lineEndIdx === -1 ? currentValue.length : lineEndIdx;
+    const selectedSegment = currentValue.slice(lineStart, lineEnd);
+    const lines = selectedSegment.split("\n");
+
+    let startAdjustment = 0;
+    let endAdjustment = 0;
+    let cumulativeOriginal = 0;
+
+    const outdentedLines = lines.map((originalLine, index) => {
+      let line = originalLine;
+      let removed = 0;
+
+      if (line.startsWith(indentToken)) {
+        removed = indentToken.length;
+        line = line.slice(indentToken.length);
+      } else if (line.startsWith("\t")) {
+        removed = 1;
+        line = line.slice(1);
+      } else {
+        const spaceMatch = line.match(/^ +/);
+        if (spaceMatch) {
+          removed = Math.min(indentToken.length, spaceMatch[0].length);
+          line = line.slice(removed);
+        }
+      }
+
+      if (index === 0) {
+        const relativeStart = selectionStart - lineStart;
+        startAdjustment = Math.min(removed, Math.max(0, relativeStart));
+      }
+
+      const lineAbsoluteStart = lineStart + cumulativeOriginal;
+      if (selectionEnd > lineAbsoluteStart) {
+        const relativeEnd = selectionEnd - lineAbsoluteStart;
+        endAdjustment += Math.min(removed, Math.max(0, relativeEnd));
+      }
+
+      cumulativeOriginal += originalLine.length + (index < lines.length - 1 ? 1 : 0);
+      return line;
+    });
+
+    const updatedSegment = outdentedLines.join("\n");
+    const updatedValue = `${currentValue.slice(0, lineStart)}${updatedSegment}${currentValue.slice(lineEnd)}`;
+    const newStart = Math.max(lineStart, selectionStart - startAdjustment);
+    const newEnd = Math.max(newStart, selectionEnd - endAdjustment);
+    updateValueWithSelection(updatedValue, newStart, newEnd);
+  }, [updateValueWithSelection]);
+
+  const continueMarkdownStructure = useCallback(() => {
+    const textarea = editorRef.current;
+    if (!textarea) {
+      return false;
+    }
+
+    const { selectionStart, selectionEnd, value: currentValue } = textarea;
+    if (selectionStart !== selectionEnd) {
+      return false;
+    }
+
+    const lineStart = currentValue.lastIndexOf("\n", selectionStart - 1) + 1;
+    const lineEndIdx = currentValue.indexOf("\n", selectionStart);
+    const lineEnd = lineEndIdx === -1 ? currentValue.length : lineEndIdx;
+    const currentLine = currentValue.slice(lineStart, lineEnd);
+
+    const listMatch = currentLine.match(/^(\s*)([*+-]|\d+[.)])(\s+)(\[[ xX]\]\s+)?(.*)$/);
+    if (listMatch) {
+      const [, indent, marker, markerSpacing, taskSegment = "", rest] = listMatch;
+      const trimmedRest = rest.trim();
+
+      if (!trimmedRest) {
+        const prefixLength = indent.length + marker.length + markerSpacing.length + taskSegment.length;
+        const updated = `${currentValue.slice(0, lineStart)}${indent}${currentValue.slice(lineStart + prefixLength)}`;
+        const cursor = lineStart + indent.length;
+        updateValueWithSelection(updated, cursor, cursor);
+        return true;
+      }
+
+      const isOrdered = /^\d+[.)]$/.test(marker);
+      const suffix = marker.endsWith(")") ? ")" : ".";
+      const nextMarker = isOrdered ? `${parseInt(marker, 10) + 1}${suffix}` : marker;
+      const markerText = isOrdered ? nextMarker : marker;
+      const insertion = `\n${indent}${markerText}${markerSpacing}${taskSegment}`;
+      const updated = `${currentValue.slice(0, selectionEnd)}${insertion}${currentValue.slice(selectionEnd)}`;
+      const cursor = selectionEnd + insertion.length;
+      updateValueWithSelection(updated, cursor, cursor);
+      return true;
+    }
+
+    const quoteMatch = currentLine.match(/^(\s*> ?)+/);
+    if (quoteMatch) {
+      const prefix = quoteMatch[0];
+      const remainder = currentLine.slice(prefix.length).trim();
+
+      if (!remainder) {
+        const updated = `${currentValue.slice(0, lineStart)}${currentValue.slice(selectionStart)}`;
+        updateValueWithSelection(updated, lineStart, lineStart);
+        return true;
+      }
+
+      const normalizedPrefix = prefix.endsWith(" ") ? prefix : `${prefix} `;
+      const insertion = `\n${normalizedPrefix}`;
+      const updated = `${currentValue.slice(0, selectionEnd)}${insertion}${currentValue.slice(selectionEnd)}`;
+      const cursor = selectionEnd + insertion.length;
+      updateValueWithSelection(updated, cursor, cursor);
+      return true;
+    }
+
+    return false;
+  }, [updateValueWithSelection]);
+
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLTextAreaElement>) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
@@ -376,8 +528,31 @@ const BlockNoteEditor = ({
         return;
       }
 
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        event.preventDefault();
+        handleManualSave();
+        return;
+      }
+
       if (readOnly) {
         return;
+      }
+
+      if (event.key === "Tab" && !event.altKey) {
+        event.preventDefault();
+        if (event.shiftKey) {
+          outdentSelection();
+        } else {
+          indentSelection();
+        }
+        return;
+      }
+
+      if (event.key === "Enter" && !event.altKey && !event.shiftKey) {
+        if (continueMarkdownStructure()) {
+          event.preventDefault();
+          return;
+        }
       }
 
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
@@ -403,8 +578,14 @@ const BlockNoteEditor = ({
         applyFormatting("task-list");
       }
     },
-    [applyFormatting, handleManualSave, readOnly],
-
+    [
+      applyFormatting,
+      continueMarkdownStructure,
+      handleManualSave,
+      indentSelection,
+      outdentSelection,
+      readOnly,
+    ],
   );
 
   useEffect(() => {
@@ -435,14 +616,14 @@ const BlockNoteEditor = ({
 
   const markdownComponents = useMemo<Components>(
     () => ({
-      code({ inline, className, children, ...props }) {
+      code({ className, children, node, ...props }) {
         const match = /language-(\w+)/.exec(className || "");
         const content = String(children).replace(/\n$/, "");
+        const inline = node?.tagName !== "pre";
 
         if (!inline && match) {
           return (
             <SyntaxHighlighter
-              {...props}
               language={match[1]}
               style={oneDark}
               PreTag="div"
@@ -454,6 +635,7 @@ const BlockNoteEditor = ({
                 padding: "16px",
               }}
               wrapLines
+              {...props}
             >
               {content}
             </SyntaxHighlighter>
@@ -643,10 +825,14 @@ const BlockNoteEditor = ({
             <p className="text-muted-foreground">Nenhum conteúdo disponível.</p>
           ) : (
             <ReactMarkdown
-              className="prose prose-sm dark:prose-invert max-w-none"
               remarkPlugins={[remarkGfm]}
               rehypePlugins={[rehypeRaw]}
-              components={markdownComponents}
+              components={{
+                ...markdownComponents,
+                div: ({ className, ...props }) => (
+                  <div className={cn("prose prose-sm dark:prose-invert max-w-none", className)} {...props} />
+                )
+              }}
             >
               {value}
             </ReactMarkdown>
@@ -685,10 +871,14 @@ const BlockNoteEditor = ({
                 </p>
               ) : (
                 <ReactMarkdown
-                  className="prose prose-sm dark:prose-invert max-w-none"
                   remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeRaw]}
-                  components={markdownComponents}
+                  components={{
+                    ...markdownComponents,
+                    div: ({ className, ...props }) => (
+                      <div className={cn("prose prose-sm dark:prose-invert max-w-none", className)} {...props} />
+                    )
+                  }}
                 >
                   {value}
                 </ReactMarkdown>
