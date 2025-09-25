@@ -57,6 +57,7 @@
 ## 📋 Índice
 
 - [Sobre o Projeto](#-sobre-o-projeto)
+- [Interface & Experiência](#-interface--experiência)
 - [Tecnologias](#-tecnologias)
 - [Estrutura do Projeto](#-estrutura-do-projeto)
 - [Começando](#-começando)
@@ -74,6 +75,71 @@ O CoderBot v2 é uma plataforma educacional open source projetada para auxiliar 
 - 🔍 Feedback em tempo real
 - 👥 Aprendizado colaborativo
 - 🌐 Suporte a múltiplas linguagens de programação
+
+## 🎨 Interface & Experiência
+
+<div align="center">
+  <h3>🏠 Dashboard Principal</h3>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="coderbot-v2/gallery/home-dark.png">
+    <img src="coderbot-v2/gallery/home.png" alt="Dashboard Principal" width="80%">
+  </picture>
+</div>
+
+<div align="center">
+  <h3>💬 Chat Educacional</h3>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="coderbot-v2/gallery/chat-dark.png">
+    <img src="coderbot-v2/gallery/chat.png" alt="Chat Educacional" width="80%">
+  </picture>
+</div>
+
+<details>
+<summary>🖼️ <b>Ver mais screenshots</b></summary>
+
+<br>
+
+<div align="center">
+  <h4>🔐 Sistema de Autenticação</h4>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="coderbot-v2/gallery/auth-dark.png">
+    <img src="coderbot-v2/gallery/auth.png" alt="Autenticação" width="70%">
+  </picture>
+</div>
+
+<div align="center">
+  <h4>📋 Seleção de Turmas</h4>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="coderbot-v2/gallery/class-selection-dark.png">
+    <img src="coderbot-v2/gallery/class-selection.png" alt="Seleção de Turmas" width="70%">
+  </picture>
+</div>
+
+<div align="center">
+  <h4>📊 Quadro de Atividades</h4>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="coderbot-v2/gallery/board-selection-dark.png">
+    <img src="coderbot-v2/gallery/board-selection.png" alt="Quadro de Atividades" width="70%">
+  </picture>
+</div>
+
+<div align="center">
+  <h4>📝 Sistema de Anotações</h4>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="coderbot-v2/gallery/notes-dark.png">
+    <img src="coderbot-v2/gallery/notes.png" alt="Anotações" width="70%">
+  </picture>
+</div>
+
+<div align="center">
+  <h4>👤 Perfil do Usuário</h4>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="coderbot-v2/gallery/profile-dark.png">
+    <img src="coderbot-v2/gallery/profile.png" alt="Perfil" width="70%">
+  </picture>
+</div>
+
+</details>
 
 ## 🚀 Tecnologias
 

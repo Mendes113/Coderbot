@@ -20,3 +20,6 @@ coderbot-v2/backend/app/__pycache__/
 coderbot-v2/pocketbase_0.27.2_linux_amd64/pb_data/*.db
 coderbot-v2/pocketbase_0.27.2_linux_amd64/pb_data/backups/
 # END security ignore
+node_modules/
+dist/
+.copilot/
