@@ -1,94 +1,120 @@
 # filepath: backend/app/services/prompt_loader.py
+import json
+import logging
 import os
-from pocketbase import PocketBase # Ou a biblioteca cliente PocketBase que você estiver usando
-from dotenv import load_dotenv
+import re
+from dataclasses import dataclass
+from typing import Dict, List, Optional
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '..', '.env')) # Ajuste o caminho para o .env
+from dotenv import load_dotenv
+from pocketbase import PocketBase
+
+from app.templates import UNIFIED_PROMPT_TEMPLATE
+
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
 
 POCKETBASE_URL = os.getenv("POCKETBASE_URL")
 
+
+@dataclass(slots=True)
+class TemplateBundle:
+    """Structured representation of a methodology prompt."""
+
+    prompt: str
+    required_sections: List[str]
+    research_tags: List[str]
+
+
 class PromptLoader:
-    def __init__(self):
-        self.client = PocketBase(POCKETBASE_URL)
-        # Autenticação de administrador removida, pois as regras de API da coleção dynamic_prompts
-        # foram ajustadas para permitir leitura pública ou por usuários autenticados.
+    """Centralised loader that exposes the research-aligned unified template."""
 
-    def get_prompt(self, methodology: str, name: str = None) -> str | None:
-        """
-        Busca um template de prompt do PocketBase.
-        Se 'name' for fornecido, busca por nome e metodologia.
-        Caso contrário, busca um prompt padrão para a metodologia.
-        """
-        try:
-            filter_parts = [f'methodology="{methodology}"', 'is_active=true']
-            if name:
-                filter_parts.append(f'name="{name}"')
-            else:
-                # Convenção para nome de prompt padrão por metodologia, ex: "default_analogy"
-                filter_parts.append(f'name="default_{methodology}"')
-            
-            filter_string = " && ".join(filter_parts)
-            
-            records = self.client.collection("dynamic_prompts").get_list(
-                page=1, 
-                per_page=100,  # Aumentado para garantir que obtemos todos os templates
-                query_params={"filter": filter_string, "sort": "-version"} # Pega a versão mais recente
-            ).items
+    def __init__(self, client: Optional[PocketBase] = None):
+        self.logger = logging.getLogger(__name__)
+        self.client = client or (PocketBase(POCKETBASE_URL) if POCKETBASE_URL else None)
+        self._manifest: Optional[Dict[str, object]] = None
 
-            # Log para depuração
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.info(f"Templates encontrados para metodologia '{methodology}': {len(records)}")
-            
-            if records:
-                # Se houver duplicatas, use o que tem a maior versão
-                # Ou, se as versões forem iguais, use o primeiro
-                if len(records) > 1:
-                    logger.info(f"Múltiplos templates encontrados para '{methodology}', usando o de maior versão.")
-                    records.sort(key=lambda x: (x.version if hasattr(x, 'version') else 0), reverse=True)
-                
-                return records[0].template
-            
-            # Fallback para um prompt global padrão se nenhum específico for encontrado
-            if not name: # Evita fallback se um nome específico foi pedido e não encontrado
-                global_default_records = self.client.collection("dynamic_prompts").get_list(
-                    page=1,
-                    per_page=1,
-                    query_params={"filter": 'name="global_default" && is_active=true', "sort": "-version"}
-                ).items
-                if global_default_records:
-                    return global_default_records[0].template
+    def _load_manifest(self) -> Dict[str, object]:
+        """Loads the unified template manifest from PocketBase or bundled asset."""
 
-            return None
-        except Exception as e:
-            print(f"Error fetching prompt from PocketBase: {e}")
-            return None # Ou lançar uma exceção/usar um prompt de fallback estático
+        if self._manifest is not None:
+            return self._manifest
 
-    def format_prompt(self, template: str, data: dict) -> str:
-        """
-        Preenche os placeholders no template do prompt com os dados fornecidos.
-        """
-        prompt = template
+        # Try remote first so that updates in PocketBase propagate without redeploy.
+        if self.client is not None:
+            try:
+                record = self.client.collection("dynamic_prompts").get_first_list_item(
+                    'name="coderbot_unified_template" && is_active=true'
+                )
+                template_payload = getattr(record, "template", None)
+                if template_payload:
+                    self._manifest = json.loads(template_payload)
+                    self.logger.info(
+                        "Unified template loaded from PocketBase (version=%s)",
+                        self._manifest.get("version", "unknown"),
+                    )
+                    return self._manifest
+            except Exception as exc:  # pragma: no cover - network/credentials issues
+                self.logger.warning(
+                    "Failed to load unified template from PocketBase, falling back to bundled asset: %s",
+                    exc,
+                )
+
+        self._manifest = UNIFIED_PROMPT_TEMPLATE
+        self.logger.info(
+            "Using bundled unified template (version=%s)",
+            UNIFIED_PROMPT_TEMPLATE.get("version", "unknown"),
+        )
+        return self._manifest
+
+    def get_template(self, methodology: str) -> TemplateBundle:
+        """Returns the template bundle for a given methodology, falling back to default."""
+
+        manifest = self._load_manifest()
+        methodologies = manifest.get("methodologies", {})
+
+        template_data = methodologies.get(methodology)
+        if not template_data:
+            self.logger.warning(
+                "Metodologia '%s' não encontrada no manifesto; usando template padrão.", methodology
+            )
+            template_data = methodologies.get("default")
+
+        if not template_data:
+            raise ValueError("Unified template manifest is missing the default methodology definition")
+
+        return TemplateBundle(
+            prompt=template_data.get("prompt", ""),
+            required_sections=template_data.get("required_sections", []),
+            research_tags=template_data.get("research_tags", []),
+        )
+
+    def get_prompt(self, methodology: str, name: Optional[str] = None) -> str:
+        """Deprecated compatibility wrapper returning only the raw prompt string."""
+
+        if name:
+            self.logger.warning(
+                "Parameter 'name' is deprecated in PromptLoader.get_prompt and will be ignored."
+            )
+        return self.get_template(methodology).prompt
+
+    def get_template_version(self) -> str:
+        """Returns current template manifest version for observability."""
+
+        manifest = self._load_manifest()
+        return str(manifest.get("version", "unknown"))
+
+    def format_prompt(self, template: str, data: Dict[str, object]) -> str:
+        """Interpolates placeholders in the template and warns about missing values."""
+
+        formatted = template
         for key, value in data.items():
             placeholder = "{" + key + "}"
-            prompt = prompt.replace(placeholder, str(value))
-        return prompt
+            formatted = formatted.replace(placeholder, str(value))
 
-# Exemplo de como você poderia usar (em um endpoint da API):
-# prompt_loader = PromptLoader()
-#
-# def handle_chat_request(user_query: str, methodology: str, context_history: str = "", knowledge_base: str = ""):
-#     template = prompt_loader.get_prompt(methodology=methodology) # ou com um nome específico
-#     if not template:
-#         return {"error": "Prompt template not found for the given methodology."}
-#
-#     prompt_data = {
-#         "user_query": user_query,
-#         "context_history": context_history,
-#         "knowledge_base": knowledge_base
-#     }
-#     final_prompt = prompt_loader.format_prompt(template, prompt_data)
-#     
-#     # ... lógica para enviar o final_prompt para a LLM ...
-#     # llm_response = send_to_llm(final_prompt)
-#     # return {"response": llm_response}
+        leftover_placeholders = set(re.findall(r"{([a-zA-Z0-9_]+)}", formatted))
+        if leftover_placeholders:
+            self.logger.warning(
+                "Placeholders non substituted in prompt template: %s", sorted(leftover_placeholders)
+            )
+
+        return formatted
