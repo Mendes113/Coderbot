@@ -172,7 +172,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
     <div
       className={cn(
         // layout and common bubble styling
-        "py-5 px-5 rounded-2xl mb-3 shadow-sm transition-all duration-200 border max-w-[85%]",
+  "py-5 px-5 rounded-2xl mb-3 shadow-sm transition-all duration-200 border max-w-[85%] font-chat",
         // side alignment: AI left, User right
         isAi ? "mr-auto" : "ml-auto",
         // distinct background, border and text colors + asymmetric corners
@@ -202,7 +202,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
         </div>
         <span
           className={cn(
-            "ml-2 font-semibold text-sm text-[hsl(var(--education-text-primary))]",
+            "ml-2 font-semibold text-sm text-[hsl(var(--education-text-primary))] font-chat-heading",
             "dark:text-white"
           )}
         >
@@ -234,7 +234,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
       </div>
       <div className="ml-10">
         {isAi ? (
-          <div className="markdown-content prose max-w-none text-[hsl(var(--education-text-primary))] dark:prose-invert">
+          <div className="markdown-content prose max-w-none text-[hsl(var(--education-text-primary))] dark:prose-invert font-chat">
             {/* Auto: render explanation (non-empty after removing headings and code); otherwise show final code editor */}
             {(() => {
               if (hasExplanationContent) {
@@ -326,13 +326,13 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
                   <li {...props} className="my-1 text-[#1f2937] dark:text-white" />
                 ),
                 h1: ({ node, ...props }) => (
-                  <h1 {...props} className="text-2xl font-semibold my-4 text-[#111827] dark:text-white border-b border-[#30363d] pb-2" />
+                  <h1 {...props} className="text-2xl font-semibold my-4 text-[#111827] dark:text-white border-b border-[#30363d] pb-2 font-chat-heading" />
                 ),
                 h2: ({ node, ...props }) => (
-                  <h2 {...props} className="text-xl font-semibold my-3 text-[#1f2937] dark:text-white" />
+                  <h2 {...props} className="text-xl font-semibold my-3 text-[#1f2937] dark:text-white font-chat-heading" />
                 ),
                 h3: ({ node, ...props }) => (
-                  <h3 {...props} className="text-lg font-semibold my-2 text-[#1f2937] dark:text-white" />
+                  <h3 {...props} className="text-lg font-semibold my-2 text-[#1f2937] dark:text-white font-chat-heading" />
                 ),
               }}
             >
