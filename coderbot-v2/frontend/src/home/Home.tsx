@@ -1,28 +1,33 @@
 // Home.tsx – Modern, impactful landing focused on conversion
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 import {
   ArrowRight,
   PlayCircle,
   Copy,
   Check,
-  Brain,
   Bot,
   Code2,
-  SquareTerminal,
-  LineChart,
   ShieldCheck,
   Sparkles,
-  BookOpen,
-  Star,
   GraduationCap,
   ChevronLeft,
   ChevronRight,
+  Presentation,
+  Users,
+  MessageCircle,
+  PenTool,
+  BookOpen,
 } from "lucide-react";
-
-// Hero variant toggle: "split" (texto + código lado a lado) ou "centered" (tudo centralizado)
-const HERO_VARIANT = "centered";
 
 function Background() {
   return (
@@ -274,185 +279,23 @@ const aprenderIA = {
   );
 }
 
-function HeroShowcase() {
-  const highlights = [
-    { label: "Sem anúncios" },
-    { label: "Gratuito" },
-    { label: "Para todos os níveis" },
-  ];
-
-  const stats = [
-    { value: "100+", label: "alunos ativos" },
-    { value: "450+", label: "exercícios práticos" },
-    { value: "4.8/5", label: "satisfação média" },
-  ];
-
-  return (
-    <section className="container mx-auto px-4 pt-[clamp(1rem,6vh,3rem)] pb-[clamp(1.25rem,8vh,5rem)]">
-      <div className="mx-auto max-w-4xl rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-md md:p-10 dark:bg-white/[0.03]">
-        <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-300 ring-1 ring-emerald-400/30">
-            ✓ Open source
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/15 px-3 py-1 text-xs font-medium text-indigo-300 ring-1 ring-indigo-400/30">
-            Comunidade ativa
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-fuchsia-500/15 px-3 py-1 text-xs font-medium text-fuchsia-300 ring-1 ring-fuchsia-400/30">
-            Atualizado sempre
-          </span>
-        </div>
-
-        <h1 className="text-center text-[clamp(2rem,7vw,3.5rem)] font-extrabold leading-[1.1] tracking-tight text-white">
-          Construa <span className="bg-gradient-to-r from-indigo-400 via-fuchsia-400 to-rose-400 bg-clip-text text-transparent drop-shadow">projetos reais</span> com IA
-        </h1>
-        <p className="mx-auto mt-4 max-w-[72ch] text-center text-[clamp(1rem,2.2vw,1.125rem)] leading-relaxed text-white/80">
-          Desafios práticos, correção automática e trilhas personalizadas. Evolua de forma consistente e divertida.
-        </p>
-
-        <div className="mt-7 flex w-full flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
-          <Button asChild size="lg" className="group w-full gap-2 sm:w-auto focus-visible:ring-4 focus-visible:ring-indigo-500/70">
-            <a href="/auth" className="inline-flex items-center" aria-label="Criar conta e começar agora">
-              Começar agora <ArrowRight className="h-4 w-4 -translate-y-px transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-            </a>
-          </Button>
-          <Button asChild size="lg" variant="secondary" className="group gap-2">
-            <a href="/dashboard" className="inline-flex items-center" aria-label="Ver demonstração do dashboard">
-              <PlayCircle className="h-4 w-4" aria-hidden="true" /> Ver demo
-            </a>
-          </Button>
-        </div>
-
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-3 text-sm text-white/70">
-          {highlights.map((h, i) => (
-            <span key={i} className="rounded-md bg-white/10 px-2 py-1">
-              {h.label}
-            </span>
-          ))}
-        </div>
-
-        <div className="mt-8 grid grid-cols-3 gap-4 text-center">
-          {stats.map((s, i) => (
-            <div key={i}>
-              <div className="text-lg font-bold tracking-tight text-white">{s.value}</div>
-              <div className="text-xs text-white/70">{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function HeroSplit() {
-  return (
-    <section
-      className="container mx-auto grid flex-1 grid-cols-1 items-center gap-8 px-4 pt-[clamp(0.75rem,4vh,2rem)] pb-[clamp(1.25rem,8vh,5rem)] sm:gap-12 lg:grid-cols-2 lg:[grid-template-columns:1.05fr_1fr]"
-    >
-      <div className="group flex flex-col items-start">
-        <h1 className="mt-5 max-w-[16ch] text-[clamp(2rem,7vw,3.75rem)] font-extrabold leading-[1.15] tracking-tight text-slate-900 [text-wrap:balance] sm:leading-[1.1] dark:text-white">
-          Aprenda programação com IA —
-          <span className="bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-rose-600 bg-clip-text text-transparent drop-shadow-sm transition-colors duration-300 group-hover:from-indigo-500 group-hover:via-fuchsia-500 group-hover:to-rose-500"> rápido e divertido</span>.
-        </h1>
-
-        <p className="mt-5 max-w-[62ch] text-[clamp(1rem,2.3vw,1.125rem)] leading-relaxed text-slate-700 [text-wrap:pretty] dark:text-white/80">
-          Trilhas personalizadas, exercícios práticos e insights de aprendizagem. Tudo o que você precisa para evoluir com consistência.
-        </p>
-
-        <div className="mt-7 flex w-full flex-col items-start gap-3 sm:flex-row sm:gap-4">
-          <Button
-            asChild
-            size="lg"
-            className="group gap-2 w-full sm:w-auto focus-visible:ring-4 focus-visible:ring-indigo-500/70 motion-reduce:transition-none"
-          >
-            <a href="/auth" aria-label="Começar de graça, criar conta e iniciar" className="inline-flex items-center">
-              Começar de graça <ArrowRight className="h-4 w-4 -translate-y-px transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-            </a>
-          </Button>
-          <Button
-            asChild
-            variant="secondary"
-            size="lg"
-            className="group gap-2 focus-visible:ring-4 focus-visible:ring-indigo-500/70 motion-reduce:transition-none"
-          >
-            <a href="/dashboard" aria-label="Ver demonstração do dashboard" className="inline-flex items-center">
-              <PlayCircle className="h-4 w-4" aria-hidden="true" /> Ver demo
-            </a>
-          </Button>
-        </div>
-
-        <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-slate-500 dark:text-white/60">
-          <span className="rounded-md bg-slate-100 px-2 py-1 dark:bg-white/10">Sem anúncios</span>
-          <span className="rounded-md bg-slate-100 px-2 py-1 dark:bg-white/10">Gratuito</span>
-          <span className="rounded-md bg-slate-100 px-2 py-1 dark:bg-white/10">Para todos os níveis</span>
-        </div>
-      </div>
-
-      <div className="relative w-full max-w-[680px] justify-self-center sm:justify-self-start">
-        <div className="absolute -inset-6 -z-10 hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-300/40 via-fuchsia-300/20 to-rose-300/30 blur-2xl dark:from-indigo-500/10 dark:via-fuchsia-500/10 dark:to-rose-500/10 md:block" />
-        <CodePreview />
-      </div>
-    </section>
-  );
-}
-
-function HeroCentered() {
-  return (
-    <section className="container mx-auto flex flex-1 flex-col items-center px-4 pt-[clamp(1rem,6vh,3rem)] pb-[clamp(1.25rem,8vh,5rem)] text-center">
-      <h1 className="max-w-[18ch] text-[clamp(2.2rem,8vw,4rem)] font-extrabold leading-[1.1] tracking-tight text-white">
-        Aprenda <span className="bg-gradient-to-r from-indigo-400 via-fuchsia-400 to-rose-400 bg-clip-text text-transparent drop-shadow">programação com IA</span>
-      </h1>
-      <p className="mt-4 max-w-[70ch] text-[clamp(1rem,2.2vw,1.15rem)] leading-relaxed text-white/80">
-        Estude no seu ritmo com trilhas guiadas, prática constante e feedback inteligente.
-        Do básico ao avançado, com projetos reais e correção automática.
-      </p>
-      <div className="mt-7 flex w-full flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
-        <Button
-          asChild
-          size="lg"
-          className="group w-full sm:w-auto gap-2 focus-visible:ring-4 focus-visible:ring-indigo-500/70"
-        >
-          <a href="/auth" aria-label="Começar de graça, criar conta e iniciar" className="inline-flex items-center">
-            Começar de graça <ArrowRight className="h-4 w-4 -translate-y-px transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-          </a>
-        </Button>
-        <Button asChild variant="secondary" size="lg" className="group gap-2">
-          <a href="/dashboard" aria-label="Ver demonstração do dashboard" className="inline-flex items-center">
-            <PlayCircle className="h-4 w-4" aria-hidden="true" /> Ver demo
-          </a>
-        </Button>
-      </div>
-
-      <div className="relative mx-auto mt-8 w-full max-w-[720px]">
-        <div className="absolute -inset-6 -z-10 rounded-[2.5rem] bg-gradient-to-br from-indigo-300/30 via-fuchsia-300/20 to-rose-300/25 blur-2xl dark:from-indigo-500/10 dark:via-fuchsia-500/10 dark:to-rose-500/10" />
-        <CodePreview />
-      </div>
-
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-sm text-white/70">
-        <span className="rounded-md bg-white/10 px-2 py-1">Sem anúncios</span>
-        <span className="rounded-md bg-white/10 px-2 py-1">Gratuito</span>
-        <span className="rounded-md bg-white/10 px-2 py-1">Para todos os níveis</span>
-      </div>
-    </section>
-  );
-}
- 
 
 function FeaturesSection() {
   const features = [
     {
-      icon: <Brain className="h-5 w-5" />,
-      title: "Tutor de IA sempre disponível",
-      desc: "Explana conceitos, gera exemplos e adapta a explicação ao seu nível em tempo real.",
+      icon: <Bot className="h-5 w-5" />,
+      title: "Chat com IA em português",
+      desc: "Converse com o tutor para revisar conceitos, gerar exemplos e destravar exercícios quando precisar.",
     },
     {
-      icon: <SquareTerminal className="h-5 w-5" />,
-      title: "Correção instantânea de código",
-      desc: "Rode snippets, receba feedback linha a linha e sugestões de melhoria.",
+      icon: <GraduationCap className="h-5 w-5" />,
+      title: "Painel do professor",
+      desc: "Crie turmas, acompanhe sessões de chat e distribua materiais em um único ambiente de gestão.",
     },
     {
-      icon: <LineChart className="h-5 w-5" />,
-      title: "Trilhas personalizadas",
-      desc: "Planos de estudo guiados, metas semanais e analytics de progresso.",
+      icon: <Presentation className="h-5 w-5" />,
+      title: "Espaços colaborativos",
+      desc: "Use quadros visuais e anotações compartilhadas para planejar aulas e registrar aprendizados.",
     },
   ];
 
@@ -474,6 +317,99 @@ function FeaturesSection() {
           </div>
         ))}
       </div>
+
+    </section>
+  );
+}
+
+function ScreensCarouselSection() {
+  const slides = [
+    {
+      title: "Painel do professor",
+      description: "Acompanhe turmas, sessões de chat e tarefas em um só lugar com dados em tempo real.",
+      image: "https://raw.githubusercontent.com/Chatbot-educacional/Chatbot-educacional/main/gallery/home.png",
+      badges: ["Resumo das turmas", "Alertas de atividades", "Metodologias personalizadas"],
+    },
+    {
+      title: "Gestão de turmas",
+      description: "Crie turmas, envie convites e organize conteúdos para cada metodologia de ensino.",
+      image: "https://raw.githubusercontent.com/Chatbot-educacional/Chatbot-educacional/main/gallery/class-selection.png",
+      badges: ["Convite por código", "Controle de permissões", "Organização por série"],
+    },
+    {
+      title: "Chat educacional com IA",
+      description: "Tutor em português que gera exemplos, corrige código e mantém o histórico da turma.",
+      image: "https://raw.githubusercontent.com/Chatbot-educacional/Chatbot-educacional/main/gallery/chat.png",
+      badges: ["Feedback imediato", "Sugestões de exercícios", "Histórico por estudante"],
+    },
+    {
+      title: "Quadro colaborativo",
+      description: "Planeje aulas e resolva problemas em um canvas compartilhado com suporte ao Excalidraw.",
+      image: "https://raw.githubusercontent.com/Chatbot-educacional/Chatbot-educacional/main/gallery/board-selection.png",
+      badges: ["Desenho em tempo real", "Templates prontos", "Anotações persistentes"],
+    },
+    {
+      title: "Caderno de anotações",
+      description: "Registre aprendizados e compartilhe materiais com editor rico e busca rápida.",
+      image: "https://raw.githubusercontent.com/Chatbot-educacional/Chatbot-educacional/main/gallery/notes.png",
+      badges: ["Editor rich text", "Links com o chat", "Organização por tópicos"],
+    },
+  ];
+
+  return (
+    <section className="container mx-auto px-4 py-16 pb-20">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="max-w-2xl">
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+            Veja os ambientes em ação
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-white/70 sm:text-base">
+            Navegue pelo carrossel para conferir como professores e estudantes trabalham com o CoderBot dentro e fora da sala de aula.
+          </p>
+        </div>
+        <span className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400 dark:text-white/40">
+          arraste para o lado
+        </span>
+      </div>
+
+      <Carousel opts={{ align: "start", loop: true }} className="mt-6">
+        <CarouselContent>
+          {slides.map((slide) => (
+            <CarouselItem key={slide.title} className="pl-4 basis-full">
+              <article className="group flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/70 bg-white/85 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg dark:border-white/10 dark:bg-white/[0.04]">
+                <div className="relative aspect-[4/3] overflow-hidden">
+                  <img
+                    src={slide.image}
+                    alt={slide.title}
+                    loading="lazy"
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                  />
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(79,70,229,0.12),_transparent_65%)]" />
+                </div>
+                <div className="flex flex-1 flex-col gap-3 px-5 py-4 text-left">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{slide.title}</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-white/70">{slide.description}</p>
+                  </div>
+                  <div className="mt-auto flex flex-wrap gap-2 pt-1">
+                    {slide.badges.map((badge) => (
+                      <Badge
+                        key={badge}
+                        variant="outline"
+                        className="border-slate-200/60 bg-slate-100/80 text-xs font-medium text-slate-600 dark:border-white/10 dark:bg-white/10 dark:text-white/70"
+                      >
+                        {badge}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </article>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        <CarouselPrevious className="-left-10 hidden md:flex" />
+        <CarouselNext className="-right-10 hidden md:flex" />
+      </Carousel>
     </section>
   );
 }
@@ -516,115 +452,100 @@ function HowItWorks() {
   );
 }
 
-function StatsBar() {
-  const stats = [
-    { label: "alunos ativos", value: "100+" },
-    { label: "exercícios práticos", value: "450+" },
-    { label: "snippets executados/mês", value: "1000+" },
-    { label: "satisfação média", value: "4.8/5" },
+function ModulesSection() {
+  const modules = [
+    {
+      title: "Painel do professor",
+      description: "Resumo das turmas com acesso rápido ao chat, quadros e atividades que precisam de atenção.",
+      icon: <GraduationCap className="h-8 w-8" />,
+      features: [
+        "Visão consolidada de turmas",
+        "Alertas de exercícios pendentes",
+        "Atalhos para chat e quadros",
+        "Suporte a múltiplas metodologias",
+      ],
+    },
+    {
+      title: "Gestão de turmas",
+      description: "Crie turmas, convide estudantes e organize materiais com poucos cliques.",
+      icon: <Users className="h-8 w-8" />,
+      features: [
+        "Convite por link ou código",
+        "Controle de papéis e permissões",
+        "Acompanhamento de participação",
+        "Planejamento por metodologia",
+      ],
+    },
+    {
+      title: "Chat educacional com IA",
+      description: "Tutor em português que explica, revisa código e registra o histórico de cada estudante.",
+      icon: <MessageCircle className="h-8 w-8" />,
+      features: [
+        "Geração de exemplos comentados",
+        "Correção de exercícios",
+        "Contexto persistente por turma",
+        "Modo professor para intervenções",
+      ],
+    },
+    {
+      title: "Quadro colaborativo",
+      description: "Canvas compartilhado com Excalidraw para planejar aulas e explicar algoritmos.",
+      icon: <PenTool className="h-8 w-8" />,
+      features: [
+        "Desenho em tempo real",
+        "Templates pedagógicos",
+        "Exportação em imagem",
+        "Histórico automático",
+      ],
+    },
+    {
+      title: "Caderno de anotações",
+      description: "Notas ricas com busca rápida para compartilhar materiais e registrar insights da aula.",
+      icon: <BookOpen className="h-8 w-8" />,
+      features: [
+        "Editor rich text",
+        "Organização por tópicos",
+        "Compartilhamento com turmas",
+        "Integração com exercícios",
+      ],
+    }
   ];
-  return (
-    <section className="container mx-auto px-4 py-6">
-      <div className="grid grid-cols-2 gap-4 rounded-2xl border border-slate-200/70 bg-white/70 p-4 text-center sm:grid-cols-4 dark:border-white/10 dark:bg-white/5">
-        {stats.map((s, i) => (
-          <div key={i} className="">
-            <div className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">{s.value}</div>
-            <div className="text-xs text-slate-600 dark:text-white/70">{s.label}</div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function TracksSection() {
-  const tracks = [
-    {
-      icon: <BookOpen className="h-5 w-5" />,
-      title: "Python do zero",
-      meta: ["4 semanas", "projetos guiados"],
-      desc: "Aprenda fundamentos, estruturas de dados e automação com exercícios rápidos.",
-    },
-    {
-      icon: <Code2 className="h-5 w-5" />,
-      title: "JavaScript para Web",
-      meta: ["6 semanas", "DOM & APIs"],
-      desc: "Construa componentes, manipule o DOM e integre APIs reais.",
-    },
-    {
-      icon: <GraduationCap className="h-5 w-5" />,
-      title: "Lógica de Programação",
-      meta: ["3 semanas", "desafios com IA"],
-      desc: "Pensamento computacional, algoritmos e resolução de problemas.",
-    },
-  ];
 
   return (
-    <section className="container mx-auto px-4 py-12">
-      <div className="mb-5 flex items-end justify-between">
-        <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Trilhas de aprendizado</h2>
-        <a href="/dashboard" className="text-sm text-indigo-600 hover:underline dark:text-indigo-300">Ver todas</a>
+    <section className="container mx-auto px-4 py-16">
+      <div className="mb-12 text-center">
+        <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-4">Nossos Módulos</h2>
+        <p className="text-slate-600 dark:text-white/70 max-w-2xl mx-auto">
+          Explore os recursos completos da plataforma CoderBot v2, projetados para uma experiência de aprendizado completa e envolvente.
+        </p>
       </div>
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-        {tracks.map((t, i) => (
-          <div key={i} className="rounded-2xl border border-slate-200/70 bg-white/80 p-5 shadow-sm transition hover:shadow-md dark:border-white/10 dark:bg-white/5">
-            <div className="flex items-center gap-2 text-slate-800 dark:text-white">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600/10 text-indigo-600 dark:text-indigo-300">{t.icon}</div>
-              <h3 className="text-base font-semibold">{t.title}</h3>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {modules.map((module, i) => (
+          <div key={i} className="group rounded-2xl border border-slate-200/70 bg-white/80 p-6 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1 dark:border-white/10 dark:bg-white/5">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-xl border border-slate-200/50 bg-gradient-to-br from-violet-50 to-indigo-50 dark:border-white/10 dark:from-violet-500/10 dark:to-indigo-500/10">
+              <div className="text-violet-600 dark:text-violet-400">
+                {module.icon}
+              </div>
             </div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {t.meta.map((m, j) => (
-                <span key={j} className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-white/10 dark:text-white/70">{m}</span>
+            
+            <h3 className="text-xl font-semibold text-slate-800 dark:text-white mb-2 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+              {module.title}
+            </h3>
+            
+            <p className="text-slate-600 dark:text-white/70 mb-4 text-sm leading-relaxed">
+              {module.description}
+            </p>
+            
+            <div className="space-y-2">
+              {module.features.map((feature, j) => (
+                <div key={j} className="flex items-center gap-2 text-xs text-slate-500 dark:text-white/60">
+                  <div className="w-1.5 h-1.5 rounded-full bg-violet-500"></div>
+                  {feature}
+                </div>
               ))}
             </div>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-white/70">{t.desc}</p>
           </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function TestimonialsSection() {
-  const testimonials = [
-    {
-      name: "Ana S.",
-      role: "Estudante de Engenharia",
-      quote:
-        "Passei a entender algoritmos de verdade. A correção da IA me poupou horas descobrindo onde eu errava.",
-    },
-    {
-      name: "Marcos T.",
-      role: "Professor de Lógica",
-      quote:
-        "Usei em laboratório com a turma. O feedback imediato ajudou quem tinha mais dificuldade a acompanhar.",
-    },
-  ];
-
-  return (
-    <section className="container mx-auto px-4 py-12">
-      <div className="mb-5">
-        <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Quem usa, recomenda</h2>
-      </div>
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-        {testimonials.map((t, i) => (
-          <figure key={i} className="rounded-2xl border border-slate-200/70 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/5">
-            <div className="mb-2 flex items-center gap-1 text-yellow-500">
-              {Array.from({ length: 5 }).map((_, k) => (
-                <Star key={k} className="h-4 w-4 fill-yellow-400 stroke-yellow-400" />
-              ))}
-            </div>
-            <blockquote className="text-sm leading-relaxed text-slate-700 dark:text-white/80">“{t.quote}”</blockquote>
-            <figcaption className="mt-3 flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-xs font-bold text-white">
-                {t.name.split(" ")[0][0]}
-              </div>
-              <div>
-                <p className="text-sm font-medium text-slate-800 dark:text-white">{t.name}</p>
-                <p className="text-xs text-slate-600 dark:text-white/70">{t.role}</p>
-              </div>
-            </figcaption>
-          </figure>
         ))}
       </div>
     </section>
@@ -654,20 +575,20 @@ export default function Home() {
 
       {/* Hero */}
       <section
-        className="container mx-auto grid flex-1 grid-cols-1 items-center gap-8 px-4 pt-[clamp(0.75rem,4vh,2rem)] pb-[clamp(1.25rem,8vh,5rem)] sm:gap-12 lg:grid-cols-2 lg:[grid-template-columns:1.05fr_1fr]"
+        className="container mx-auto grid flex-1 grid-cols-1 items-center gap-8 px-4 pt-[clamp(0.75rem,4vh,2rem)] pb-[clamp(1.25rem,8vh,5rem)] sm:gap-12 lg:[grid-template-columns:1.05fr_1fr]"
       >
         <div className="group flex flex-col items-start">
-          
 
-          <h1 className="mt-5 max-w-[16ch] text-[clamp(2rem,7vw,3.75rem)] font-extrabold leading-[1.15] tracking-tight text-slate-900 [text-wrap:balance] sm:leading-[1.1] dark:text-white">
-            Aprenda programação com IA —
-            <span className="bg-gradient-to-r from-violet-400 to-fuchsia-500 bg-clip-text text-transparent drop-shadow-sm transition-colors duration-300"> rápido</span>
-            <span> e </span>
-            <span className="bg-gradient-to-r from-violet-400 to-fuchsia-500 bg-clip-text text-transparent drop-shadow-sm transition-colors duration-300">divertido.</span>
+          <h1 className="mt-5 max-w-[18ch] text-[clamp(2rem,7vw,3.75rem)] font-extrabold leading-[1.1] tracking-tight text-slate-900 [text-wrap:balance] dark:text-white">
+            CoderBot v2
+            <span className="block bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-rose-500 bg-clip-text text-transparent drop-shadow-sm">
+              ensino de programação guiado por IA
+            </span>
           </h1>
 
-          <p className="mt-5 max-w-[62ch] text-[clamp(1rem,2.3vw,1.125rem)] leading-relaxed text-slate-700 [text-wrap:pretty] dark:text-white/80">
-            Trilhas personalizadas, exercícios práticos e insights de aprendizagem. Tudo o que você precisa para evoluir com consistência.
+          <p className="mt-5 max-w-[62ch] text-[clamp(1rem,2.2vw,1.2rem)] leading-relaxed text-slate-700 [text-wrap:pretty] dark:text-white/80">
+            Combine chat com IA, quadro colaborativo, gestão de turmas e trilhas guiadas em uma única experiência.
+            Professores acompanham turmas em tempo real enquanto estudantes praticam com feedback imediato.
           </p>
 
           <div className="mt-7 flex w-full flex-col items-start gap-3 sm:flex-row sm:gap-4">
@@ -693,9 +614,9 @@ export default function Home() {
           </div>
 
           <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-slate-500 dark:text-white/60">
-            <span className="rounded-md bg-slate-100 px-2 py-1 dark:bg-white/10">Sem anúncios</span>
-            <span className="rounded-md bg-slate-100 px-2 py-1 dark:bg-white/10">Gratuito</span>
-            <span className="rounded-md bg-slate-100 px-2 py-1 dark:bg-white/10">Para todos os níveis</span>
+            <span className="rounded-md bg-slate-100 px-2 py-1 dark:bg-white/10">Chat educacional com IA</span>
+            <span className="rounded-md bg-slate-100 px-2 py-1 dark:bg-white/10">Painel do professor</span>
+            <span className="rounded-md bg-slate-100 px-2 py-1 dark:bg-white/10">Quadro colaborativo</span>
           </div>
         </div>
 
@@ -705,11 +626,10 @@ export default function Home() {
       </section>
 
       
-      <FeaturesSection />
+  <ScreensCarouselSection />
+  <FeaturesSection />
       <HowItWorks />
-      {/* <TracksSection /> */}
-      <StatsBar />
-      <TestimonialsSection />
+      <ModulesSection />
 
       {/* Slim CTA footer */}
       <section className="w-full border-t border-slate-200/60 bg-white/60 py-[clamp(0.75rem,3vh,2.25rem)] pb-[max(env(safe-area-inset-bottom),0.5rem)] dark:border-white/10 dark:bg-white/[0.03]">

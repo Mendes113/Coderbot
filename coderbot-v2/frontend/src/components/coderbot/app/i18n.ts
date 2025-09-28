@@ -25,6 +25,8 @@ const resources = {
         updateError: 'Error updating title',
         deleteError: 'Error deleting conversation',
         loadError: 'Error loading sessions',
+        collapseSidebar: 'Collapse sidebar',
+        expandSidebar: 'Expand sidebar',
         sessionExpired: 'Session expired',
       }
     }
@@ -52,6 +54,8 @@ const resources = {
         updateError: 'Erro ao atualizar título',
         deleteError: 'Erro ao excluir sessão',
         loadError: 'Erro ao carregar sessões',
+        collapseSidebar: 'Recolher barra lateral',
+        expandSidebar: 'Expandir barra lateral',
       }
     }
   }

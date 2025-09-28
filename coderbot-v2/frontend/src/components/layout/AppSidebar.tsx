@@ -17,6 +17,8 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { getCurrentUser } from "@/integrations/pocketbase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTheme } from "@/context/ThemeContext";
+import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
 
 // Temporarily disable NextAuth.js for hydration issues
 // import { useSession } from 'next-auth/react';
@@ -40,6 +42,7 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isTeacherButtonAnimating, setIsTeacherButtonAnimating] = useState(false);
   const { state } = useSidebar();
   const { theme } = useTheme();
 
@@ -49,13 +52,14 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
     if (user) setUserRole(user.role);
     setIsLoading(false);
   }, []); // Dependência vazia é intencional - só executar uma vez na montagem
+  const normalizedUserRole = useMemo(() => (userRole || "").toLowerCase().trim(), [userRole]);
+  const canAccessTeacherPanel = normalizedUserRole === "teacher" || normalizedUserRole === "admin";
 
   // Temporarily disable NextAuth.js for hydration issues
   // const { data: session } = useSession();
 
-  const mainNavItems: NavItem[] = [
+  const mainNavItems: NavItem[] = useMemo(() => [
     { id: "chat", label: "Chat", icon: MessageSquare, accessKey: "c", path: "/dashboard/chat" },
-    // Removed invitations route from sidebar
     {
       id: "teacher",
       label: "Turmas",
@@ -74,20 +78,18 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
     },
     { id: "whiteboard", label: "Quadro", icon: Presentation, accessKey: "w", path: "/dashboard/whiteboard" },
     { id: "notes", label: "Notas", icon: BookOpen, accessKey: "n", path: "/dashboard/notes" },
-    // New: Profile button (accessible to all roles)
     { id: "profile", label: "Perfil", icon: User, accessKey: "p", path: "/profile" },
-  ];
+  ], []);
 
   const filteredNavItems = useMemo(() => {
     return mainNavItems.filter((item) => {
       if (!item.roles) return true;
-      const normalizedUserRole = (userRole || "").toLowerCase().trim();
       // Fallback: mostrar itens com controle de role mesmo se a role ainda não estiver carregada
       if (!normalizedUserRole) return true;
       const allowed = item.roles.map(r => r.toLowerCase().trim());
       return allowed.includes(normalizedUserRole);
     });
-  }, [userRole]); // Só recalcular quando userRole mudar
+  }, [mainNavItems, normalizedUserRole]); // Só recalcular quando role normalizada mudar
 
   // Mapa de atalhos Alt+<tecla> - memoizado
   const accessKeyMap = useMemo(() => {
@@ -116,6 +118,22 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
     onNavChange(item.id);
     navigate(item.path);
   }, [accessKeyMap, navigate, onNavChange]);
+
+  const handleOpenTeacherPanel = useCallback(() => {
+    if (isTeacherButtonAnimating) return;
+    setIsTeacherButtonAnimating(true);
+  }, [isTeacherButtonAnimating]);
+
+  useEffect(() => {
+    if (!isTeacherButtonAnimating) return;
+    const timeout = window.setTimeout(() => {
+      onNavChange && onNavChange("teacher");
+      navigate("/teacher");
+      setIsTeacherButtonAnimating(false);
+    }, 420);
+
+    return () => window.clearTimeout(timeout);
+  }, [isTeacherButtonAnimating, navigate, onNavChange]);
 
   // Listener global para atalhos (ignora campos de texto)
   useEffect(() => {
@@ -185,18 +203,56 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
       </SidebarContent>
       <SidebarFooter className="gap-3">
         {state === "collapsed" ? (
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center gap-3 w-full">
+            {canAccessTeacherPanel && (
+              <motion.div
+                initial={false}
+                animate={isTeacherButtonAnimating ? { x: -28, rotate: -8, opacity: 0 } : { x: 0, rotate: 0, opacity: 1 }}
+                transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="h-10 w-10 rounded-full"
+                  onClick={handleOpenTeacherPanel}
+                  aria-label="Ir para o painel do professor"
+                  disabled={isTeacherButtonAnimating}
+                >
+                  <GraduationCap className="h-5 w-5" />
+                </Button>
+              </motion.div>
+            )}
             <ThemeToggle />
           </div>
         ) : (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-sidebar-border bg-white/80 px-3 py-2 text-xs text-slate-600 shadow-sm dark:bg-sidebar/30 dark:text-sidebar-foreground">
-            <div className="flex flex-col">
-              <span className="font-semibold">Tema</span>
-              <span className="text-[0.65rem] text-slate-500 dark:text-sidebar-foreground dark:opacity-70">
-                {theme === "dark" ? "Modo escuro" : "Modo claro"}
-              </span>
+          <div className="flex flex-col w-full gap-3">
+            {canAccessTeacherPanel && (
+              <motion.div
+                initial={false}
+                className="w-full"
+                animate={isTeacherButtonAnimating ? { x: -36, rotate: -6, opacity: 0 } : { x: 0, rotate: 0, opacity: 1 }}
+                transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <Button
+                  onClick={handleOpenTeacherPanel}
+                  variant="outline"
+                  className="w-full justify-center gap-2"
+                  disabled={isTeacherButtonAnimating}
+                >
+                  <GraduationCap className="h-4 w-4" />
+                  <span>Painel do Professor</span>
+                </Button>
+              </motion.div>
+            )}
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-sidebar-border bg-white/80 px-3 py-2 text-xs text-slate-600 shadow-sm dark:bg-sidebar/30 dark:text-sidebar-foreground">
+              <div className="flex flex-col">
+                <span className="font-semibold">Tema</span>
+                <span className="text-[0.65rem] text-slate-500 dark:text-sidebar-foreground dark:opacity-70">
+                  {theme === "dark" ? "Modo escuro" : "Modo claro"}
+                </span>
+              </div>
+              <ThemeToggle />
             </div>
-            <ThemeToggle />
           </div>
         )}
         <SidebarTrigger />
