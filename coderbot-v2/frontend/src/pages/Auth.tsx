@@ -53,16 +53,7 @@ export default function Auth() {
           {/* Auth card */}
           <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-white/5 dark:backdrop-blur-sm">
             {/* Optional: OAuth provider */}
-            <div className="space-y-4">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full justify-center gap-2"
-                onClick={startGithubOAuth}
-              >
-                <Github className="h-4 w-4" /> Entrar com GitHub
-              </Button>
-            </div>
+          
 
             <Separator className="my-6" />
 

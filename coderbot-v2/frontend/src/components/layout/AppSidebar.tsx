@@ -18,6 +18,7 @@ import { getCurrentUser } from "@/integrations/pocketbase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTheme } from "@/context/ThemeContext";
 import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
 
 // Temporarily disable NextAuth.js for hydration issues
 // import { useSession } from 'next-auth/react';
@@ -41,6 +42,7 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isTeacherButtonAnimating, setIsTeacherButtonAnimating] = useState(false);
   const { state } = useSidebar();
   const { theme } = useTheme();
 
@@ -118,9 +120,20 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
   }, [accessKeyMap, navigate, onNavChange]);
 
   const handleOpenTeacherPanel = useCallback(() => {
-    onNavChange && onNavChange("teacher");
-    navigate("/teacher");
-  }, [navigate, onNavChange]);
+    if (isTeacherButtonAnimating) return;
+    setIsTeacherButtonAnimating(true);
+  }, [isTeacherButtonAnimating]);
+
+  useEffect(() => {
+    if (!isTeacherButtonAnimating) return;
+    const timeout = window.setTimeout(() => {
+      onNavChange && onNavChange("teacher");
+      navigate("/teacher");
+      setIsTeacherButtonAnimating(false);
+    }, 420);
+
+    return () => window.clearTimeout(timeout);
+  }, [isTeacherButtonAnimating, navigate, onNavChange]);
 
   // Listener global para atalhos (ignora campos de texto)
   useEffect(() => {
@@ -192,29 +205,44 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
         {state === "collapsed" ? (
           <div className="flex flex-col items-center gap-3 w-full">
             {canAccessTeacherPanel && (
-              <Button
-                size="icon"
-                variant="outline"
-                className="h-10 w-10 rounded-full"
-                onClick={handleOpenTeacherPanel}
-                aria-label="Ir para o painel do professor"
+              <motion.div
+                initial={false}
+                animate={isTeacherButtonAnimating ? { x: -28, rotate: -8, opacity: 0 } : { x: 0, rotate: 0, opacity: 1 }}
+                transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
               >
-                <GraduationCap className="h-5 w-5" />
-              </Button>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="h-10 w-10 rounded-full"
+                  onClick={handleOpenTeacherPanel}
+                  aria-label="Ir para o painel do professor"
+                  disabled={isTeacherButtonAnimating}
+                >
+                  <GraduationCap className="h-5 w-5" />
+                </Button>
+              </motion.div>
             )}
             <ThemeToggle />
           </div>
         ) : (
           <div className="flex flex-col w-full gap-3">
             {canAccessTeacherPanel && (
-              <Button
-                onClick={handleOpenTeacherPanel}
-                variant="outline"
-                className="w-full justify-center gap-2"
+              <motion.div
+                initial={false}
+                className="w-full"
+                animate={isTeacherButtonAnimating ? { x: -36, rotate: -6, opacity: 0 } : { x: 0, rotate: 0, opacity: 1 }}
+                transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
               >
-                <GraduationCap className="h-4 w-4" />
-                <span>Painel do Professor</span>
-              </Button>
+                <Button
+                  onClick={handleOpenTeacherPanel}
+                  variant="outline"
+                  className="w-full justify-center gap-2"
+                  disabled={isTeacherButtonAnimating}
+                >
+                  <GraduationCap className="h-4 w-4" />
+                  <span>Painel do Professor</span>
+                </Button>
+              </motion.div>
             )}
             <div className="flex items-center justify-between gap-3 rounded-xl border border-sidebar-border bg-white/80 px-3 py-2 text-xs text-slate-600 shadow-sm dark:bg-sidebar/30 dark:text-sidebar-foreground">
               <div className="flex flex-col">
