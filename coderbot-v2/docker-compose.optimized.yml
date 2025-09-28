@@ -51,6 +51,8 @@ services:
       - OPEN_AI_API_KEY=${OPEN_AI_API_KEY}
       - OPENAI_API_URL=${OPENAI_API_URL}
       - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - OLLAMA_DEFAULT_MODEL=${OLLAMA_DEFAULT_MODEL:-qwen2.5-coder:1.5b}
       - RAPIDAPI_KEY=${RAPIDAPI_KEY}
       # SDK-compatible env aliases
       - ANTHROPIC_API_KEY=${CLAUDE_API_KEY:-}
@@ -98,6 +100,8 @@ services:
     # Evita I/O em disco e acelera PDM/uvicorn
     tmpfs:
       - /tmp
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     stop_grace_period: 10s
 
   # Frontend React App (core profile) - usando Dockerfile otimizado
