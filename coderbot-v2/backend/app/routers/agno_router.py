@@ -429,7 +429,7 @@ async def ask_question(
             # escolha: último bloco que não seja quiz/mermaid/excalidraw
             for b in reversed(blocks):
                 lang = b.get('lang') or ''
-                if lang in ('quiz', 'mermaid', 'excalidraw'):
+                if lang in ('quiz', 'mermaid', 'excalidraw', 'markdown', 'md'):
                     continue
                 code = b.get('code') or ''
                 if not code.strip():
@@ -458,7 +458,17 @@ async def ask_question(
             - final_code: bloco único a partir do objeto final_code
             """
             segments: List[ResponseSegment] = []
-            safe_md = (md or "").strip()
+
+            def _unwrap_markdown_fence(raw: str) -> str:
+                if not raw:
+                    return raw
+                stripped = raw.strip()
+                fence_match = re.fullmatch(r"```(?:markdown|md)?\s*([\s\S]*?)```", stripped, flags=re.IGNORECASE)
+                if fence_match:
+                    return (fence_match.group(1) or '').strip()
+                return raw
+
+            safe_md = _unwrap_markdown_fence((md or "").strip())
             text = safe_md.replace("\r\n", "\n")
 
             heading_pattern = re.compile(r"^(##{1,2})\s+(.+)$", re.MULTILINE)
@@ -502,18 +512,7 @@ async def ask_question(
                     content=reflection_content
                 ))
             else:
-                uq = (user_query_text or "o problema proposto").strip()
-                synthesized_reflection = (
-                    "Antes de partir para a solução, alinhe o pensamento: esclareça o que o problema pede, "
-                    "liste os dados relevantes e imagine uma estratégia inicial. Considere como verificará o resultado "
-                    f"no contexto de: \"{uq}\". Foque na lógica por trás das decisões, não nos detalhes de código."
-                )
-                segments.append(ResponseSegment(
-                    id=make_id("reflection", 1),
-                    title="Reflexão",
-                    type="reflection",
-                    content=synthesized_reflection
-                ))
+                logger.debug("Resposta do modelo não trouxe seção de reflexão; pulando fallback para evitar instruções template visíveis.")
 
             # Etapa de Pergunta (sempre presente; se não vier, sintetiza uma pergunta aberta)
             question_segment: Optional[ResponseSegment] = None
@@ -614,15 +613,16 @@ async def ask_question(
             # Código final
             if final_code_obj and (final_code_obj.get('code') or '').strip():
                 lang = (final_code_obj.get('language') or 'text').lower()
-                code = final_code_obj.get('code') or ''
-                code_block = f"```{lang}\n{code}\n```"
-                segments.append(ResponseSegment(
-                    id=make_id("final_code", 1),
-                    title="Código final",
-                    type="final_code",
-                    content=code_block,
-                    language=lang
-                ))
+                if lang not in ('markdown', 'md'):
+                    code = final_code_obj.get('code') or ''
+                    code_block = f"```{lang}\n{code}\n```"
+                    segments.append(ResponseSegment(
+                        id=make_id("final_code", 1),
+                        title="Código final",
+                        type="final_code",
+                        content=code_block,
+                        language=lang
+                    ))
 
             # Quiz (se existir fenced block ```quiz ... ```)
             quiz_match = re.search(r"```quiz\s*([\s\S]*?)```", text, re.IGNORECASE)
@@ -687,12 +687,17 @@ async def ask_question(
                     lang = (fc.get('language') or fc.get('lang') or 'text')
                     code = fc.get('code') or ''
                     if (code or '').strip():
-                        final_code_for_segments = {
-                            'language': (lang or 'text').lower(),
-                            'code': code,
-                            'truncated': bool(fc.get('truncated', False)),
-                            'line_count': len(code.splitlines()),
-                        }
+                        normalized_lang = (lang or 'text').lower()
+                        if normalized_lang not in ('markdown', 'md'):
+                            final_code_for_segments = {
+                                'language': normalized_lang,
+                                'code': code,
+                                'truncated': bool(fc.get('truncated', False)),
+                                'line_count': len(code.splitlines()),
+                            }
+                        else:
+                            logger.debug("Ignorando final_code vindo de extras com linguagem markdown/md")
+                            extras.pop('final_code', None)
 
         # Adiciona sugestões de próximos passos para worked examples
         if methodology_enum == MethodologyType.WORKED_EXAMPLES:

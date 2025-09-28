@@ -21,12 +21,27 @@ export interface UserContext {
 }
 
 // Interface para a requisição ao AGNO
+export type ProviderKey = 'claude' | 'openai' | 'ollama';
+
+export interface ProviderModelConfig {
+  id: string;
+  name: string;
+  default?: boolean;
+}
+
+export interface ProviderConfig {
+  name: string;
+  models: ProviderModelConfig[];
+  color: string;
+  icon: string;
+}
+
 export interface AgnoRequest {
   methodology: MethodologyType;
   userQuery: string;
   context?: string;
   userContext?: UserContext;
-  provider?: 'claude' | 'openai';
+  provider?: ProviderKey;
   modelId?: string;
   includeFinalCode?: boolean;
   includeDiagram?: boolean;
@@ -148,7 +163,7 @@ export interface ResponseSegment {
 }
 
 // Configurações dos provedores
-export const PROVIDER_CONFIG = {
+export const PROVIDER_CONFIG: Record<ProviderKey, ProviderConfig> = {
   claude: {
     name: "Claude (Anthropic)",
     models: [
@@ -162,13 +177,50 @@ export const PROVIDER_CONFIG = {
   openai: {
     name: "OpenAI (ChatGPT)",
     models: [
-      { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo", default: true },
+      { id: "gpt-4o", name: "GPT-4o", default: true },
       { id: "gpt-4", name: "GPT-4" },
-      { id: "gpt-4o", name: "GPT-4o" }
+      { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo" },
+      { id: "gpt-4o-mini", name: "GPT-4o mini" },
+      { id: "o3-mini", name: "o3-mini" }
     ],
     color: "green",
     icon: "🧠"
+  },
+  ollama: {
+    name: "Ollama (Local)",
+    models: [
+      { id: "qwen2.5-coder:1.5b", name: "Qwen 2.5 Coder 1.5B", default: true },
+      { id: "llama3.1", name: "Llama 3.1" },
+      { id: "llama3", name: "Llama 3" },
+      { id: "mistral", name: "Mistral" }
+    ],
+    color: "teal",
+    icon: "🦙"
   }
+};
+
+export interface ProviderModelOption {
+  id: string;
+  name: string;
+  provider: ProviderKey;
+  default?: boolean;
+}
+
+const PROVIDER_ENTRIES = Object.entries(PROVIDER_CONFIG) as [ProviderKey, ProviderConfig][];
+
+export const AI_MODEL_OPTIONS: ProviderModelOption[] = PROVIDER_ENTRIES.flatMap(([provider, config]) =>
+  config.models.map((model) => ({
+    id: model.id,
+    name: model.name,
+    provider,
+    default: model.default,
+  }))
+);
+
+export const getDefaultModelForProvider = (provider: ProviderKey): string => {
+  const providerConfig = PROVIDER_CONFIG[provider];
+  const preferred = providerConfig.models.find((model) => model.default);
+  return preferred?.id || providerConfig.models[0]?.id || '';
 };
 
 // Configurações das metodologias
@@ -584,7 +636,7 @@ class AgnoService {
     userQuery: string,
     context?: string,
     userContext?: UserContext,
-    provider?: 'claude' | 'openai',
+    provider?: ProviderKey,
     modelId?: string
   ): Promise<string> {
     const response = await this.askQuestion({
@@ -607,7 +659,7 @@ class AgnoService {
     userQuery: string,
     context?: string,
     userContext?: UserContext,
-    modelId: string = 'claude-3-5-sonnet-20241022'
+    modelId: string = getDefaultModelForProvider('claude') || 'claude-3-5-sonnet-20241022'
   ): Promise<AgnoResponse> {
     return this.askQuestion({
       methodology,
@@ -627,7 +679,7 @@ class AgnoService {
     userQuery: string,
     context?: string,
     userContext?: UserContext,
-    modelId: string = 'gpt-3.5-turbo'
+    modelId: string = getDefaultModelForProvider('openai') || 'gpt-3.5-turbo'
   ): Promise<AgnoResponse> {
     return this.askQuestion({
       methodology,
@@ -635,6 +687,26 @@ class AgnoService {
       context,
       userContext,
       provider: 'openai',
+      modelId
+    });
+  }
+
+  /**
+   * Método de conveniência para usar modelos locais via Ollama
+   */
+  async askQuestionWithOllama(
+    methodology: MethodologyType,
+    userQuery: string,
+    context?: string,
+    userContext?: UserContext,
+    modelId: string = getDefaultModelForProvider('ollama') || 'llama3.1'
+  ): Promise<AgnoResponse> {
+    return this.askQuestion({
+      methodology,
+      userQuery,
+      context,
+      userContext,
+      provider: 'ollama',
       modelId
     });
   }

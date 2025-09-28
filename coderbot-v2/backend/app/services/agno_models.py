@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 import requests
 from requests import RequestException
+from requests.exceptions import ConnectionError as RequestsConnectionError, Timeout as RequestsTimeout
 
 # Imports necessários
 from agno.models.base import Model
@@ -426,6 +427,17 @@ class OllamaModel(Model):
             return ModelResponse(content=content)
         except RequestException as exc:
             self.logger.error("Erro ao chamar Ollama: %s", exc)
+            if isinstance(exc, RequestsConnectionError):
+                raise RuntimeError(
+                    "Não foi possível conectar ao Ollama em "
+                    f"{self.config.base_url}. Certifique-se de que o serviço 'ollama serve' está em execução "
+                    f"e que o modelo '{self.model_name}' foi baixado com `ollama run {self.model_name}`."
+                ) from exc
+            if isinstance(exc, RequestsTimeout):
+                raise RuntimeError(
+                    f"Ollama não respondeu dentro de {self.config.timeout}s. Considere aumentar o tempo limite "
+                    "ou verificar a carga do servidor."
+                ) from exc
             raise
 
     async def ainvoke(self, messages: Union[str, List[Dict[str, Any]]], **kwargs) -> ModelResponse:

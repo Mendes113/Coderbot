@@ -12,7 +12,7 @@ Este é o backend para o Chatbot Educacional, uma plataforma de IA para ensino d
   - **Scaffolding**: Suporte adaptativo baseado no nível do aluno
 - **RAG (Retrieval Augmented Generation)**: Enriquecimento de respostas com conhecimento contextual
 - **Arquitetura SOLID**: Serviços modularizados seguindo princípios de design de software
-- **Integração com vários LLMs**: OpenAI, Claude, DeepSeek, e outros
+- **Integração com vários LLMs**: OpenAI, Claude, DeepSeek, Ollama (modelos locais) e outros
 
 ## 🏗️ Arquitetura
 
@@ -81,6 +81,7 @@ Armazena o histórico das conversas entre o usuário e a IA.
 - Python 3.8+
 - PocketBase 0.18+ 
 - Chaves de API para LLMs (OpenAI, Claude, etc.)
+- (Opcional) [Ollama](https://ollama.com/) instalado localmente caso deseje testar modelos offline
 
 ### Configuração
 
@@ -96,6 +97,8 @@ Armazena o histórico das conversas entre o usuário e a IA.
    POCKETBASE_ADMIN_PASSWORD=sua_senha_segura
    OPEN_AI_API_KEY=sua_chave_api_openai
    CLAUDE_API_KEY=sua_chave_api_claude
+   OLLAMA_BASE_URL=http://localhost:11434
+   OLLAMA_DEFAULT_MODEL=llama3.1
    ```
 
 4. Inicie o PocketBase:
@@ -110,6 +113,24 @@ Armazena o histórico das conversas entre o usuário e a IA.
    uvicorn app.main:app --reload
    ```
 
+### Usando modelos locais com Ollama
+
+- Certifique-se de que o serviço do Ollama esteja em execução (`ollama serve`) e que o modelo desejado esteja instalado (`ollama pull llama3.1`).
+- Configure as variáveis `OLLAMA_BASE_URL` e `OLLAMA_DEFAULT_MODEL` conforme mostrado acima.
+- Ao chamar o endpoint `/agno/ask`, informe `provider=ollama` e, opcionalmente, `model_id=<nome_do_modelo>` para direcionar a geração para o modelo local.
+
+### Inspecionando prompts gerados
+
+Para visualizar o prompt renderizado (e opcionalmente a resposta do modelo) sem passar pelo frontend, utilize o utilitário CLI incluso:
+
+```fish
+pdm run show-prompt worked_examples "Explique o que é recursão" --show-metadata
+```
+
+- Adicione `--generate` para executar a chamada ao modelo configurado: `pdm run show-prompt worked_examples "Explique..." --generate --provider=ollama`.
+- Use `--context-history`, `--knowledge-base` ou forneça um arquivo via `--extras` para simular os dados que seriam aplicados no template.
+- O comando imprime o prompt final, seções obrigatórias e, caso solicitado, a resposta gerada pela IA.
+
 ## 📚 APIs Principais
 
 ### Chat Educacional
@@ -119,7 +140,7 @@ Armazena o histórico das conversas entre o usuário e a IA.
 - `POST /chat/sessions`: Cria uma nova sessão de chat
 - `GET /chat/completions/{session_id}/history`: Recupera histórico de conversa
 
-### Exemplo de uso:
+### Exemplo de uso
 
 ```python
 import requests

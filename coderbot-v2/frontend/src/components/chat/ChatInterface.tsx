@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { AnalogySettings } from "@/components/chat/AnalogySettings";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatInput } from "@/components/chat/ChatInput";
@@ -20,7 +20,15 @@ import { chatService } from "@/services/chat-service";
 import { SessionSidebar } from "@/components/chat/SessionSidebar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { soundEffects } from "@/utils/sounds";
-import { agnoService, MethodologyType, METHODOLOGY_CONFIG } from "@/services/agnoService";
+import {
+  agnoService,
+  MethodologyType,
+  METHODOLOGY_CONFIG,
+  AI_MODEL_OPTIONS,
+  PROVIDER_CONFIG,
+  getDefaultModelForProvider
+} from "@/services/agnoService";
+import type { ProviderKey, ProviderConfig, ProviderModelOption } from "@/services/agnoService";
 import posthog from "posthog-js";
 import type { QuizAnswerEvent } from "@/components/chat/ChatMessage";
 // import { ProfileHeader } from "@/components/profile/ProfileHeader";
@@ -31,6 +39,45 @@ const simpleHash = (s: string) => {
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
   return `${h}`;
 };
+
+const PROVIDER_CONFIG_ENTRIES = Object.entries(PROVIDER_CONFIG) as [ProviderKey, ProviderConfig][];
+
+const MODEL_ALIAS_MAP: Record<string, string> = {
+  "claude-3-sonnet": "claude-3-5-sonnet-20241022",
+  "claude-3-haiku": "claude-3-haiku-20240307",
+};
+
+const normalizeModelId = (modelId: string): string => MODEL_ALIAS_MAP[modelId] ?? modelId;
+
+const findModelOption = (modelId: string): ProviderModelOption | undefined => {
+  const normalized = normalizeModelId(modelId);
+  return AI_MODEL_OPTIONS.find((option) => option.id === normalized);
+};
+
+const resolveProviderFromModel = (modelId: string): ProviderKey => findModelOption(modelId)?.provider ?? 'claude';
+
+const ModelSelectItems = () => (
+  <>
+    {PROVIDER_CONFIG_ENTRIES.map(([provider, config]) => (
+      <div key={provider} className="py-2">
+        <div className="px-3 py-1 text-xs font-semibold text-muted-foreground flex items-center gap-2">
+          <span>{config.icon}</span>
+          <span>{config.name}</span>
+        </div>
+        {config.models.map((model) => (
+          <SelectItem key={model.id} value={model.id}>
+            <div className="flex flex-col text-left">
+              <span>{model.name}</span>
+              {model.default && (
+                <span className="text-[10px] text-muted-foreground">Modelo padrão</span>
+              )}
+            </div>
+          </SelectItem>
+        ))}
+      </div>
+    ))}
+  </>
+);
 
 // --- Componentes de Design Emocional ---
 
@@ -443,15 +490,12 @@ const DesktopSettingsView: React.FC<SettingsProps> = (props) => (
     <AnalogySettings {...props} />
     <div className="mt-4">
       <h3 className="text-sm font-medium mb-2">Modelo de IA</h3>
-      <Select value={props.aiModel} onValueChange={props.setAiModel}>
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder="Selecione o modelo" />
+      <Select value={props.aiModel} onValueChange={(value) => props.setAiModel(normalizeModelId(value))}>
+        <SelectTrigger className="w-full h-10 text-sm justify-between overflow-hidden whitespace-nowrap" title={findModelOption(props.aiModel)?.name ?? props.aiModel}>
+          <SelectValue className="truncate" placeholder="Selecione o modelo" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
-          <SelectItem value="gpt-4">GPT-4</SelectItem>
-          <SelectItem value="claude-3-sonnet">Claude 3.5 Sonnet</SelectItem>
-          <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
+          <ModelSelectItems />
         </SelectContent>
       </Select>
     </div>
@@ -500,7 +544,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const [isLoading, setIsLoading] = useState(false);
   const [analogiesEnabled, setAnalogiesEnabled] = useState(false);
   const [knowledgeBase, setKnowledgeBase] = useState("");
-  const [aiModel, setAiModel] = useState<string>("claude-3-sonnet");
+  const defaultModelId = useMemo(
+    () => normalizeModelId(getDefaultModelForProvider('claude') || AI_MODEL_OPTIONS[0]?.id || 'claude-3-5-sonnet-20241022'),
+    []
+  );
+  const [aiModel, setAiModel] = useState<string>(defaultModelId);
+  const handleModelChange = useCallback((value: string) => {
+    setAiModel(normalizeModelId(value));
+  }, []);
   const [methodologyState, setMethodology] = useState<string>("default");
   const [agnoMethodology, setAgnoMethodology] = useState<MethodologyType>(MethodologyType.WORKED_EXAMPLES);
 
@@ -1076,12 +1127,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     
     // Track sent event & latency start
     const startTs = Date.now();
-    let chosenProvider: string = 'claude';
-    let chosenModel: string = aiModel;
+    const normalizedModelId = normalizeModelId(aiModel);
+    let chosenProvider: ProviderKey = resolveProviderFromModel(normalizedModelId);
+    let chosenModel: string = normalizedModelId;
     posthog?.capture?.('edu_chat_message_sent', {
       length: input.length,
       sessionId,
-      model: aiModel,
+      model: normalizedModelId,
       methodology: agnoMethodology,
       diagramsEnabled,
       analogiesEnabled,
@@ -1252,21 +1304,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
           ? `\nO aluno errou a questão anterior. Explique claramente o porquê do erro e como chegar na resposta correta. Pergunta: ${lastQuizAnswer.question}.`
           : '';
 
-        // Definir provedor baseado no modelo selecionado
-        let provider: 'claude' | 'openai' = 'claude';
-        let modelId = aiModel;
-        
-        if (aiModel.includes('gpt')) {
-          provider = 'openai';
-        } else if (aiModel.includes('claude')) {
-          provider = 'claude';
-          // Mapear modelos do frontend para IDs corretos do backend
-          if (aiModel === 'claude-3-sonnet') {
-            modelId = 'claude-3-5-sonnet-20241022';
-          } else if (aiModel === 'claude-3-haiku') {
-            modelId = 'claude-3-haiku-20240307';
-          }
-        }
+  const modelOption = findModelOption(normalizedModelId);
+  const provider = modelOption?.provider ?? chosenProvider;
+  const modelId = modelOption?.id ?? normalizedModelId;
 
         // Save chosen mapping for analytics
         chosenProvider = provider;
@@ -1591,22 +1631,22 @@ Obrigado pela paciência! 🤖✨`,
             </div>
           </div>
           <div className="flex items-center gap-2 mt-2 sm:mt-0 relative">
-            <Select value={aiModel} onValueChange={setAiModel}>
-              <SelectTrigger className="w-[120px] h-8 text-xs">
-                <SelectValue placeholder="Modelo" />
+            <Select value={aiModel} onValueChange={handleModelChange}>
+              <SelectTrigger
+                className="min-w-[180px] max-w-[240px] h-8 text-xs justify-between overflow-hidden whitespace-nowrap"
+                title={findModelOption(aiModel)?.name ?? aiModel}
+              >
+                <SelectValue className="truncate" placeholder="Modelo" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="gpt-3.5-turbo">GPT-3.5</SelectItem>
-                <SelectItem value="gpt-4">GPT-4</SelectItem>
-                <SelectItem value="claude-3-sonnet">Claude 3.5 Sonnet</SelectItem>
-                <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
+                <ModelSelectItems />
               </SelectContent>
             </Select>
 
             {/* Seletor de metodologia educacional AGNO */}
             <Select value={agnoMethodology} onValueChange={(value) => setAgnoMethodology(value as MethodologyType)}>
-              <SelectTrigger className="w-[140px] h-8 text-xs">
-                <SelectValue placeholder="Metodologia" />
+              <SelectTrigger className="min-w-[160px] max-w-[220px] h-8 text-xs justify-between overflow-hidden whitespace-nowrap" title={METHODOLOGY_CONFIG[agnoMethodology]?.name ?? agnoMethodology}>
+                <SelectValue className="truncate" placeholder="Metodologia" />
               </SelectTrigger>
               <SelectContent>
                 {Object.values(MethodologyType).map((methodology) => {
