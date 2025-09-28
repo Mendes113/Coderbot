@@ -24,6 +24,9 @@ const Whiteboard = React.lazy(() => import("./pages/Whiteboard"));
 const Home = React.lazy(() => import("./home/Home"));
 const AboutProject = React.lazy(() => import("./pages/AboutProject"));
 const NotesPage = React.lazy(() => import("./pages/NotesPage"));
+const ConsentTerms = React.lazy(() => import("./pages/ConsentTerms"));
+const PrivacyPolicy = React.lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = React.lazy(() => import("./pages/TermsOfService"));
 
 const queryClient = new QueryClient();
 
@@ -206,6 +209,9 @@ const App = () => {
                   </Route>
                   <Route path="/profile" element={<RequireAuth><UserProfile /></RequireAuth>} />
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/consent" element={<ConsentTerms />} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/terms" element={<TermsOfService />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
