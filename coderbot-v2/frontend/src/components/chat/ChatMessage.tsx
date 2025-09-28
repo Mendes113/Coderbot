@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Bot, User, Copy, CheckCheck } from "lucide-react";
+import { User, Copy, CheckCheck } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
@@ -191,7 +191,11 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
           )}
         >
           {isAi ? (
-            <Bot className="icon-bot h-4 w-4 text-[hsl(var(--education-primary-700))] dark:text-white animate-subtle-pulse hover:animate-gentle-float transition-all duration-300" />
+            <img
+              src="/coderbot_colorfull.png"
+              alt="Coderbot"
+              className="icon-bot h-6 w-6 object-contain  hover:animate-gentle-float transition-all duration-300"
+            />
           ) : (
             <User className="icon-user h-4 w-4 text-[hsl(var(--education-primary-700))] dark:text-white transition-all duration-300 hover:scale-110" />
           )}
@@ -202,7 +206,7 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
             "dark:text-white"
           )}
         >
-          {isAi ? "Assistente IA" : "Você"}
+          {isAi ? "Coderbot" : "Você"}
         </span>
         {/* Segment chip (detect from markdown heading) */}
         {(() => {
