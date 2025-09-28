@@ -314,25 +314,25 @@ export const ChatMessage = ({ content, isAi, timestamp, onQuizAnswer }: ChatMess
                   />
                 ),
                 p: ({ node, ...props }) => (
-                  <p {...props} className="text-base my-3 leading-relaxed text-white" />
+                  <p {...props} className="text-base my-3 leading-relaxed text-[#1f2937] dark:text-white" />
                 ),
                 ul: ({ node, ...props }) => (
-                  <ul {...props} className="list-disc ml-6 my-3 space-y-1 text-white" />
+                  <ul {...props} className="list-disc ml-6 my-3 space-y-1 text-[#1f2937] dark:text-white" />
                 ),
                 ol: ({ node, ...props }) => (
-                  <ol {...props} className="list-decimal ml-6 my-3 space-y-1 text-white" />
+                  <ol {...props} className="list-decimal ml-6 my-3 space-y-1 text-[#1f2937] dark:text-white" />
                 ),
                 li: ({ node, ...props }) => (
-                  <li {...props} className="my-1 text-white" />
+                  <li {...props} className="my-1 text-[#1f2937] dark:text-white" />
                 ),
                 h1: ({ node, ...props }) => (
-                  <h1 {...props} className="text-2xl font-semibold my-4 text-white border-b border-[#30363d] pb-2" />
+                  <h1 {...props} className="text-2xl font-semibold my-4 text-[#111827] dark:text-white border-b border-[#30363d] pb-2" />
                 ),
                 h2: ({ node, ...props }) => (
-                  <h2 {...props} className="text-xl font-semibold my-3 text-white" />
+                  <h2 {...props} className="text-xl font-semibold my-3 text-[#1f2937] dark:text-white" />
                 ),
                 h3: ({ node, ...props }) => (
-                  <h3 {...props} className="text-lg font-semibold my-2 text-white" />
+                  <h3 {...props} className="text-lg font-semibold my-2 text-[#1f2937] dark:text-white" />
                 ),
               }}
             >
