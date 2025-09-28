@@ -42,6 +42,10 @@
     "gpt-4o": {
       "provider": "openai",
       "model_name": "gpt-4o"
+    },
+    "llama3.1": {
+      "provider": "ollama",
+      "model_name": "llama3.1"
     }
 
 }

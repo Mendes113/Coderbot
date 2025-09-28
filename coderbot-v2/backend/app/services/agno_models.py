@@ -10,6 +10,10 @@ import logging
 from typing import List, Dict, Any, Optional, Union
 from dataclasses import dataclass
 
+import requests
+from requests import RequestException
+from requests.exceptions import ConnectionError as RequestsConnectionError, Timeout as RequestsTimeout
+
 # Imports necessários
 from agno.models.base import Model
 from agno.models.response import ModelResponse
@@ -29,6 +33,15 @@ class ClaudeConfig:
     max_tokens: int = 4096
     temperature: float = 0.7
     base_url: str = "https://api.anthropic.com"
+
+
+@dataclass
+class OllamaConfig:
+    """Configuração básica para modelos servidos pelo Ollama."""
+    base_url: str
+    timeout: float = 120.0
+    temperature: float = 0.7
+
 
 class ClaudeModel(Model):
     """
@@ -325,12 +338,149 @@ class ClaudeModel(Model):
             return {"content": str(delta)}
 
 
+class OllamaModel(Model):
+    """Implementação de modelo Ollama compatível com AGNO."""
+
+    def __init__(
+        self,
+        id: str = "llama3.1",
+        base_url: Optional[str] = None,
+        timeout: Optional[float] = None,
+        temperature: float = 0.7,
+        **kwargs,
+    ):
+        super().__init__(id=id, **kwargs)
+        self.model_name = id
+        config = OllamaConfig(
+            base_url=(base_url or settings.ollama_base_url or "http://localhost:11434").rstrip("/"),
+            timeout=timeout or settings.ollama_timeout_seconds,
+            temperature=temperature,
+        )
+        self.config = config
+        self.logger = logger
+        self.logger.info(
+            "Inicializando OllamaModel %s | base_url=%s | timeout=%ss",
+            self.model_name,
+            self.config.base_url,
+            self.config.timeout,
+        )
+
+    def _normalize_messages(
+        self, messages: Union[str, List[Dict[str, Any]]]
+    ) -> List[Dict[str, str]]:
+        if isinstance(messages, str):
+            return [{"role": "user", "content": messages}]
+
+        normalized: List[Dict[str, str]] = []
+        for message in messages:
+            if message is None:
+                continue
+            if hasattr(message, "model_dump"):
+                message_dict = message.model_dump()
+            elif hasattr(message, "__dict__"):
+                message_dict = message.__dict__
+            elif isinstance(message, dict):
+                message_dict = message
+            else:
+                message_dict = {"role": "user", "content": str(message)}
+
+            role = str(message_dict.get("role", "user"))
+            content = message_dict.get("content", "")
+            if not isinstance(content, str):
+                content = str(content)
+
+            normalized.append({"role": role, "content": content})
+
+        if not normalized:
+            normalized.append({"role": "user", "content": ""})
+        return normalized
+
+    def _build_payload(self, messages: List[Dict[str, str]], **kwargs) -> Dict[str, Any]:
+        options = kwargs.get("options") or {}
+        if "temperature" not in options:
+            options["temperature"] = kwargs.get("temperature", self.config.temperature)
+
+        return {
+            "model": self.model_name,
+            "messages": messages,
+            "stream": False,
+            "options": options,
+        }
+
+    def invoke(self, messages: Union[str, List[Dict[str, Any]]], **kwargs) -> ModelResponse:
+        normalized = self._normalize_messages(messages)
+        payload = self._build_payload(normalized, **kwargs)
+
+        try:
+            response = requests.post(
+                f"{self.config.base_url}/api/chat",
+                json=payload,
+                timeout=self.config.timeout,
+            )
+            response.raise_for_status()
+            data = response.json()
+            content = (
+                ((data.get("message") or {}).get("content"))
+                or data.get("response")
+                or ""
+            )
+            return ModelResponse(content=content)
+        except RequestException as exc:
+            self.logger.error("Erro ao chamar Ollama: %s", exc)
+            if isinstance(exc, RequestsConnectionError):
+                raise RuntimeError(
+                    "Não foi possível conectar ao Ollama em "
+                    f"{self.config.base_url}. Certifique-se de que o serviço 'ollama serve' está em execução "
+                    f"e que o modelo '{self.model_name}' foi baixado com `ollama run {self.model_name}`."
+                ) from exc
+            if isinstance(exc, RequestsTimeout):
+                raise RuntimeError(
+                    f"Ollama não respondeu dentro de {self.config.timeout}s. Considere aumentar o tempo limite "
+                    "ou verificar a carga do servidor."
+                ) from exc
+            raise
+
+    async def ainvoke(self, messages: Union[str, List[Dict[str, Any]]], **kwargs) -> ModelResponse:
+        return await asyncio.to_thread(self.invoke, messages, **kwargs)
+
+    def invoke_stream(self, messages: List[Dict[str, Any]], **kwargs):
+        yield self.invoke(messages, **kwargs)
+
+    async def ainvoke_stream(self, messages: List[Dict[str, Any]], **kwargs):
+        yield await self.ainvoke(messages, **kwargs)
+
+    def parse_provider_response(self, response: Any, **kwargs) -> ModelResponse:
+        try:
+            if isinstance(response, ModelResponse):
+                return response
+            if isinstance(response, dict):
+                if "message" in response:
+                    content = (response["message"] or {}).get("content", "")
+                else:
+                    content = response.get("response", "")
+                return ModelResponse(
+                    content=content,
+                    provider_data={"model": response.get("model", self.model_name)},
+                )
+        except Exception as exc:
+            self.logger.error("Erro ao interpretar resposta do Ollama: %s", exc)
+        return ModelResponse(content=str(response), provider_data={"model": self.model_name})
+
+    def parse_provider_response_delta(self, delta: Any) -> ModelResponse:
+        content: str
+        if isinstance(delta, dict):
+            content = delta.get("message", {}).get("content") or delta.get("response", "") or ""
+        else:
+            content = str(delta)
+        return ModelResponse(content=content, extra={"delta": True})
+
+
 def create_model(provider: str, model_name: str, **kwargs) -> Model:
     """
     Factory function para criar modelos baseado no provedor.
     
     Args:
-        provider: Nome do provedor ('openai' ou 'claude')
+        provider: Nome do provedor ('openai', 'claude' ou 'ollama')
         model_name: Nome do modelo
         **kwargs: Argumentos adicionais para o modelo
         
@@ -346,8 +496,10 @@ def create_model(provider: str, model_name: str, **kwargs) -> Model:
         # Usar o modelo OpenAI padrão da AGNO
         from agno.models.openai import OpenAIChat
         return OpenAIChat(id=model_name, **kwargs)
+    elif provider.lower() == 'ollama':
+        return OllamaModel(id=model_name, **kwargs)
     else:
-        raise ValueError(f"Provedor não suportado: {provider}. Use 'openai' ou 'claude'.")
+        raise ValueError(f"Provedor não suportado: {provider}. Use 'openai', 'claude' ou 'ollama'.")
 
 
 # Modelos pré-configurados para conveniência
@@ -367,6 +519,26 @@ OPENAI_MODELS = {
     "o3-mini": "o3-mini",
 }
 
+
+def _fetch_ollama_models() -> Dict[str, str]:
+    base_url = (settings.ollama_base_url or "http://localhost:11434").rstrip("/")
+    try:
+        response = requests.get(f"{base_url}/api/tags", timeout=5)
+        response.raise_for_status()
+        data = response.json() or {}
+        models = {}
+        for model in data.get("models", []):
+            name = model.get("name")
+            if name:
+                models[name] = name
+        return models
+    except Exception as exc:
+        logger.debug("Não foi possível listar modelos do Ollama em %s: %s", base_url, exc)
+        default = settings.ollama_default_model
+        if default:
+            return {default: default}
+        return {}
+
 def get_available_models() -> Dict[str, Dict[str, str]]:
     """
     Retorna todos os modelos disponíveis organizados por provedor.
@@ -377,4 +549,5 @@ def get_available_models() -> Dict[str, Dict[str, str]]:
     return {
         "claude": CLAUDE_MODELS,
         "openai": OPENAI_MODELS,
+        "ollama": _fetch_ollama_models(),
     } 
