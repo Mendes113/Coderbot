@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+                import { useEffect, useRef, useState } from "react";
 import { chatService } from "@/services/chat-service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { MessageSquarePlus, Edit2, Check, Clock, Search, MoreVertical, Trash2, PenLine } from "lucide-react";
+import { MessageSquarePlus, Edit2, Check, Clock, Search, MoreVertical, Trash2, PenLine, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { SessionInfo } from "@/components/chat/SessionSelector";
 import { useTranslation } from "react-i18next";
@@ -34,6 +34,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   onSessionChange,
   onNewSession
 }) => {
+  const sidebarRef = useRef<HTMLDivElement>(null);
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
@@ -42,11 +43,54 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [newSessionTitle, setNewSessionTitle] = useState("Nova Conversa");
   const [showNewSessionDialog, setShowNewSessionDialog] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const { t } = useTranslation();
+  const COLLAPSED_WIDTH = 72;
+  const EXPANDED_WIDTH = 320;
 
   useEffect(() => {
     loadSessions();
   }, [currentSessionId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem("sessionSidebarCollapsed");
+    if (stored !== null) {
+      setIsCollapsed(stored === "true");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("sessionSidebarCollapsed", String(isCollapsed));
+  }, [isCollapsed]);
+
+  useEffect(() => {
+    const parent = sidebarRef.current?.parentElement;
+    if (!parent) {
+      return;
+    }
+
+    const width = `${isCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH}px`;
+
+    parent.style.width = width;
+    parent.style.minWidth = width;
+    parent.style.maxWidth = width;
+    parent.style.flexBasis = width;
+
+    return () => {
+      parent.style.width = "";
+      parent.style.minWidth = "";
+      parent.style.maxWidth = "";
+      parent.style.flexBasis = "";
+    };
+  }, [isCollapsed, COLLAPSED_WIDTH, EXPANDED_WIDTH]);
+
+  useEffect(() => {
+    if (isCollapsed) {
+      setEditingSessionId(null);
+    }
+  }, [isCollapsed]);
 
   const loadSessions = async () => {
     try {
@@ -120,32 +164,74 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
     (session.title || "Conversa sem título").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const collapseLabel = isCollapsed ? t('sidebar.expandSidebar') : t('sidebar.collapseSidebar');
+
+  const sessionInitial = (title?: string) => {
+    const base = (title && title.trim()) || t('sidebar.untitled');
+    const initial = base.charAt(0);
+    return (initial ? initial.toUpperCase() : '?');
+  };
+
   return (
-    <div className="flex flex-col h-full w-full border-r bg-background/70 backdrop-blur-sm edu-shadow-sm">
-      <div className="flex-shrink-0 p-4 border-b edu-card">
-        <h2 className="edu-text-body font-semibold mb-3">{t('sidebar.yourConversations')}</h2>
-        <div className="relative mb-4">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t('sidebar.searchPlaceholder')}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 rounded-lg"
-          />
+    <div
+      ref={sidebarRef}
+      data-collapsed={isCollapsed}
+      className={`flex flex-col h-full w-full border-r bg-background/70 backdrop-blur-sm edu-shadow-sm transition-[padding] duration-300 ${isCollapsed ? 'pt-4 pb-6 px-2' : ''}`}
+    >
+      <div className={`flex-shrink-0 ${isCollapsed ? 'px-1' : 'p-4'} border-b edu-card transition-[padding] duration-300`}
+      >
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} gap-2`}
+        >
+          {!isCollapsed && (
+            <h2 className="edu-text-body font-semibold mb-0">{t('sidebar.yourConversations')}</h2>
+          )}
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => setIsCollapsed(prev => !prev)}
+            aria-label={collapseLabel}
+            title={collapseLabel}
+            className="h-8 w-8 shrink-0"
+          >
+            {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </Button>
         </div>
-        <div className="flex gap-2">
+
+        {!isCollapsed && (
+          <div className="relative mt-4 mb-4">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder={t('sidebar.searchPlaceholder')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 rounded-lg"
+            />
+          </div>
+        )}
+
+        <div className={`${isCollapsed ? 'flex flex-col items-center gap-2 py-2' : 'flex gap-2'}`}>
           <Button
             onClick={onNewSession}
             variant="edu-light"
-            className="flex-1 flex items-center justify-center gap-2"
+            size={isCollapsed ? "icon" : undefined}
+            className={isCollapsed ? "h-10 w-10 rounded-full" : "flex-1 flex items-center justify-center gap-2"}
+            title={t('sidebar.newConversation')}
+            aria-label={t('sidebar.newConversation')}
           >
             <MessageSquarePlus size={16} />
-            {t('sidebar.newConversation')}
+            {!isCollapsed && t('sidebar.newConversation')}
           </Button>
           <Dialog open={showNewSessionDialog} onOpenChange={setShowNewSessionDialog}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="flex items-center justify-center rounded-lg">
+              <Button
+                variant={isCollapsed ? "ghost" : "outline"}
+                size={isCollapsed ? "icon" : undefined}
+                className={isCollapsed ? "h-10 w-10 rounded-full" : "flex items-center justify-center rounded-lg"}
+                title={t('sidebar.newConversationTitle')}
+                aria-label={t('sidebar.newConversationTitle')}
+              >
                 <PenLine size={16} />
+                {!isCollapsed && <span className="sr-only">{t('sidebar.newConversationTitle')}</span>}
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -173,7 +259,8 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 edu-scroll">
+      <div className={`flex-1 overflow-y-auto ${isCollapsed ? 'p-2' : 'p-3'} edu-scroll transition-[padding] duration-300`}
+      >
         {loading ? (
           <p className="text-center py-4 text-muted-foreground">{t('sidebar.loading')}</p>
         ) : filteredSessions.length === 0 ? (
@@ -192,11 +279,12 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
                 exit={{ scale: 0.96, opacity: 0, y: 16, transition: { duration: 0.2 } }}
                 transition={{ layout: { type: 'spring', bounce: 0.25, duration: 0.45 } }}
                 onClick={() => onSessionChange(session.id)}
+                title={session.title || t('sidebar.untitled')}
                 className={`p-2.5 rounded-lg hover:bg-accent/60 cursor-pointer transition-colors group ${
                   session.id === currentSessionId ? 'bg-accent' : ''
-                }`}
+                } ${isCollapsed ? 'flex items-center justify-center' : ''}`}
               >
-                {editingSessionId === session.id ? (
+                {editingSessionId === session.id && !isCollapsed ? (
                   <div className="flex items-center gap-2">
                     <Input
                       value={editTitle}
@@ -223,48 +311,55 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between">
-                    <div className="truncate flex-1">
-                      <p className="font-medium text-sm truncate">
-                        {session.title || t('sidebar.untitled')}
-                      </p>
-                      <div className="flex items-center text-xs text-muted-foreground">
-                        <Clock size={12} className="mr-1" />
-                        {new Date(session.created).toLocaleDateString()}
+                  <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} gap-2 w-full`}>
+                    {isCollapsed ? (
+                      <div className="flex items-center justify-center h-8 w-8 rounded-full bg-accent/60 text-sm font-medium text-primary-foreground">
+                        {sessionInitial(session.title)}
                       </div>
-                    </div>
-                    
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100"
-                        >
-                          <MoreVertical size={14} />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={(e) => {
-                          e.stopPropagation();
-                          startEditing(session, e);
-                        }}>
-                          <Edit2 size={14} className="mr-2" />
-                          {t('sidebar.rename')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className="text-destructive focus:text-destructive"
-                          onClick={(e) => {
+                    ) : (
+                      <div className="truncate flex-1">
+                        <p className="font-medium text-sm truncate">
+                          {session.title || t('sidebar.untitled')}
+                        </p>
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <Clock size={12} className="mr-1" />
+                          {new Date(session.created).toLocaleDateString()}
+                        </div>
+                      </div>
+                    )}
+                    {!isCollapsed && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100"
+                          >
+                            <MoreVertical size={14} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={(e) => {
                             e.stopPropagation();
-                            setSessionToDelete(session.id);
-                          }}
-                        >
-                          <Trash2 size={14} className="mr-2" />
-                          {t('sidebar.delete')}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                            startEditing(session, e);
+                          }}>
+                            <Edit2 size={14} className="mr-2" />
+                            {t('sidebar.rename')}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="text-destructive focus:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSessionToDelete(session.id);
+                            }}
+                          >
+                            <Trash2 size={14} className="mr-2" />
+                            {t('sidebar.delete')}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                 )}
               </motion.div>
