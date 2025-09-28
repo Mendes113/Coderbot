@@ -16,6 +16,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from enum import Enum
 from app.services.prompt_loader import PromptLoader
+from app.services.template_service import TemplateContext, TemplateRenderResult, UnifiedTemplateService
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,7 @@ class EducationalMethodologyService:
             prompt_loader: Instância do PromptLoader para carregar templates do PocketBase
         """
         self.prompt_loader = prompt_loader
+        self.template_service = UnifiedTemplateService(prompt_loader)
     
     async def apply_methodology(
         self,
@@ -69,127 +71,90 @@ class EducationalMethodologyService:
         user_profile = user_profile or {}
         additional_params = additional_params or {}
         
-        # Obter o template específico para a metodologia
-        template = self.prompt_loader.get_prompt(
-            methodology=methodology_type.value,
-            name=additional_params.get("prompt_name")
+        template_context = TemplateContext(
+            user_query=user_query,
+            context_history=context_history,
+            knowledge_base=knowledge_base,
+            difficulty_level=user_profile.get("difficulty_level", "intermediate"),
+            baseKnowledge=user_profile.get("baseKnowledge", ""),
+            learning_progress=user_profile.get("learning_progress", ""),
+            style_preference=user_profile.get("style_preference", "balanced"),
+            subject_area=user_profile.get("subject_area", "programação"),
+            extras=additional_params,
         )
-        
-        if not template:
-            logger.warning(f"Template não encontrado para metodologia: {methodology_type.value}")
-            
-            # Log adicional específico para worked_examples dado o problema reportado
-            if methodology_type.value == 'worked_examples':
-                logger.error("ERRO CRÍTICO: Template worked_examples não encontrado apesar de existir no banco.")
-                # Verificar diretamente os templates no banco de dados
-                try:
-                    # Uma abordagem alternativa para buscar o template worked_examples
-                    import os
-                    from pocketbase import PocketBase
-                    pb_url = os.getenv("POCKETBASE_URL")
-                    pb_client = PocketBase(pb_url)
-                    records = pb_client.collection("dynamic_prompts").get_list(
-                        page=1, 
-                        per_page=100, 
-                        query_params={"filter": 'methodology="worked_examples" && is_active=true'}
-                    ).items
-                    
-                    logger.info(f"Status: {200 if records else 404}")
-                    logger.info(f"Templates encontrados: {len(records)}")
-                    
-                    if records:
-                        # Usar o primeiro template disponível
-                        template = records[0].template
-                        logger.info("Template worked_examples recuperado por método alternativo")
-                        return template
-                except Exception as e:
-                    logger.error(f"Erro ao tentar recuperar template por método alternativo: {e}")
-            
-            # Fallback para template padrão
-            template = self.prompt_loader.get_prompt(methodology=MethodologyType.DEFAULT.value)
-            if not template:
-                # Se ainda não encontrar, use um template básico
-                template = "Responda à seguinte pergunta: {user_query}"
-        
-        # Preparação de dados para formatar o prompt
-        prompt_data = {
-            "user_query": user_query,
-            "context_history": context_history,
-            "knowledge_base": knowledge_base,
-            # Dados do perfil do usuário
-            "difficulty_level": user_profile.get("difficulty_level", "intermediate"),
-            "baseKnowledge": user_profile.get("baseKnowledge", ""),
-            "learning_progress": user_profile.get("learning_progress", ""),
-            "style_preference": user_profile.get("style_preference", "balanced"),
-            "subject_area": user_profile.get("subject_area", "programming"),
+
+        render_result = self.template_service.render(methodology_type.value, template_context)
+        metadata = self._build_methodology_metadata(
+            methodology_type,
+            user_profile,
+            additional_params,
+            render_result,
+        )
+
+        return {
+            "formatted_prompt": render_result.prompt,
+            "metadata": metadata,
         }
-        
-        # Adiciona quaisquer parâmetros adicionais como dados do prompt
-        prompt_data.update(additional_params)
-        
-        # Formata o template com os dados
-        final_prompt = self.prompt_loader.format_prompt(template, prompt_data)
-        
-        # Processamento específico para cada metodologia
-        return await self._process_methodology_specific(
-            methodology_type, 
-            final_prompt, 
-            user_profile, 
-            additional_params
-        )
     
-    async def _process_methodology_specific(
+    def _build_methodology_metadata(
         self,
         methodology_type: MethodologyType,
-        formatted_prompt: str,
         user_profile: Dict[str, Any],
-        additional_params: Dict[str, Any]
+        additional_params: Dict[str, Any],
+        render_result: TemplateRenderResult,
     ) -> Dict[str, Any]:
-        """
-        Aplica processamento específico para cada metodologia.
-        
-        Args:
-            methodology_type: O tipo de metodologia
-            formatted_prompt: O prompt já formatado
-            user_profile: Perfil do usuário
-            additional_params: Parâmetros adicionais
-            
-        Returns:
-            Dicionário com prompt e metadados para a LLM
-        """
-        result = {
-            "formatted_prompt": formatted_prompt,
-            "metadata": {
-                "methodology": methodology_type.value,
-            }
+        """Compose metadata describing how the template should be used downstream."""
+
+        metadata: Dict[str, Any] = {
+            "methodology": methodology_type.value,
+            "required_sections": render_result.required_sections,
+            "research_tags": render_result.research_tags,
+            "template_version": self.prompt_loader.get_template_version(),
+            "placeholders": render_result.context_data,
+            "user_profile_snapshot": user_profile,
+            "generation_parameters": additional_params,
         }
-        
-        # Ajustes específicos por metodologia
+
         if methodology_type == MethodologyType.SEQUENTIAL_THINKING:
-            result["metadata"]["thinking_steps"] = additional_params.get("thinking_steps", 3)
-            result["metadata"]["show_steps"] = additional_params.get("show_steps", True)
-            
+            metadata.update(
+                {
+                    "thinking_steps": additional_params.get("thinking_steps", 3),
+                    "show_steps": additional_params.get("show_steps", True),
+                }
+            )
         elif methodology_type == MethodologyType.ANALOGY:
-            result["metadata"]["domain"] = user_profile.get("baseKnowledge", "")
-            result["metadata"]["use_analogies"] = True
-            
+            metadata.update(
+                {
+                    "domain": user_profile.get("baseKnowledge", ""),
+                    "use_analogies": True,
+                }
+            )
         elif methodology_type == MethodologyType.SOCRATIC:
-            result["metadata"]["question_depth"] = additional_params.get("question_depth", 2)
-            
+            metadata.update(
+                {
+                    "question_depth": additional_params.get("question_depth", 2),
+                    "use_questions_only": True,
+                }
+            )
         elif methodology_type == MethodologyType.SCAFFOLDING:
-            result["metadata"]["scaffolding_level"] = user_profile.get("learning_progress", "intermediate")
-            
+            metadata.update(
+                {
+                    "scaffolding_level": user_profile.get("learning_progress", "intermediate"),
+                    "graduated_support": True,
+                }
+            )
         elif methodology_type == MethodologyType.WORKED_EXAMPLES:
-            result["metadata"]["example_phases"] = additional_params.get("example_phases", 6)
-            result["metadata"]["cognitive_load_management"] = True
-            result["metadata"]["step_by_step_demo"] = additional_params.get("step_by_step_demo", True)
-            result["metadata"]["error_examples"] = additional_params.get("error_examples", True)
-            result["metadata"]["use_json_structure"] = False  # Usa estrutura de seções amigáveis
-            result["metadata"]["required_keys"] = [
-                "description", "result", "extra", "problemWECorrect", "problemWEIncorrect"
-            ]
-        
-        return result
+            metadata.update(
+                {
+                    "example_phases": additional_params.get("example_phases", 6),
+                    "cognitive_load_management": True,
+                    "step_by_step_demo": additional_params.get("step_by_step_demo", True),
+                    "error_examples": additional_params.get("error_examples", True),
+                    "quiz_required": True,
+                }
+            )
+
+        return metadata
     
     def get_available_methodologies(self) -> List[Dict[str, Any]]:
         """

@@ -70,6 +70,33 @@ export default function Auth() {
             <AuthForm isLoading={isLoading} setIsLoading={setIsLoading} />
           </div>
 
+          {/* Consent term summary */}
+          <section className="mt-6 space-y-3 rounded-2xl border border-slate-200/60 bg-white p-5 text-sm shadow-md dark:border-white/10 dark:bg-white/5 dark:text-white/80">
+            <h2 className="text-base font-semibold text-slate-900 dark:text-white">
+              Termo de Consentimento para Uso de Cookies e Dados Analíticos
+            </h2>
+            <p>
+              O CoderBot utiliza cookies analíticos opcionais para entender como a plataforma é utilizada
+              e aprimorar a experiência de aprendizagem. Esses dados são anonimizados e utilizados apenas
+              para fins estatísticos.
+            </p>
+            <ul className="list-disc space-y-1 pl-5 text-xs text-slate-600 dark:text-white/70">
+              <li>Você pode aceitar ou recusar a coleta quando o aviso aparecer na plataforma.</li>
+              <li>Caso recuse, nenhuma métrica de uso será registrada pelo PostHog.</li>
+              <li>Você pode alterar sua decisão a qualquer momento nas configurações do navegador.</li>
+            </ul>
+            <p className="text-xs text-slate-500 dark:text-white/60">
+              Saiba mais consultando nosso {""}
+              <a href="/consent" className="underline underline-offset-4">
+                Termo de Consentimento completo
+              </a>{" "}
+              e a {""}
+              <a href="/privacy" className="underline underline-offset-4">
+                Política de Privacidade
+              </a>.
+            </p>
+          </section>
+
           {/* Footer microcopy */}
           <p className="mt-6 text-center text-xs text-muted-foreground dark:text-white/60">
             Ao continuar, você concorda com nossos

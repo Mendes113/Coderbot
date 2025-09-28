@@ -2,11 +2,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import React, { Suspense, useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import React, { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { pb } from "@/integrations/pocketbase/client";
 import posthog from "posthog-js";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AnalyticsConsentBanner } from "@/components/consent/AnalyticsConsentBanner";
+import { ConsentStatus, consentStorageKey, getAnalyticsConsent, setAnalyticsConsent } from "@/lib/analytics-consent";
 // import { CodeEditorProvider } from "@/context/CodeEditorContext";
 
 // Lazy loading otimizado com preload para rotas críticas
@@ -26,96 +28,143 @@ const NotesPage = React.lazy(() => import("./pages/NotesPage"));
 const queryClient = new QueryClient();
 
 const App = () => {
-  useEffect(() => {
-    const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY || import.meta.env.VITE_POSTHOG_KEY;
-    const posthogHost = import.meta.env.VITE_PUBLIC_POSTHOG_HOST || import.meta.env.VITE_POSTHOG_HOST || "https://us.i.posthog.com";
+  const [consentStatus, setConsentStatus] = useState<ConsentStatus>(() => getAnalyticsConsent());
+  const analyticsInitRef = useRef(false);
 
-    // Debug environment presence
+  const resetAnalytics = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    posthog?.opt_out_capturing?.();
+    posthog?.reset?.();
+    try {
+      delete (window as any).posthog;
+    } catch (_) {
+      (window as any).posthog = undefined;
+    }
+    analyticsInitRef.current = false;
+  }, []);
+
+  const initializeAnalytics = useCallback(() => {
+    if (analyticsInitRef.current) return;
+    if (typeof window === 'undefined') return;
+
+    const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY || import.meta.env.VITE_POSTHOG_KEY;
+    const posthogHost = import.meta.env.VITE_PUBLIC_POSTHOG_HOST || import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com';
+
     console.info('[Analytics] PostHog env', { hasKey: Boolean(posthogKey), host: posthogHost });
 
-    if (posthogKey) {
-      posthog.init(posthogKey, {
-        api_host: posthogHost,
-        capture_pageview: false,
-        autocapture: true,
-        disable_session_recording: true,
-        debug: true,
-        request_batching: false,
-      });
+    if (!posthogKey) return;
 
-      // Expose globally for manual debug and log every capture
-      (window as any).posthog = posthog;
-      const __originalCapture = (posthog.capture as any)?.bind?.(posthog);
-      if (__originalCapture) {
-        (posthog as any).capture = (event: string, props?: Record<string, any>) => {
-          console.debug('[Analytics][capture]', event, props);
-          return __originalCapture(event, props);
-        };
-      }
+    analyticsInitRef.current = true;
 
-      // Emit a boot event for verification
-      posthog.capture('edu_debug_boot', { path: window.location.pathname });
+    posthog.init(posthogKey, {
+      api_host: posthogHost,
+      capture_pageview: false,
+      autocapture: true,
+      disable_session_recording: true,
+      debug: true,
+      request_batching: false,
+    });
 
-      const userModel = pb.authStore.model as any;
-      const userId = userModel?.id;
-      if (userId) {
-        posthog.identify(userId, {
-          role: userModel?.role ?? undefined,
-        });
-      }
+    (window as any).posthog = posthog;
 
-      // --- Web Vitals (via CDN) ---
-      const loadWebVitalsScript = (): Promise<void> => {
-        return new Promise((resolve, reject) => {
-          if ((window as any).webVitals) return resolve();
-          const s = document.createElement('script');
-          s.src = 'https://unpkg.com/web-vitals@3/dist/web-vitals.iife.js';
-          s.async = true;
-          s.onload = () => resolve();
-          s.onerror = () => reject(new Error('web-vitals load error'));
-          document.head.appendChild(s);
-        });
+    const __originalCapture = (posthog.capture as any)?.bind?.(posthog);
+    if (__originalCapture) {
+      (posthog as any).capture = (event: string, props?: Record<string, any>) => {
+        console.debug('[Analytics][capture]', event, props);
+        return __originalCapture(event, props);
       };
-
-      (async () => {
-        try {
-          await loadWebVitalsScript();
-          const wv = (window as any).webVitals;
-          if (!wv) {
-            console.warn('[Analytics][web-vitals] Not available after load');
-            return;
-          }
-          console.info('[Analytics][web-vitals] Ready');
-          const nav = performance.getEntriesByType('navigation')[0] as any;
-          const send = (metric: any) => {
-            try {
-              console.debug('[Analytics][web-vitals][report]', metric?.name, metric?.value, metric);
-              posthog.capture('$web_vitals', {
-                metric_name: metric?.name,
-                value: metric?.value,
-                delta: metric?.delta,
-                id: metric?.id,
-                rating: metric?.rating,
-                path: window.location.pathname,
-                navigation_type: nav?.type,
-              });
-            } catch (e) {
-              console.warn('[Analytics][web-vitals] capture failed', e);
-            }
-          };
-          wv.onCLS?.(send, { reportAllChanges: true });
-          wv.onFID?.(send);
-          wv.onLCP?.(send);
-          wv.onTTFB?.(send);
-          wv.onINP?.(send, { reportAllChanges: true });
-          wv.onFCP?.(send);
-        } catch (e) {
-          console.warn('[Analytics] Web Vitals load failed', e);
-        }
-      })();
-      // --- end Web Vitals ---
     }
+
+    posthog.capture('edu_debug_boot', { path: window.location.pathname });
+
+    const userModel = pb.authStore.model as any;
+    const userId = userModel?.id;
+    if (userId) {
+      posthog.identify(userId, {
+        role: userModel?.role ?? undefined,
+      });
+    }
+
+    const loadWebVitalsScript = (): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        if ((window as any).webVitals) return resolve();
+        const s = document.createElement('script');
+        s.src = 'https://unpkg.com/web-vitals@3/dist/web-vitals.iife.js';
+        s.async = true;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('web-vitals load error'));
+        document.head.appendChild(s);
+      });
+    };
+
+    (async () => {
+      try {
+        await loadWebVitalsScript();
+        const wv = (window as any).webVitals;
+        if (!wv) {
+          console.warn('[Analytics][web-vitals] Not available after load');
+          return;
+        }
+        console.info('[Analytics][web-vitals] Ready');
+        const nav = performance.getEntriesByType('navigation')[0] as any;
+        const send = (metric: any) => {
+          try {
+            console.debug('[Analytics][web-vitals][report]', metric?.name, metric?.value, metric);
+            posthog.capture('$web_vitals', {
+              metric_name: metric?.name,
+              value: metric?.value,
+              delta: metric?.delta,
+              id: metric?.id,
+              rating: metric?.rating,
+              path: window.location.pathname,
+              navigation_type: nav?.type,
+            });
+          } catch (e) {
+            console.warn('[Analytics][web-vitals] capture failed', e);
+          }
+        };
+        wv.onCLS?.(send, { reportAllChanges: true });
+        wv.onFID?.(send);
+        wv.onLCP?.(send);
+        wv.onTTFB?.(send);
+        wv.onINP?.(send, { reportAllChanges: true });
+        wv.onFCP?.(send);
+      } catch (e) {
+        console.warn('[Analytics] Web Vitals load failed', e);
+      }
+    })();
   }, []);
+
+  useEffect(() => {
+    if (consentStatus === 'granted') {
+      initializeAnalytics();
+      posthog?.opt_in_capturing?.();
+    } else if (consentStatus === 'denied') {
+      resetAnalytics();
+    }
+  }, [consentStatus, initializeAnalytics, resetAnalytics]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== consentStorageKey) return;
+      const nextStatus = event.newValue === 'granted' || event.newValue === 'denied' ? (event.newValue as ConsentStatus) : 'unknown';
+      setConsentStatus(nextStatus);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  const handleConsentAccept = useCallback(() => {
+    setAnalyticsConsent('granted');
+    setConsentStatus('granted');
+  }, []);
+
+  const handleConsentDecline = useCallback(() => {
+    setAnalyticsConsent('denied');
+    setConsentStatus('denied');
+    resetAnalytics();
+  }, [resetAnalytics]);
 
   return (
     <ErrorBoundary>
@@ -124,8 +173,13 @@ const App = () => {
           {/* <CodeEditorProvider> */}
             <Toaster />
             <Sonner />
+            <AnalyticsConsentBanner
+              open={consentStatus === 'unknown'}
+              onAccept={handleConsentAccept}
+              onDecline={handleConsentDecline}
+            />
             <BrowserRouter>
-              <AnalyticsTracker />
+              <AnalyticsTracker enabled={consentStatus === 'granted'} />
               <Suspense fallback={
                 <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
                   <div className="text-center">
@@ -165,17 +219,19 @@ const App = () => {
 
 export default App;
 
-const AnalyticsTracker = () => {
+const AnalyticsTracker = ({ enabled }: { enabled: boolean }) => {
   const location = useLocation();
 
   useEffect(() => {
+    if (!enabled) return;
     if (posthog && typeof posthog.capture === 'function') {
       console.debug('[Analytics][$pageview]', { path: location.pathname });
       posthog.capture('$pageview', { path: location.pathname });
     }
-  }, [location.pathname]);
+  }, [location.pathname, enabled]);
 
   useEffect(() => {
+    if (!enabled) return;
     const handleVisibility = () => {
       const eventName = document.visibilityState === 'visible' ? 'edu_app_focus' : 'edu_app_blur';
       if (posthog && typeof posthog.capture === 'function') {
@@ -190,7 +246,7 @@ const AnalyticsTracker = () => {
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, []); // Remove location.pathname para evitar recriação desnecessária do listener
+  }, [enabled, location.pathname]);
 
   return null;
 };

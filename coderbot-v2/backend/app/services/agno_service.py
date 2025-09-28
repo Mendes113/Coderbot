@@ -4,7 +4,7 @@ Serviço específico para o sistema AGNO (Adaptive Generation of Worked Examples
 Este serviço atua como uma camada simplificada sobre o agno_methodology_service,
 fornecendo funcionalidades específicas para o uso em APIs e interfaces.
 
-Agora com suporte para múltiplos provedores de IA (OpenAI e Claude).
+Agora com suporte para múltiplos provedores de IA (OpenAI, Claude e Ollama).
 """
 
 from typing import Optional, Dict, Any, List
@@ -25,7 +25,7 @@ class AgnoService:
     
     Este serviço atua como uma facade para o AgnoMethodologyService,
     fornecendo métodos mais específicos para diferentes casos de uso.
-    Agora com suporte completo para múltiplos provedores de IA.
+    Agora com suporte completo para múltiplos provedores de IA, incluindo modelos locais via Ollama.
     """
     
     def __init__(self, model_id: str = "gpt-4o", provider: Optional[str] = None):
@@ -34,7 +34,7 @@ class AgnoService:
         
         Args:
             model_id: ID do modelo a ser usado (padrão: gpt-4o)
-            provider: Provedor do modelo ('openai' ou 'claude'). 
+            provider: Provedor do modelo ('openai', 'claude' ou 'ollama'). 
                      Se não especificado, será auto-detectado baseado no model_id
         """
         self.methodology_service = AgnoMethodologyService(model_id, provider)
@@ -47,6 +47,8 @@ class AgnoService:
         if not class_id:
             return
         provider = (self.methodology_service.provider or "").lower()
+        if provider == "ollama":
+            return
         candidates = [provider] if provider in ("claude", "openai") else ["claude", "openai"]
         for prov in candidates:
             key = pb_service.get_class_api_key(class_id, prov)
@@ -258,7 +260,7 @@ class AgnoService:
         Retorna modelos disponíveis para um provedor específico.
         
         Args:
-            provider: Nome do provedor ('openai' ou 'claude')
+            provider: Nome do provedor ('openai', 'claude' ou 'ollama')
             
         Returns:
             List[str]: Lista de modelos disponíveis

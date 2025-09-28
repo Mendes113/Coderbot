@@ -5,7 +5,8 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus, vs } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useState } from "react";
 import { XMLRenderer } from "./XMLRenderer";
-
+// logo
+import logo from '/public/coderbot2.png';
 type ChatMessageProps = {
   content: string;
   isAi: boolean;
@@ -75,12 +76,12 @@ export const ChatMessage = ({ content, isAi, timestamp }: ChatMessageProps) => {
           )}
         >
           {isAi ? (
-            <Bot className="icon-bot h-4 w-4 text-white animate-subtle-pulse hover:animate-gentle-float transition-all duration-300" />
+            <img src={logo} alt="Coderbot" className="icon-bot h-10 w-10 text-white animate-subtle-pulse hover:animate-gentle-float transition-all duration-300" />
           ) : (
             <User className="icon-user h-4 w-4 text-gray-100 hover:text-white transition-all duration-300 hover:scale-110 animate-rotate-gently" />
           )}
         </div>
-        <span className={cn("ml-2 font-semibold text-sm", isAi ? "text-white" : "text-gray-100")}>{isAi ? "Assistente IA" : "Você"}</span>
+        <span className={cn("ml-2 font-semibold text-sm", isAi ? "text-white" : "text-gray-100")}>{isAi ? "Coderbot" : "Você"}</span>
         <span className="ml-auto text-xs text-muted-foreground">
           {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
