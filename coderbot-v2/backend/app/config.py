@@ -3,32 +3,37 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Configurações do DeepSeek
-    deep_seek_api_key: str = Field(..., env="DEEP_SEEK_API_KEY")
+    deep_seek_api_key: str = Field("", env="DEEP_SEEK_API_KEY")
     deep_seek_api_url: str = Field("https://api.deepseek.com/v1", env="DEEP_SEEK_API_URL")
 
     # Configurações do Supabase
-    supabase_url: str = Field(..., env="SUPABASE_URL")
-    supabase_key: str = Field(..., env="SUPABASE_KEY")
+    supabase_url: str = Field("", env="SUPABASE_URL")
+    supabase_key: str = Field("", env="SUPABASE_KEY")
 
     # Configuração do PocketBase
-    pocketbase_url: str = Field(..., env="POCKETBASE_URL")
-    pocketbase_user_email: str = Field(..., env="POCKETBASE_USER_EMAIL")
-    pocketbase_user_password: str = Field(..., env="POCKETBASE_USER_PASSWORD")
+    pocketbase_url: str = Field("", env="POCKETBASE_URL")
+    pocketbase_user_email: str = Field("", env="POCKETBASE_USER_EMAIL")
+    pocketbase_user_password: str = Field("", env="POCKETBASE_USER_PASSWORD")
     
     # Configurações de administrador do PocketBase (para gerenciamento de prompts)
-    pocketbase_admin_email: str = Field(..., env="POCKETBASE_ADMIN_EMAIL")
-    pocketbase_admin_password: str = Field(..., env="POCKETBASE_ADMIN_PASSWORD")
+    pocketbase_admin_email: str = Field("", env="POCKETBASE_ADMIN_EMAIL")
+    pocketbase_admin_password: str = Field("", env="POCKETBASE_ADMIN_PASSWORD")
     
     # Configurações de Providers de IA
-    open_ai_api_key: str = Field(..., env="OPEN_AI_API_KEY")
+    open_ai_api_key: str = Field("", env="OPEN_AI_API_KEY")
     openai_api_url: str = Field("https://api.openai.com/v1", env="OPENAI_API_URL")
     
     # Configuração do Claude (Anthropic)
     claude_api_key: str = Field("", env="CLAUDE_API_KEY")
     claude_api_url: str = Field("https://api.anthropic.com", env="CLAUDE_API_URL")
 
+    # Configuração do Ollama (modelo local)
+    ollama_base_url: str = Field("http://localhost:11434", env="OLLAMA_BASE_URL")
+    ollama_default_model: str = Field("llama3.1", env="OLLAMA_DEFAULT_MODEL")
+    ollama_timeout_seconds: float = Field(120.0, env="OLLAMA_TIMEOUT_SECONDS")
+
     # Outros
-    rapidapi_key: str = Field(..., env="RAPIDAPI_KEY")
+    rapidapi_key: str = Field("", env="RAPIDAPI_KEY")
 
     class Config:
         env_file = ".env"

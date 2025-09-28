@@ -22,6 +22,7 @@ from datetime import datetime
 from app.services.pocketbase_service import pb_service
 from app.models.adaptive_models import LearningSession
 
+from app.config import settings
 from app.services.agno_methodology_service import (
     AgnoMethodologyService,
     MethodologyType,
@@ -141,15 +142,18 @@ class HealthResponse(BaseModel):
 # --- Dependências ---
 
 def get_agno_service(
-    provider: Optional[str] = Query(default="claude", description="Provedor de IA (claude ou openai)"),
+    provider: Optional[str] = Query(default="claude", description="Provedor de IA (claude, openai ou ollama)"),
     model_id: Optional[str] = Query(default=None, description="ID do modelo específico")
 ) -> AgnoMethodologyService:
     """Cria e retorna uma instância do serviço AGNO."""
     # Mapear modelos padrão por provedor
     default_models = {
         "claude": "claude-3-5-sonnet-20241022",
-        "openai": "gpt-4o"
+        "openai": "gpt-4o",
+        "ollama": settings.ollama_default_model or "llama3.1",
     }
+    provider_key = (provider or "claude").lower()
+    provider = provider_key
     
     # Se model_id não foi especificado, usar o padrão do provedor
     if not model_id:

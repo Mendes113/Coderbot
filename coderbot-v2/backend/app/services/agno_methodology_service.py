@@ -138,11 +138,13 @@ class AgnoMethodologyService:
         
         Args:
             model_id: ID do modelo a ser usado (padrão: gpt-4o)
-            provider: Provedor do modelo ('openai' ou 'claude'). 
+            provider: Provedor do modelo ('openai', 'claude' ou 'ollama'). 
                      Se não especificado, será auto-detectado baseado no model_id
         """
         self.model_id = model_id
         self.provider = provider or self._detect_provider(model_id)
+        self._claude_api_key = ""
+        self._ollama_base_url = settings.ollama_base_url
 
         self.logger = logger
         self.xml_validation_enabled = False  # XML desabilitado; usamos markdown-only
@@ -161,12 +163,16 @@ class AgnoMethodologyService:
             if key:
                 os.environ["ANTHROPIC_API_KEY"] = key
                 os.environ["CLAUDE_API_KEY"] = key
+                self._claude_api_key = key
                 masked = (f"{key[:6]}...{key[-4:]}" if len(key) >= 12 else "***")
                 self.logger.info(f"Chave Claude detectada e injetada (mascarada): {masked} | len={len(key)}")
             else:
                 self.logger.warning(
                     "CLAUDE_API_KEY/ANTHROPIC_API_KEY não configurado; chamadas ao Claude podem falhar (401)."
                 )
+        elif self.provider == "ollama":
+            self._ollama_base_url = (settings.ollama_base_url or "http://localhost:11434").rstrip("/")
+            self.logger.info("Configurando provedor Ollama com base_url=%s", self._ollama_base_url)
 
         
         # Carregar configuração de modelos
@@ -188,17 +194,23 @@ class AgnoMethodologyService:
             model_id: ID do modelo
             
         Returns:
-            str: Nome do provedor ('openai' ou 'claude')
+            str: Nome do provedor ('openai', 'claude' ou 'ollama')
         """
         if model_id.startswith('claude'):
             return 'claude'
         elif model_id.startswith(('gpt', 'o1', 'o3')):
             return 'openai'
+        elif model_id.startswith('ollama/') or model_id.startswith('ollama:'):
+            return 'ollama'
         else:
             # Verificar na configuração de modelos
             model_config = self._load_model_config()
             if model_id in model_config:
                 return model_config[model_id].get('provider', 'openai')
+
+            # Verificar se o modelo corresponde a algum disponível no Ollama
+            if model_id in get_available_models().get('ollama', {}):
+                return 'ollama'
             
             # Padrão para OpenAI se não conseguir detectar
             self.logger.warning(f"Não foi possível detectar provedor para {model_id}, usando OpenAI como padrão")
@@ -250,25 +262,29 @@ class AgnoMethodologyService:
         self.logger.info(f"Criando agente para provedor: {self.provider}, modelo: {self.model_id}")
         
         try:
+            model_kwargs: Dict[str, Any] = {}
+
             if self.provider == "claude":
-                # Usar modelo oficial do Agno para Claude
-                from agno.models.anthropic import Claude
-                # Resolve key the same way as during injection
-                raw_settings_key = settings.claude_api_key
-                raw_env_key_anthropic = os.environ.get("ANTHROPIC_API_KEY", "")
-                raw_env_key_claude = os.environ.get("CLAUDE_API_KEY", "")
-                key = (
-                    _sanitize_api_key(raw_settings_key)
-                    or _sanitize_api_key(raw_env_key_anthropic)
-                    or _sanitize_api_key(raw_env_key_claude)
-                )
-                model = Claude(id=self.model_id, api_key=key)  # passa a chave explicitamente
-                self.logger.info(f"Modelo Claude oficial {self.model_id} criado com sucesso")
-            else:
-                # Usar OpenAI para modelos OpenAI
-                from agno.models.openai import OpenAIChat
-                model = OpenAIChat(id=self.model_id)
-                self.logger.info(f"Modelo OpenAI {self.model_id} criado com sucesso")
+                if not self._claude_api_key:
+                    raw_settings_key = settings.claude_api_key
+                    raw_env_key_anthropic = os.environ.get("ANTHROPIC_API_KEY", "")
+                    raw_env_key_claude = os.environ.get("CLAUDE_API_KEY", "")
+                    self._claude_api_key = (
+                        _sanitize_api_key(raw_settings_key)
+                        or _sanitize_api_key(raw_env_key_anthropic)
+                        or _sanitize_api_key(raw_env_key_claude)
+                    )
+                if self._claude_api_key:
+                    model_kwargs["api_key"] = self._claude_api_key
+
+            if self.provider == "ollama":
+                model_kwargs.setdefault("base_url", self._ollama_base_url)
+                model_kwargs.setdefault("timeout", settings.ollama_timeout_seconds)
+
+            model = create_model(self.provider, self.model_id, **model_kwargs)
+            self.logger.info(
+                "Modelo %s/%s criado com sucesso", self.provider, self.model_id
+            )
             
             return Agent(
                 model=model,
@@ -289,7 +305,9 @@ class AgnoMethodologyService:
         Returns:
             List[str]: Lista de provedores suportados
         """
-        return ['openai', 'claude']
+        providers = ['openai', 'claude']
+        providers.append('ollama')
+        return providers
     
     def get_available_models_for_provider(self, provider: str) -> List[str]:
         """
@@ -330,12 +348,17 @@ class AgnoMethodologyService:
             Dict com informações do modelo atual
         """
         real_model_name = self._get_model_name(self.model_id)
+        supports_streaming = self.provider in {'openai', 'claude'}
+        max_tokens = 4096 if self.provider in {'openai', 'claude'} else None
+        if self.provider == 'ollama':
+            supports_streaming = False
+            max_tokens = None
         return {
             'model_id': self.model_id,
             'provider': self.provider,
             'real_model_name': real_model_name,
-            'supports_streaming': True,  # Ambos OpenAI e Claude suportam streaming
-            'max_tokens': 4096 if self.provider == 'claude' else 4096,  # Pode ser configurado
+            'supports_streaming': supports_streaming,
+            'max_tokens': max_tokens,
         }
 
     def _build_xml_prompt(self, config: Dict[str, Any]) -> str:

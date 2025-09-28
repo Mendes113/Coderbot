@@ -38,6 +38,7 @@ start = "uvicorn app.main:app --host 0.0.0.0 --port 8000"
 test = "pytest"
 lint = "black ."
 format = "black . && isort ."
+show-prompt = "python -m app.tools.show_prompt"
 
 [build-system]
 requires = ["pdm-backend"]
