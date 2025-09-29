@@ -23,10 +23,10 @@ RUN curl -L -o pocketbase.zip https://github.com/pocketbase/pocketbase/releases/
 RUN mkdir -p /pb/pb_data /pb/pb_migrations
 
 # Copiar migrações existentes
-COPY pocketbase_0.27.2_linux_amd64/pb_migrations/ /pb/pb_migrations/
+COPY pocketbase/pb_migrations/ /pb/pb_migrations/
 
 # Copiar dados existentes do PocketBase (se houver)
-COPY pocketbase_0.27.2_linux_amd64/pb_data/ /pb/pb_data/
+COPY pocketbase/pb_data/ /pb/pb_data/
 
 # Ajustar permissões dos dados
 RUN chmod -R 755 /pb/pb_data && \

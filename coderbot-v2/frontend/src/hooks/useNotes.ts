@@ -24,146 +24,290 @@ export interface NoteFilters {
 
 const STORAGE_KEY = 'educational-notes';
 
+type PocketBaseNoteRecord = {
+  id: string;
+  title?: string;
+  content?: string;
+  subject?: string | null;
+  tags?: string[] | null;
+  isFavorite?: boolean;
+  isPublic?: boolean;
+  userId?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  created?: string;
+  updated?: string;
+};
+
+type PersistedNoteRecord = {
+  id?: unknown;
+  title?: unknown;
+  content?: unknown;
+  subject?: unknown;
+  tags?: unknown;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+  isFavorite?: unknown;
+  isPublic?: unknown;
+  userId?: unknown;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseDate = (value?: string | null): Date => {
+  if (!value) {
+    return new Date();
+  }
+
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? new Date() : new Date(timestamp);
+};
+
+const deserializeNotes = (raw: unknown): Note[] => {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  return raw
+    .map((item) => {
+      if (!isRecord(item)) {
+        return null;
+      }
+
+      const record = item as PersistedNoteRecord;
+      const id = typeof record.id === 'string' ? record.id : crypto.randomUUID();
+      const title = typeof record.title === 'string' ? record.title : 'Nova anotação';
+      const content = typeof record.content === 'string' ? record.content : '';
+      const subject = typeof record.subject === 'string' ? record.subject : undefined;
+      const userId = typeof record.userId === 'string'
+        ? record.userId
+        : undefined;
+      const tags = Array.isArray(record.tags)
+        ? record.tags.map(tag => String(tag))
+        : [];
+
+      return {
+        id,
+        title,
+        content,
+        subject,
+        tags,
+        createdAt: parseDate(typeof record.createdAt === 'string' ? record.createdAt : typeof record.createdAt === 'string' ? record.createdAt : undefined),
+        updatedAt: parseDate(typeof record.updatedAt === 'string' ? record.updatedAt : typeof record.updatedAt === 'string' ? record.updatedAt : undefined),
+        isFavorite: record.isFavorite === true,
+        isPublic: record.isPublic === true,
+        userId,
+      } satisfies Note;
+    })
+    .filter((note): note is Note => Boolean(note));
+};
+
+const serializeNotes = (notesToPersist: Note[]): string =>
+  JSON.stringify(
+    notesToPersist.map(note => ({
+      ...note,
+      createdAt: note.createdAt.toISOString(),
+      updatedAt: note.updatedAt.toISOString(),
+    })),
+  );
+
+const mapPocketBaseRecordToNote = (record: PocketBaseNoteRecord): Note => ({
+  id: record.id,
+  title: record.title ?? 'Nova anotação',
+  content: record.content ?? '',
+  subject: record.subject ?? undefined,
+  tags: Array.isArray(record.tags) ? record.tags.map(tag => String(tag)) : [],
+  createdAt: parseDate(record.createdAt ?? record.created),
+  updatedAt: parseDate(record.updatedAt ?? record.updated),
+  isFavorite: Boolean(record.isFavorite),
+  isPublic: Boolean(record.isPublic),
+  userId: record.userId ?? undefined,
+});
+
+const buildPocketBasePayload = (note: Note, overrides?: Partial<Note>) => {
+  const source = { ...note, ...overrides };
+  return {
+    title: source.title,
+    content: source.content,
+    subject: source.subject ?? '',
+    tags: source.tags ?? [],
+    isFavorite: Boolean(source.isFavorite),
+    isPublic: Boolean(source.isPublic),
+    userId: source.userId ?? pb.authStore.model?.id,
+  };
+};
+
+const sortNotes = (list: Note[]) =>
+  [...list].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+
 export const useNotes = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const persistNotesLocally = useCallback((notesToPersist: Note[]) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, serializeNotes(notesToPersist));
+    } catch (storageError) {
+      console.warn('Failed to persist notes locally:', storageError);
+    }
+  }, []);
 
-  // Load notes from localStorage and PocketBase
+  const syncNotesState = useCallback((updater: (prev: Note[]) => Note[]) => {
+    setNotes(prev => {
+      const next = sortNotes(updater(prev));
+      persistNotesLocally(next);
+      return next;
+    });
+  }, [persistNotesLocally]);
+
   useEffect(() => {
     const loadNotes = async () => {
+      setIsLoading(true);
       try {
-        setIsLoading(true);
-
-        // Load from localStorage first (for offline support)
-        const localNotes = localStorage.getItem(STORAGE_KEY);
-        if (localNotes) {
-          const parsedNotes = JSON.parse(localNotes).map((note: any) => ({
-            ...note,
-            createdAt: new Date(note.createdAt),
-            updatedAt: new Date(note.updatedAt),
-          }));
-          setNotes(parsedNotes);
-        }
-
-        // If user is authenticated, try to load from PocketBase
-        if (pb.authStore.isValid) {
+        const localNotesRaw = localStorage.getItem(STORAGE_KEY);
+        if (localNotesRaw) {
           try {
-            const userId = pb.authStore.model?.id;
-            const remoteNotes = await pb.collection('notes').getFullList({
-              filter: `userId = "${userId}"`,
-              sort: '-updatedAt',
-            });
-
-            const formattedNotes = remoteNotes.map(note => ({
-              id: note.id,
-              title: note.title,
-              content: note.content,
-              subject: note.subject,
-              tags: note.tags || [],
-              createdAt: new Date(note.createdAt),
-              updatedAt: new Date(note.updatedAt),
-              isFavorite: note.isFavorite || false,
-              isPublic: note.isPublic || false,
-              userId: note.userId,
-            }));
-
-            setNotes(formattedNotes);
-            // Update localStorage with remote data
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(formattedNotes));
-          } catch (remoteError) {
-            console.warn('Failed to load notes from server:', remoteError);
-            // Keep local notes if remote fails
+            const parsed = deserializeNotes(JSON.parse(localNotesRaw));
+            setNotes(sortNotes(parsed));
+          } catch (parseError) {
+            console.warn('Failed to parse local notes cache:', parseError);
           }
         }
-      } catch (error) {
-        console.error('Error loading notes:', error);
+
+        if (pb.authStore.isValid) {
+          const userId = pb.authStore.model?.id;
+          if (userId) {
+            try {
+              const remoteNotes = await pb.collection('notes').getFullList<PocketBaseNoteRecord>({
+            filter: `userId = "${userId}"`,
+          });
+              const formatted = sortNotes(
+                remoteNotes.map(note => mapPocketBaseRecordToNote(note)),
+              );
+              setNotes(formatted);
+              persistNotesLocally(formatted);
+            } catch (remoteError) {
+              console.warn('Failed to load filtered notes from PocketBase, retrying without filter:', remoteError);
+              try {
+                const fallbackRemote = await pb.collection('notes').getFullList<PocketBaseNoteRecord>();
+                const filtered = fallbackRemote.filter((record) => record.userId === userId);
+                const formatted = sortNotes(
+                  filtered.map(note => mapPocketBaseRecordToNote(note)),
+                );
+                setNotes(formatted);
+                persistNotesLocally(formatted);
+              } catch (fallbackError) {
+                console.warn('Failed to load notes from PocketBase, using local cache only:', fallbackError);
+              }
+            }
+          }
+        }
+
+        setError(null);
+      } catch (loadError) {
+        console.error('Error loading notes:', loadError);
         setError('Erro ao carregar anotações');
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadNotes();
-  }, []);
+    loadNotes().catch(() => undefined);
+  }, [persistNotesLocally]);
 
-  // Save notes to both localStorage and PocketBase
-  const saveNotesToStorage = useCallback(async (updatedNotes: Note[]) => {
-    try {
-      // Save to localStorage
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedNotes));
-
-      // Save to PocketBase if authenticated
-      if (pb.authStore.isValid) {
-        const userId = pb.authStore.model?.id;
-        for (const note of updatedNotes) {
-          try {
-            const noteData = {
-              ...note,
-              userId,
-              createdAt: note.createdAt.toISOString(),
-              updatedAt: note.updatedAt.toISOString(),
-            };
-
-            if (note.userId) {
-              // Update existing note
-              await pb.collection('notes').update(note.id, noteData);
-            } else {
-              // Create new note
-              const created = await pb.collection('notes').create(noteData);
-              note.id = created.id;
-            }
-          } catch (remoteError) {
-            console.warn('Failed to sync note to server:', remoteError);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error saving notes:', error);
-      setError('Erro ao salvar anotações');
-    }
-  }, []);
+  const resolveNoteData = (input: Partial<Note>, base?: Note): Note => ({
+    id: base?.id ?? crypto.randomUUID(),
+    title: input.title ?? base?.title ?? 'Nova anotação',
+    content: input.content ?? base?.content ?? '',
+    subject: input.subject ?? base?.subject,
+    tags: input.tags ?? base?.tags ?? [],
+    createdAt: base?.createdAt ?? new Date(),
+    updatedAt: new Date(),
+    isFavorite: input.isFavorite ?? base?.isFavorite ?? false,
+    isPublic: input.isPublic ?? base?.isPublic ?? false,
+    userId: input.userId ?? base?.userId,
+  });
 
   const createNote = useCallback(async (noteData: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const newNote: Note = {
+    const userId = pb.authStore.model?.id;
+    const fallbackNote = resolveNoteData({
       ...noteData,
-      id: crypto.randomUUID(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+      tags: noteData.tags ?? [],
+      subject: noteData.subject,
+      isFavorite: noteData.isFavorite ?? false,
+      isPublic: noteData.isPublic ?? false,
+    });
+    if (userId) {
+      fallbackNote.userId = userId;
+    }
 
-    const updatedNotes = [newNote, ...notes];
-    setNotes(updatedNotes);
-    await saveNotesToStorage(updatedNotes);
+    if (pb.authStore.isValid && userId) {
+      try {
+        const payload = {
+          title: fallbackNote.title,
+          content: fallbackNote.content,
+          subject: fallbackNote.subject ?? '',
+          tags: fallbackNote.tags,
+          isFavorite: fallbackNote.isFavorite,
+          isPublic: fallbackNote.isPublic,
+          userId,
+        };
+        const record = await pb.collection('notes').create(payload);
+        const createdNote = mapPocketBaseRecordToNote(record as PocketBaseNoteRecord);
+        syncNotesState(prev => [createdNote, ...prev]);
+        return createdNote;
+      } catch (remoteError) {
+        console.warn('Failed to create note on PocketBase, storing locally:', remoteError);
+      }
+    }
 
-    return newNote;
-  }, [notes, saveNotesToStorage]);
+    syncNotesState(prev => [fallbackNote, ...prev]);
+    return fallbackNote;
+  }, [syncNotesState]);
 
   const updateNote = useCallback(async (noteId: string, updates: Partial<Note>) => {
-    const updatedNotes = notes.map(note =>
-      note.id === noteId
-        ? { ...note, ...updates, updatedAt: new Date() }
-        : note
-    );
+    const existing = notes.find(note => note.id === noteId);
+    if (!existing) {
+      return null;
+    }
 
-    setNotes(updatedNotes);
-    await saveNotesToStorage(updatedNotes);
-  }, [notes, saveNotesToStorage]);
+    const updatedNote = resolveNoteData({
+      ...existing,
+      ...updates,
+      tags: updates.tags ?? existing.tags,
+      subject: updates.subject ?? existing.subject,
+      isFavorite: updates.isFavorite ?? existing.isFavorite,
+      isPublic: updates.isPublic ?? existing.isPublic,
+    }, existing);
+
+    syncNotesState(prev => prev.map(note => (note.id === noteId ? updatedNote : note)));
+
+    if (pb.authStore.isValid && (existing.userId || pb.authStore.model?.id)) {
+      try {
+        await pb.collection('notes').update(noteId, buildPocketBasePayload(updatedNote));
+      } catch (remoteError) {
+        console.warn('Failed to update note on PocketBase:', remoteError);
+      }
+    }
+
+    return updatedNote;
+  }, [notes, syncNotesState]);
 
   const deleteNote = useCallback(async (noteId: string) => {
-    const updatedNotes = notes.filter(note => note.id !== noteId);
-    setNotes(updatedNotes);
-    await saveNotesToStorage(updatedNotes);
+    const existing = notes.find(note => note.id === noteId);
+    syncNotesState(prev => prev.filter(note => note.id !== noteId));
 
-    // Try to delete from PocketBase
     if (pb.authStore.isValid) {
       try {
         await pb.collection('notes').delete(noteId);
       } catch (remoteError) {
-        console.warn('Failed to delete note from server:', remoteError);
+        console.warn('Failed to delete note from PocketBase:', remoteError);
       }
     }
-  }, [notes, saveNotesToStorage]);
+
+    return existing ?? null;
+  }, [notes, syncNotesState]);
 
   const toggleFavorite = useCallback(async (noteId: string) => {
     const note = notes.find(n => n.id === noteId);

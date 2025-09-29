@@ -1,10 +1,12 @@
 import { toast } from "@/components/ui/sonner";
+import type { StructuredResponse } from "@/services/agnoService";
 
 export type Message = {
   id: string;
   content: string;
   isAi: boolean;
   timestamp: Date;
+  structuredResponse?: StructuredResponse;
 };
 
 export type ApiResponse = {
