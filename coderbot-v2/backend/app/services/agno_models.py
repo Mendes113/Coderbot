@@ -164,6 +164,24 @@ class ClaudeModel(Model):
         return ModelResponse(
             content=content
         )
+
+    def _parse_provider_response(self, response: Any, **kwargs) -> ModelResponse:
+        """Implementa contrato obrigatório da classe base."""
+        return self._create_model_response(response)
+
+    def _parse_provider_response_delta(self, response: Any) -> ModelResponse:
+        """Processa respostas parciais do Claude (streaming)."""
+        try:
+            if hasattr(response, "content") and response.content:
+                # Quando response é um TextDelta da API official
+                first_block = response.content[0]
+                if hasattr(first_block, "text"):
+                    return ModelResponse(content=first_block.text)
+            if hasattr(response, "delta") and hasattr(response.delta, "text"):
+                return ModelResponse(content=response.delta.text, extra={"delta": True})
+        except Exception as exc:
+            logger.warning(f"Falha ao interpretar delta do Claude: {exc}")
+        return ModelResponse(content=str(response), extra={"delta": True})
     
     def invoke(self, messages: List[Dict[str, Any]], **kwargs) -> ModelResponse:
         """
@@ -193,7 +211,7 @@ class ClaudeModel(Model):
             
             response = self.client.messages.create(**call_kwargs)
             
-            return self._create_model_response(response)
+            return self._parse_provider_response(response, **call_kwargs)
             
         except Exception as e:
             logger.error(f"Erro ao invocar modelo Claude: {str(e)}")
@@ -227,51 +245,11 @@ class ClaudeModel(Model):
             
             response = await self.async_client.messages.create(**call_kwargs)
             
-            return self._create_model_response(response)
+            return self._parse_provider_response(response, **call_kwargs)
             
         except Exception as e:
             logger.error(f"Erro ao invocar modelo Claude (async): {str(e)}")
             raise
-    
-    def response(self, messages: Union[str, List[Dict[str, Any]]], **kwargs) -> str:
-        """
-        Método de conveniência para obter apenas o texto da resposta.
-        
-        Args:
-            messages: Mensagens (string ou lista)
-            **kwargs: Argumentos adicionais
-            
-        Returns:
-            String com o conteúdo da resposta
-        """
-        try:
-            # Converter string para formato de mensagens se necessário
-            if isinstance(messages, str):
-                messages = [{"role": "user", "content": messages}]
-            
-            model_response = self.invoke(messages, **kwargs)
-            return model_response.content
-        except Exception as e:
-            logger.error(f"Erro no método response: {e}")
-            raise
-    
-    async def aresponse(self, messages: Union[str, List[Dict[str, Any]]], **kwargs) -> str:
-        """
-        Método de conveniência assíncrono para obter apenas o texto da resposta.
-        
-        Args:
-            messages: Mensagens (string ou lista)
-            **kwargs: Argumentos adicionais
-            
-        Returns:
-            String com o conteúdo da resposta
-        """
-        # Converter string para formato de mensagens se necessário
-        if isinstance(messages, str):
-            messages = [{"role": "user", "content": messages}]
-        
-        model_response = await self.ainvoke(messages, **kwargs)
-        return model_response.content
     
     # Implementar métodos abstratos necessários
     def invoke_stream(self, messages: List[Dict[str, Any]], **kwargs):
@@ -294,50 +272,6 @@ class ClaudeModel(Model):
             logger.error(f"Erro no streaming assíncrono: {e}")
             raise
     
-    def parse_provider_response(self, response: Any) -> Dict[str, Any]:
-        """Parse response do provedor."""
-        try:
-            if hasattr(response, 'content') and response.content:
-                content = response.content[0].text if response.content else ""
-            else:
-                content = str(response)
-            
-            usage = {}
-            if hasattr(response, 'usage'):
-                usage = {
-                    'input_tokens': getattr(response.usage, 'input_tokens', 0),
-                    'output_tokens': getattr(response.usage, 'output_tokens', 0),
-                    'total_tokens': getattr(response.usage, 'input_tokens', 0) + 
-                                  getattr(response.usage, 'output_tokens', 0)
-                }
-            
-            return {
-                "content": content,
-                "model": getattr(response, 'model', self.model_name)
-            }
-        except Exception as e:
-            logger.error(f"Erro ao fazer parse da resposta: {e}")
-            return {"content": str(response)}
-    
-    def parse_provider_response_delta(self, delta: Any) -> Dict[str, Any]:
-        """Parse response delta do provedor."""
-        try:
-            if hasattr(delta, 'content'):
-                content = delta.content
-            elif hasattr(delta, 'text'):
-                content = delta.text
-            else:
-                content = str(delta)
-            
-            return {
-                "content": content,
-                "delta": True
-            }
-        except Exception as e:
-            logger.error(f"Erro ao fazer parse do delta: {e}")
-            return {"content": str(delta)}
-
-
 class OllamaModel(Model):
     """Implementação de modelo Ollama compatível com AGNO."""
 
@@ -419,12 +353,7 @@ class OllamaModel(Model):
             )
             response.raise_for_status()
             data = response.json()
-            content = (
-                ((data.get("message") or {}).get("content"))
-                or data.get("response")
-                or ""
-            )
-            return ModelResponse(content=content)
+            return self._parse_provider_response(data)
         except RequestException as exc:
             self.logger.error("Erro ao chamar Ollama: %s", exc)
             if isinstance(exc, RequestsConnectionError):
@@ -449,7 +378,7 @@ class OllamaModel(Model):
     async def ainvoke_stream(self, messages: List[Dict[str, Any]], **kwargs):
         yield await self.ainvoke(messages, **kwargs)
 
-    def parse_provider_response(self, response: Any, **kwargs) -> ModelResponse:
+    def _parse_provider_response(self, response: Any, **kwargs) -> ModelResponse:
         try:
             if isinstance(response, ModelResponse):
                 return response
@@ -466,7 +395,7 @@ class OllamaModel(Model):
             self.logger.error("Erro ao interpretar resposta do Ollama: %s", exc)
         return ModelResponse(content=str(response), provider_data={"model": self.model_name})
 
-    def parse_provider_response_delta(self, delta: Any) -> ModelResponse:
+    def _parse_provider_response_delta(self, delta: Any) -> ModelResponse:
         content: str
         if isinstance(delta, dict):
             content = delta.get("message", {}).get("content") or delta.get("response", "") or ""
