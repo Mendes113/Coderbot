@@ -53,7 +53,7 @@ class ClaudeModel(Model):
     
     def __init__(
         self,
-        id: str = "claude-3-5-sonnet-20241022",
+        id: str = "claude-sonnet-4-20250514",
         api_key: Optional[str] = None,
         max_tokens: int = 4096,
         temperature: float = 0.7,
