@@ -1,5 +1,5 @@
 import { toast } from "@/components/ui/sonner";
-import type { StructuredResponse } from "@/services/agnoService";
+import type { StructuredResponse, ResponseSegment } from "@/services/agnoService";
 
 export type Message = {
   id: string;
@@ -7,6 +7,7 @@ export type Message = {
   isAi: boolean;
   timestamp: Date;
   structuredResponse?: StructuredResponse;
+  segments?: ResponseSegment[];
 };
 
 export type ApiResponse = {

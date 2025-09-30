@@ -49,6 +49,7 @@ export const chatService = {
     content: string;
     isAi: boolean;
     sessionId: string;
+    segments?: any[];
   }): Promise<string> {
     try {
       // First, create the message
@@ -57,6 +58,7 @@ export const chatService = {
         isAi: message.isAi,
         sessionId: message.sessionId, // Ensure sessionId is saved
         timestamp: new Date().toISOString(),
+        segments: message.segments ? JSON.stringify(message.segments) : null,
       });
 
       console.log("Created message with ID:", chatMessage.id);
@@ -123,6 +125,7 @@ export const chatService = {
             content: msg.content,
             isAi: msg.isAi,
             timestamp: new Date(msg.timestamp),
+            segments: msg.segments ? JSON.parse(msg.segments) : undefined,
           });
         } catch (error) {
           console.error(`Failed to load message ${messageId}:`, error);

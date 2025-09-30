@@ -28,7 +28,11 @@ import {
   PROVIDER_CONFIG,
   getDefaultModelForProvider
 } from "@/services/agnoService";
-import type { ProviderKey, ProviderConfig, ProviderModelOption } from "@/services/agnoService";
+import type { ProviderKey, ProviderConfig, ProviderModelOption, ResponseSegment } from "@/services/agnoService";
+
+// Importar componentes para worked examples estruturados
+import { WorkedExamplesSlides } from "@/components/chat/WorkedExamplesSlides";
+import { QuizInteraction } from "@/components/chat/QuizInteraction";
 import posthog from "posthog-js";
 import type { QuizAnswerEvent } from "@/components/chat/ChatMessage";
 // import { ProfileHeader } from "@/components/profile/ProfileHeader";
@@ -567,9 +571,27 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const diagramType = "mermaid" as const;
   const maxFinalCodeLines = 150;
   
-  // Segmentos estruturados do backend (exibição passo-a-passo)
-  type ResponseSegment = { id: string; title: string; type: string; content: string; language?: string };
-  const [pendingSegments, setPendingSegments] = useState<ResponseSegment[]>([]);
+  // Worked Examples estruturados do backend (exibição passo-a-passo)
+  type WorkedExampleData = {
+    worked_example_segments: any;
+    frontend_segments: Array<{
+      id: string;
+      title: string;
+      type: string;
+      content: string;
+      language?: string;
+    }>;
+    validation: any;
+    educational_guidance: string;
+    methodology: string;
+    topic: string;
+    difficulty: string;
+    scientific_basis: string[];
+  };
+
+  const [workedExampleData, setWorkedExampleData] = useState<WorkedExampleData | null>(null);
+  const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
+  const [showWorkedExamples, setShowWorkedExamples] = useState(false);
   const [segmentMessageIds, setSegmentMessageIds] = useState<string[]>([]);
 
   // Formata um segmento com um cabeçalho markdown amigável para o usuário
@@ -591,25 +613,58 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     return `### ${label}\n\n${seg.content || ''}`.trim();
   }, [getSegmentBadge]);
 
+  const ALLOWED_SEGMENT_TYPES = useMemo(
+    () => new Set(['reflection', 'steps', 'correct_example', 'incorrect_example', 'quiz']),
+    []
+  );
+
+  const enforceSegmentLimits = useCallback(
+    (segments: ResponseSegment[], firstSegment?: ResponseSegment) => {
+      let reflectionCount = firstSegment?.type?.toLowerCase() === 'reflection' ? 1 : 0;
+      let stepsCount = firstSegment?.type?.toLowerCase() === 'steps' ? 1 : 0;
+      let exampleCount = ['correct_example', 'incorrect_example'].includes(
+        (firstSegment?.type || '').toLowerCase()
+      )
+        ? 1
+        : 0;
+
+      return segments.filter((seg) => {
+        const type = (seg.type || '').toLowerCase();
+
+        if (type === 'reflection') {
+          if (reflectionCount >= 1) {
+            return false;
+          }
+          reflectionCount += 1;
+          return true;
+        }
+
+        if (type === 'steps') {
+          if (stepsCount >= 2) {
+            return false;
+          }
+          stepsCount += 1;
+          return true;
+        }
+
+        if (type === 'correct_example' || type === 'incorrect_example') {
+          if (exampleCount >= 3) {
+            return false;
+          }
+          exampleCount += 1;
+          return true;
+        }
+
+        return ALLOWED_SEGMENT_TYPES.has(type);
+      });
+    },
+    [ALLOWED_SEGMENT_TYPES]
+  );
+
   // Rótulo do botão de avanço, contextual ao próximo segmento
   const getNextStepButtonLabel = useCallback((): string => {
-    if (!pendingSegments || pendingSegments.length === 0) return 'Avançar etapa';
-    const nextType = (pendingSegments[0]?.type || '').toLowerCase();
-    switch (nextType) {
-      case 'reflection':
-        return 'Iniciar reflexão';
-      case 'steps':
-        return 'Ver passos';
-      case 'correct_example':
-        return 'Ver exemplo correto';
-      case 'incorrect_example':
-        return 'Ver exemplo incorreto';
-      case 'final_code':
-        return 'Ver código final';
-      default:
-        return 'Avançar etapa';
-    }
-  }, [pendingSegments]);
+    return 'Avançar etapa';
+  }, []);
 
   // Session metrics (start/end)
   const sessionStartRef = useRef<number | null>(null);
@@ -1304,14 +1359,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
           ? `\nO aluno errou a questão anterior. Explique claramente o porquê do erro e como chegar na resposta correta. Pergunta: ${lastQuizAnswer.question}.`
           : '';
 
-  const modelOption = findModelOption(normalizedModelId);
-  const provider = modelOption?.provider ?? chosenProvider;
-  const modelId = modelOption?.id ?? normalizedModelId;
+        const modelOption = findModelOption(normalizedModelId);
+        const provider = modelOption?.provider ?? chosenProvider;
+        const modelId = modelOption?.id ?? normalizedModelId;
 
         // Save chosen mapping for analytics
         chosenProvider = provider;
         chosenModel = modelId;
 
+        // Usar sistema AGNO com segmentos estruturados
         const agnoResponse = await agnoService.askQuestion({
           methodology: agnoMethodology,
           userQuery: input,
@@ -1330,38 +1386,70 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
         const hasSegments = Array.isArray(segments) && segments.length > 0;
         
         if (hasSegments) {
-          // Primeiro segmento vira a resposta inicial
-          const [firstSeg, ...restSegs] = segments;
-          setPendingSegments(restSegs);
-          setSegmentMessageIds([]);
-          lastResponseLength = (firstSeg?.content || '').length;
+          const normalizeType = (seg: ResponseSegment) => (seg.type || '').toLowerCase();
 
-          // Salva mensagem de IA somente com o primeiro segmento
-          const aiMsgId = await chatService.saveMessage({
-            content: formatSegmentContent(firstSeg),
-            isAi: true,
-            sessionId,
-          });
+          const allowedSegments = segments.filter((seg) => ALLOWED_SEGMENT_TYPES.has(normalizeType(seg)));
 
-          // Atualiza a mensagem temporária de IA com conteúdo real + id real
-          setMessages(prev => 
-            prev.map(msg => 
-              msg.id === tempId 
-                ? { ...msg, id: aiMsgId, content: formatSegmentContent(firstSeg), timestamp: new Date() } 
-                : msg
-            )
-          );
+          if (allowedSegments.length === 0) {
+            const fallbackContent = agnoResponse.response?.trim();
+            const contentToPersist = fallbackContent && fallbackContent.length > 0
+              ? fallbackContent
+              : 'Não foi possível estruturar a resposta no momento. Tente novamente em instantes.';
 
-          // Registrar ID da primeira etapa
-          setSegmentMessageIds(prev => [...prev, aiMsgId]);
+            // setPendingSegments removed - using workedExamples now
+            setSegmentMessageIds([]);
+            lastResponseLength = contentToPersist.length;
 
-          // Analytics específico para segmentos
-          trackEvent('edu_chat_segments_received', {
-            sessionId,
-            totalSegments: segments.length,
-            provider: chosenProvider,
-            model: chosenModel,
-          });
+            const aiMsgId = await chatService.saveMessage({
+              content: contentToPersist,
+              isAi: true,
+              sessionId,
+            });
+
+            setMessages(prev =>
+              prev.map(msg =>
+                msg.id === tempId
+                  ? { ...msg, id: aiMsgId, content: contentToPersist, timestamp: new Date() }
+                  : msg
+              )
+            );
+          } else {
+            const [firstSeg, ...restSegs] = allowedSegments;
+
+            const limitedRest = enforceSegmentLimits(restSegs, firstSeg);
+
+            // setPendingSegments removed - using workedExamples now
+            setSegmentMessageIds([]);
+            lastResponseLength = (firstSeg?.content || '').length;
+
+            // Salva mensagem de IA somente com o primeiro segmento + todos os segments
+            const aiMsgId = await chatService.saveMessage({
+              content: formatSegmentContent(firstSeg),
+              isAi: true,
+              sessionId,
+              segments: allowedSegments,
+            });
+
+            // Atualiza a mensagem temporária de IA com conteúdo real + id real + segments
+            setMessages(prev =>
+              prev.map(msg =>
+                msg.id === tempId
+                  ? { ...msg, id: aiMsgId, content: formatSegmentContent(firstSeg), timestamp: new Date(), segments: allowedSegments }
+                  : msg
+              )
+            );
+
+            // Registrar ID da primeira etapa
+            setSegmentMessageIds(prev => [...prev, aiMsgId]);
+
+            // Analytics específico para segmentos
+            trackEvent('edu_chat_segments_received', {
+              sessionId,
+              totalSegments: allowedSegments.length,
+              provider: chosenProvider,
+              model: chosenModel,
+            });
+          }
         } else {
           // Fallback: comportamento anterior (mensagem completa)
           response = {
@@ -1451,40 +1539,49 @@ Obrigado pela paciência! 🤖✨`,
     }
   };
 
-  // Avançar para o próximo segmento, criando uma nova mensagem de IA
+  // Avançar para o próximo segmento - função removida pois agora usamos WorkedExamples
   const handleNextSegment = async () => {
-    if (!sessionId) return;
-    if (!pendingSegments || pendingSegments.length === 0) return;
-    const [nextSeg, ...rest] = pendingSegments;
-    setPendingSegments(rest);
-
-    // Adiciona mensagem temporária para UX consistente
-    const tempSegId = (Date.now() + Math.random()).toString();
-    setMessages(prev => [
-      ...prev,
-      {
-        id: tempSegId,
-        content: formatSegmentContent(nextSeg),
-        isAi: true,
-        timestamp: new Date(),
-      }
-    ]);
-
-    try {
-      const savedId = await chatService.saveMessage({
-        content: formatSegmentContent(nextSeg),
-        isAi: true,
-        sessionId,
-      });
-      setMessages(prev => prev.map(m => m.id === tempSegId ? { ...m, id: savedId } : m));
-      setSegmentMessageIds(prev => [...prev, savedId]);
-      trackEvent('edu_chat_segment_advanced', { sessionId, segmentType: nextSeg.type, remaining: rest.length });
-      scrollToBottom();
-    } catch (e) {
-      console.error('Erro ao salvar segmento:', e);
-      toast.error('Não foi possível salvar a etapa.');
-    }
+    // Função mantida para compatibilidade, mas não faz mais nada
+    console.log('handleNextSegment called but deprecated');
   };
+
+  // Controle de navegação dos worked examples
+  const handleNextWorkedExampleSegment = useCallback(() => {
+    if (!workedExampleData || !workedExampleData.frontend_segments) return;
+
+    if (currentSegmentIndex < workedExampleData.frontend_segments.length - 1) {
+      setCurrentSegmentIndex(prev => prev + 1);
+
+      // Se chegou no quiz, tocar som de conquista
+      if (workedExampleData.frontend_segments[currentSegmentIndex + 1]?.type === 'quiz') {
+        soundEffects.playAchievement();
+      }
+    }
+  }, [workedExampleData, currentSegmentIndex]);
+
+  const handlePrevWorkedExampleSegment = useCallback(() => {
+    if (currentSegmentIndex > 0) {
+      setCurrentSegmentIndex(prev => prev - 1);
+    }
+  }, [currentSegmentIndex]);
+
+  const handleWorkedExampleComplete = useCallback(() => {
+    setShowWorkedExamples(false);
+    setWorkedExampleData(null);
+    setCurrentSegmentIndex(0);
+
+    // Celebrar conclusão
+    triggerMajorCelebration();
+    setAchievementMessage("🎉 Worked Example concluído! Você aprendeu muito!");
+    setShowAchievement(true);
+    setEmotionalState('celebrating');
+
+    trackEvent('edu_worked_example_completed', {
+      sessionId,
+      segmentsCount: workedExampleData?.frontend_segments?.length || 0,
+      methodology: workedExampleData?.methodology,
+    });
+  }, [workedExampleData, sessionId]);
 
   // Voltar para o segmento anterior (apenas rola até a mensagem anterior)
   const handlePrevSegment = () => {
@@ -1802,13 +1899,26 @@ Obrigado pela paciência! 🤖✨`,
                 isAi={message.isAi}
                 timestamp={message.timestamp}
                 onQuizAnswer={handleQuizAnswer}
+                segments={message.segments}
               />
             </div>
           ))}
           
+          {/* Worked Examples Slides - Aparecer quando ativado */}
+          {showWorkedExamples && workedExampleData && (
+            <WorkedExamplesSlides
+              workedExampleData={workedExampleData}
+              currentSegmentIndex={currentSegmentIndex}
+              onNext={handleNextWorkedExampleSegment}
+              onPrev={handlePrevWorkedExampleSegment}
+              onComplete={handleWorkedExampleComplete}
+              onQuizAnswer={handleQuizAnswer}
+            />
+          )}
+
           {/* IdleState - Aparecer quando usuário estiver idle (mas não em nível 'none') */}
-          {isUserIdle && !isLoading && idleLevel !== 'none' && !showWelcomeMessages && (
-            <IdleState 
+          {isUserIdle && !isLoading && idleLevel !== 'none' && !showWelcomeMessages && !showWorkedExamples && (
+            <IdleState
               onSuggestedQuestion={handleSendMessage}
               idleLevel={idleLevel}
             />
@@ -1823,22 +1933,55 @@ Obrigado pela paciência! 🤖✨`,
         "border-t p-4 edu-card backdrop-blur shrink-0 bg-background/70 supports-[backdrop-filter]:bg-background/60 sticky bottom-0",
         isMobile ? "pb-6" : ""
       )}>
-        {/* Barra de avanço de etapas (quando há segmentos pendentes) */}
-        {(pendingSegments.length > 0 || segmentMessageIds.length > 1) && !isLoading && !showWelcomeMessages && (
+        {/* Barra de avanço de etapas (worked examples ou segmentos tradicionais) */}
+        {(showWorkedExamples || segmentMessageIds.length > 1) && !isLoading && !showWelcomeMessages && (
           <div className="max-w-3xl mx-auto edu-mb-4 edu-card flex items-center justify-between edu-px-4 edu-py-3">
-            <div className="edu-text-muted">
-              Etapas restantes: {pendingSegments.length}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={handlePrevSegment} disabled={segmentMessageIds.length <= 1}>
-                Voltar etapa
-              </Button>
-              {pendingSegments.length > 0 && (
-                <Button size="sm" variant="default" onClick={handleNextSegment}>
-                  {getNextStepButtonLabel()}
-                </Button>
-              )}
-            </div>
+            {showWorkedExamples && workedExampleData ? (
+              // Barra específica para worked examples
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="text-sm font-medium">
+                    📚 Worked Example: {workedExampleData.topic}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {currentSegmentIndex + 1} de {workedExampleData.frontend_segments.length}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {workedExampleData.scientific_basis.map((basis, index) => (
+                      <span key={index} className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                        {basis.split(' ')[0]}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={handlePrevWorkedExampleSegment} disabled={currentSegmentIndex === 0}>
+                    Voltar
+                  </Button>
+                  {currentSegmentIndex < workedExampleData.frontend_segments.length - 1 ? (
+                    <Button size="sm" variant="default" onClick={handleNextWorkedExampleSegment}>
+                      Próxima etapa
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="default" onClick={handleWorkedExampleComplete} className="bg-green-600 hover:bg-green-700">
+                      Concluir exemplo
+                    </Button>
+                  )}
+                </div>
+              </>
+            ) : (
+              // Barra tradicional para segmentos antigos
+              <>
+                <div className="edu-text-muted">
+                  Navegação de etapas
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={handlePrevSegment} disabled={segmentMessageIds.length <= 1}>
+                    Voltar etapa
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         )}
 

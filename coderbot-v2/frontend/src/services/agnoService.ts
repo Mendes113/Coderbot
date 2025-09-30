@@ -202,6 +202,11 @@ export interface ResponseSegment {
   type: 'intro' | 'steps' | 'correct_example' | 'incorrect_example' | 'reflection' | 'final_code' | string;
   content: string;
   language?: string;
+  // Campos adicionais para exemplos interativos
+  code?: string;
+  explanation?: string;
+  error_explanation?: string;
+  correction?: string;
 }
 
 // Configurações dos provedores
