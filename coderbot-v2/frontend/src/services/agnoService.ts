@@ -214,7 +214,8 @@ export const PROVIDER_CONFIG: Record<ProviderKey, ProviderConfig> = {
   claude: {
     name: "Claude (Anthropic)",
     models: [
-      { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", default: true },
+      { id: "claude-sonnet-4-20250514", name: "Claude 4 Sonnet", default: true },
+      { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet" },
       { id: "claude-3-opus-20240229", name: "Claude 3 Opus" },
       { id: "claude-3-haiku-20240307", name: "Claude 3 Haiku" }
     ],
@@ -725,7 +726,7 @@ class AgnoService {
     userQuery: string,
     context?: string,
     userContext?: UserContext,
-    modelId: string = getDefaultModelForProvider('claude') || 'claude-3-5-sonnet-20241022'
+    modelId: string = getDefaultModelForProvider('claude') || 'claude-sonnet-4-20250514'
   ): Promise<AgnoResponse> {
     return this.askQuestion({
       methodology,

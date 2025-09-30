@@ -10,7 +10,7 @@ from .types.agno_types import MethodologyType, MethodologyConfig
 
 # Configurações padrão de modelos por provedor
 DEFAULT_MODELS = {
-    "claude": "claude-3-5-sonnet-20241022",
+    "claude": "claude-sonnet-4-20250514",
     "openai": "gpt-4o",
     "ollama": "llama3.1",
 }

@@ -48,6 +48,7 @@ const PROVIDER_CONFIG_ENTRIES = Object.entries(PROVIDER_CONFIG) as [ProviderKey,
 
 const MODEL_ALIAS_MAP: Record<string, string> = {
   "claude-3-sonnet": "claude-3-5-sonnet-20241022",
+  "claude-4-sonnet": "claude-sonnet-4-20250514",
   "claude-3-haiku": "claude-3-haiku-20240307",
 };
 
@@ -549,7 +550,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const [analogiesEnabled, setAnalogiesEnabled] = useState(false);
   const [knowledgeBase, setKnowledgeBase] = useState("");
   const defaultModelId = useMemo(
-    () => normalizeModelId(getDefaultModelForProvider('claude') || AI_MODEL_OPTIONS[0]?.id || 'claude-3-5-sonnet-20241022'),
+    () => normalizeModelId(getDefaultModelForProvider('claude') || AI_MODEL_OPTIONS[0]?.id || 'claude-sonnet-4-20250514'),
     []
   );
   const [aiModel, setAiModel] = useState<string>(defaultModelId);

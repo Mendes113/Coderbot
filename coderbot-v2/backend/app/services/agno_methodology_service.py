@@ -133,7 +133,7 @@ def get_all_methodology_configs() -> Dict[MethodologyType, Dict[str, Any]]:
     return METHODOLOGY_CONFIGS
 
 class AgnoMethodologyService:
-    def __init__(self, model_id: str = "claude-3-5-sonnet-20241022", provider: Optional[str] = None):
+    def __init__(self, model_id: str = "claude-sonnet-4-20250514", provider: Optional[str] = None):
         """
         Inicializa o serviço AGNO com suporte a múltiplos provedores.
         
@@ -430,12 +430,28 @@ class AgnoMethodologyService:
             )
             agent = self.get_agent(methodology)
             run_response = agent.run(prompt)
+            
+            # Extrair conteúdo da resposta de maneira robusta
             if hasattr(run_response, 'content'):
                 response = run_response.content
+            elif hasattr(run_response, 'messages') and len(run_response.messages) > 0:
+                # AGNO RunResponse pode ter messages
+                last_message = run_response.messages[-1]
+                if hasattr(last_message, 'content'):
+                    response = last_message.content
+                else:
+                    response = str(last_message)
             elif isinstance(run_response, str):
                 response = run_response
             else:
-                response = str(run_response)
+                # Fallback: tentar serializar
+                try:
+                    response = str(run_response)
+                    self.logger.warning(f"Tipo de resposta inesperado: {type(run_response)}. Usando str() fallback.")
+                except Exception as str_err:
+                    self.logger.error(f"Erro ao converter resposta para string: {str_err}")
+                    raise RuntimeError(f"Tipo de resposta não suportado: {type(run_response)}")
+            
             self.logger.info(f"{self.provider.upper()} retornou resposta de {len(response)} caracteres")
             
             # NOVO: Validar se a resposta é muito curta ou incompleta (apenas quiz)
@@ -448,12 +464,26 @@ class AgnoMethodologyService:
                     # Tentar novamente com prompt mais direto e estruturado
                     simplified_prompt = self._build_simplified_worked_examples_prompt(user_query, context)
                     run_response = agent.run(simplified_prompt)
+                    
+                    # Extrair conteúdo da resposta regenerada de maneira robusta
                     if hasattr(run_response, 'content'):
                         response = run_response.content
+                    elif hasattr(run_response, 'messages') and len(run_response.messages) > 0:
+                        last_message = run_response.messages[-1]
+                        if hasattr(last_message, 'content'):
+                            response = last_message.content
+                        else:
+                            response = str(last_message)
                     elif isinstance(run_response, str):
                         response = run_response
                     else:
-                        response = str(run_response)
+                        try:
+                            response = str(run_response)
+                            self.logger.warning(f"Tipo de resposta regenerada inesperado: {type(run_response)}. Usando str() fallback.")
+                        except Exception as str_err:
+                            self.logger.error(f"Erro ao converter resposta regenerada para string: {str_err}")
+                            raise RuntimeError(f"Tipo de resposta não suportado: {type(run_response)}")
+                    
                     self.logger.info(f"Regenerado: {len(response)} caracteres")
             
             # Valida e formata resposta

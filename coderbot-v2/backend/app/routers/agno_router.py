@@ -141,7 +141,7 @@ def get_agno_service(
     """Cria e retorna uma instância do serviço AGNO."""
     # Mapear modelos padrão por provedor
     default_models = {
-        "claude": "claude-3-5-sonnet-20241022",
+        "claude": "claude-sonnet-4-20250514",
         "openai": "gpt-4o",
         "ollama": settings.ollama_default_model or "llama3.1",
     }
@@ -150,7 +150,7 @@ def get_agno_service(
     
     # Se model_id não foi especificado, usar o padrão do provedor
     if not model_id:
-        model_id = default_models.get(provider, "claude-3-5-sonnet-20241022")
+        model_id = default_models.get(provider, "claude-sonnet-4-20250514")
     
     return AgnoMethodologyService(model_id=model_id, provider=provider)
 
