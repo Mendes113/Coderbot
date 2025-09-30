@@ -433,6 +433,16 @@ class AgnoMethodologyService:
             agent = self.get_agent(methodology)
             run_response = agent.run(prompt)
             
+            # DEBUG: Investigar estrutura do run_response
+            self.logger.info(f"🔍 DEBUG: run_response type = {type(run_response)}")
+            self.logger.info(f"🔍 DEBUG: run_response has content = {hasattr(run_response, 'content')}")
+            self.logger.info(f"🔍 DEBUG: run_response has messages = {hasattr(run_response, 'messages')}")
+            if hasattr(run_response, 'content'):
+                self.logger.info(f"🔍 DEBUG: run_response.content type = {type(run_response.content)}")
+                self.logger.info(f"🔍 DEBUG: run_response.content = {repr(run_response.content)[:200]}")
+            if hasattr(run_response, 'messages'):
+                self.logger.info(f"🔍 DEBUG: run_response.messages length = {len(run_response.messages)}")
+            
             # Extrair conteúdo da resposta de maneira robusta
             if hasattr(run_response, 'content'):
                 response = run_response.content
