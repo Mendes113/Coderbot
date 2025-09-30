@@ -165,11 +165,11 @@ class ClaudeModel(Model):
             content=content
         )
 
-    def _parse_provider_response(self, response: Any, **kwargs) -> ModelResponse:
+    def parse_provider_response(self, response: Any, **kwargs) -> ModelResponse:
         """Implementa contrato obrigatório da classe base."""
         return self._create_model_response(response)
 
-    def _parse_provider_response_delta(self, response: Any) -> ModelResponse:
+    def parse_provider_response_delta(self, response: Any) -> ModelResponse:
         """Processa respostas parciais do Claude (streaming)."""
         try:
             if hasattr(response, "content") and response.content:
@@ -211,7 +211,7 @@ class ClaudeModel(Model):
             
             response = self.client.messages.create(**call_kwargs)
             
-            return self._parse_provider_response(response, **call_kwargs)
+            return self.parse_provider_response(response, **call_kwargs)
             
         except Exception as e:
             logger.error(f"Erro ao invocar modelo Claude: {str(e)}")
@@ -245,7 +245,7 @@ class ClaudeModel(Model):
             
             response = await self.async_client.messages.create(**call_kwargs)
             
-            return self._parse_provider_response(response, **call_kwargs)
+            return self.parse_provider_response(response, **call_kwargs)
             
         except Exception as e:
             logger.error(f"Erro ao invocar modelo Claude (async): {str(e)}")
@@ -353,7 +353,7 @@ class OllamaModel(Model):
             )
             response.raise_for_status()
             data = response.json()
-            return self._parse_provider_response(data)
+            return self.parse_provider_response(data)
         except RequestException as exc:
             self.logger.error("Erro ao chamar Ollama: %s", exc)
             if isinstance(exc, RequestsConnectionError):
@@ -378,7 +378,7 @@ class OllamaModel(Model):
     async def ainvoke_stream(self, messages: List[Dict[str, Any]], **kwargs):
         yield await self.ainvoke(messages, **kwargs)
 
-    def _parse_provider_response(self, response: Any, **kwargs) -> ModelResponse:
+    def parse_provider_response(self, response: Any, **kwargs) -> ModelResponse:
         try:
             if isinstance(response, ModelResponse):
                 return response
@@ -395,7 +395,7 @@ class OllamaModel(Model):
             self.logger.error("Erro ao interpretar resposta do Ollama: %s", exc)
         return ModelResponse(content=str(response), provider_data={"model": self.model_name})
 
-    def _parse_provider_response_delta(self, delta: Any) -> ModelResponse:
+    def parse_provider_response_delta(self, delta: Any) -> ModelResponse:
         content: str
         if isinstance(delta, dict):
             content = delta.get("message", {}).get("content") or delta.get("response", "") or ""
