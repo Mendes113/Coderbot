@@ -15,7 +15,7 @@ services:
       - "8090:8090"
     volumes:
       - pocketbase_data:/pb/pb_data
-      - ./pocketbase_0.27.2_linux_amd64/pb_migrations:/pb/pb_migrations:ro
+      - ./pocketbase/pb_migrations:/pb/pb_migrations:ro
     environment:
       - POCKETBASE_ADMIN_EMAIL=${POCKETBASE_ADMIN_EMAIL}
       - POCKETBASE_ADMIN_PASSWORD=${POCKETBASE_ADMIN_PASSWORD}
