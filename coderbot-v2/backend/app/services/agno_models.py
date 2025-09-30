@@ -138,29 +138,70 @@ class ClaudeModel(Model):
     def _create_model_response(self, claude_response: Any) -> ModelResponse:
         """
         Converte resposta do Claude para formato ModelResponse do AGNO.
-        
+
         Args:
             claude_response: Resposta da API Claude
-            
+
         Returns:
             ModelResponse compatível com AGNO
         """
-        # Extrair conteúdo da resposta
+        # Extrair conteúdo da resposta - tratamento robusto para diferentes formatos
+        content = ""
+
+        logger.debug(f"Processando resposta Claude - tipo: {type(claude_response)}")
+        logger.debug(f"Resposta tem atributo 'content': {hasattr(claude_response, 'content')}")
+
         if hasattr(claude_response, 'content') and claude_response.content:
-            content = claude_response.content[0].text if claude_response.content else ""
+            logger.debug(f"Content type: {type(claude_response.content)}, length: {len(claude_response.content) if hasattr(claude_response.content, '__len__') else 'unknown'}")
+            first_block = claude_response.content[0]
+            logger.debug(f"First block type: {type(first_block)}")
+
+            # Verificar se é um objeto com atributo 'text' (formato oficial da API)
+            if hasattr(first_block, 'text'):
+                content = first_block.text
+                logger.debug(f"Extraído conteúdo via atributo 'text': {len(content)} chars")
+            # Se for string diretamente (formato alternativo)
+            elif isinstance(first_block, str):
+                content = first_block
+                logger.debug(f"First block é string direta: {len(content)} chars")
+            # Se for dict (formato JSON-like)
+            elif isinstance(first_block, dict):
+                content = first_block.get('text', str(first_block))
+                logger.debug(f"First block é dict, extraído 'text': {len(content)} chars")
+            else:
+                content = str(first_block)
+                logger.debug(f"First block convertido para string: {len(content)} chars")
         else:
-            content = str(claude_response)
-        
+            # Fallback para diferentes formatos de resposta
+            if hasattr(claude_response, 'text'):
+                content = claude_response.text
+                logger.debug(f"Usando atributo 'text' direto da resposta: {len(content)} chars")
+            elif hasattr(claude_response, 'content'):
+                # Se content não for lista mas tiver conteúdo direto
+                if isinstance(claude_response.content, str):
+                    content = claude_response.content
+                    logger.debug(f"Content é string direta: {len(content)} chars")
+                else:
+                    content = str(claude_response.content)
+                    logger.debug(f"Content convertido para string: {len(content)} chars")
+            else:
+                content = str(claude_response)
+                logger.debug(f"Resposta completa convertida para string: {len(content)} chars")
+
+        # Garantir que content seja sempre string
+        if not isinstance(content, str):
+            content = str(content)
+
         # Criar usage info se disponível (simplificado)
         usage = None
         if hasattr(claude_response, 'usage'):
             usage = {
                 'input_tokens': getattr(claude_response.usage, 'input_tokens', 0),
                 'output_tokens': getattr(claude_response.usage, 'output_tokens', 0),
-                'total_tokens': getattr(claude_response.usage, 'input_tokens', 0) + 
+                'total_tokens': getattr(claude_response.usage, 'input_tokens', 0) +
                               getattr(claude_response.usage, 'output_tokens', 0)
             }
-        
+
         return ModelResponse(
             content=content
         )
@@ -171,17 +212,25 @@ class ClaudeModel(Model):
 
     def parse_provider_response_delta(self, response: Any) -> ModelResponse:
         """Processa respostas parciais do Claude (streaming)."""
+        logger.debug(f"Processando delta Claude - tipo: {type(response)}")
         try:
             if hasattr(response, "content") and response.content:
                 # Quando response é um TextDelta da API official
                 first_block = response.content[0]
+                logger.debug(f"Delta first block type: {type(first_block)}")
                 if hasattr(first_block, "text"):
-                    return ModelResponse(content=first_block.text)
+                    content = first_block.text
+                    logger.debug(f"Delta extraído via atributo 'text': {len(content)} chars")
+                    return ModelResponse(content=content)
             if hasattr(response, "delta") and hasattr(response.delta, "text"):
-                return ModelResponse(content=response.delta.text, extra={"delta": True})
+                content = response.delta.text
+                logger.debug(f"Delta extraído via response.delta.text: {len(content)} chars")
+                return ModelResponse(content=content, extra={"delta": True})
         except Exception as exc:
             logger.warning(f"Falha ao interpretar delta do Claude: {exc}")
-        return ModelResponse(content=str(response), extra={"delta": True})
+        content = str(response)
+        logger.debug(f"Delta convertido para string: {len(content)} chars")
+        return ModelResponse(content=content, extra={"delta": True})
     
     def invoke(self, messages: List[Dict[str, Any]], **kwargs) -> ModelResponse:
         """
