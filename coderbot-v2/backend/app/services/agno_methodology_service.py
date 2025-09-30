@@ -433,20 +433,31 @@ class AgnoMethodologyService:
             agent = self.get_agent(methodology)
             run_response = agent.run(prompt)
             
-            # DEBUG: Investigar estrutura do run_response
-            self.logger.info(f"🔍 DEBUG: run_response type = {type(run_response)}")
-            self.logger.info(f"🔍 DEBUG: run_response has content = {hasattr(run_response, 'content')}")
-            self.logger.info(f"🔍 DEBUG: run_response has messages = {hasattr(run_response, 'messages')}")
-            if hasattr(run_response, 'content'):
-                self.logger.info(f"🔍 DEBUG: run_response.content type = {type(run_response.content)}")
-                self.logger.info(f"🔍 DEBUG: run_response.content = {repr(run_response.content)[:200]}")
-            if hasattr(run_response, 'messages'):
-                self.logger.info(f"🔍 DEBUG: run_response.messages length = {len(run_response.messages)}")
+            # Extrair conteúdo da resposta - PRIORIZAR messages[] sobre content
+            # MOTIVO: run_response.content pode conter apenas "#" enquanto a resposta real está em messages
+            response = None
             
-            # Extrair conteúdo da resposta de maneira robusta
-            if hasattr(run_response, 'content'):
+            if hasattr(run_response, 'messages') and len(run_response.messages) > 0:
+                # Procurar mensagem do assistente com conteúdo substancial
+                for msg in reversed(run_response.messages):
+                    if hasattr(msg, 'role') and msg.role == 'assistant' and hasattr(msg, 'content'):
+                        # Preferir mensagens com mais de 10 caracteres (evitar "#" ou respostas vazias)
+                        if len(msg.content) > 10:
+                            response = msg.content
+                            self.logger.info(f"✅ Usando mensagem do assistente com {len(response)} caracteres")
+                            break
+                
+                # Fallback: se não encontrou mensagem substancial, usar última mensagem
+                if not response:
+                    last_message = run_response.messages[-1]
+                    response = last_message.content if hasattr(last_message, 'content') else str(last_message)
+                    self.logger.warning(f"⚠️ Usando fallback: última mensagem com {len(response)} caracteres")
+            
+            # Fallback final: usar content se messages não funcionou
+            if not response and hasattr(run_response, 'content'):
                 response = run_response.content
-            elif hasattr(run_response, 'messages') and len(run_response.messages) > 0:
+                self.logger.info(f"📝 Usando run_response.content com {len(response)} caracteres")
+            elif not response and hasattr(run_response, 'messages') and len(run_response.messages) > 0:
                 # AGNO RunResponse pode ter messages
                 last_message = run_response.messages[-1]
                 if hasattr(last_message, 'content'):
