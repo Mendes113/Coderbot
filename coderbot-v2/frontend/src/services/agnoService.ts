@@ -50,6 +50,47 @@ export interface AgnoRequest {
 }
 
 // Interface para a resposta do AGNO
+export interface StructuredQuizOption {
+  id: string;
+  text: string;
+  correct: boolean;
+  reason?: string | null;
+}
+
+export interface StructuredQuiz {
+  id: string;
+  question: string;
+  options: StructuredQuizOption[];
+  explanation?: string | null;
+}
+
+export interface StructuredExampleBlock {
+  title: string;
+  markdown: string;
+}
+
+export interface StructuredFinalCode {
+  language: string;
+  code: string;
+  truncated?: boolean;
+  line_count?: number;
+}
+
+export interface StructuredResponse {
+  version?: string;
+  methodology: string;
+  user_question: string;
+  intro?: string | null;
+  reflection?: string | null;
+  steps_markdown?: string | null;
+  steps_list: string[];
+  correct_example?: StructuredExampleBlock | null;
+  incorrect_example?: StructuredExampleBlock | null;
+  quizzes: StructuredQuiz[];
+  final_code?: StructuredFinalCode | null;
+  checklist_questions?: string[];
+}
+
 export interface AgnoResponse {
   response: string;
   methodology: MethodologyType;
@@ -73,6 +114,7 @@ export interface AgnoResponse {
   };
   // Novo: segmentos estruturados para exibição passo a passo no frontend
   segments?: ResponseSegment[];
+  structuredResponse?: StructuredResponse;
 }
 
 // Interface para respostas XML estruturadas (worked examples)
@@ -160,6 +202,11 @@ export interface ResponseSegment {
   type: 'intro' | 'steps' | 'correct_example' | 'incorrect_example' | 'reflection' | 'final_code' | string;
   content: string;
   language?: string;
+  // Campos adicionais para exemplos interativos
+  code?: string;
+  explanation?: string;
+  error_explanation?: string;
+  correction?: string;
 }
 
 // Configurações dos provedores
@@ -350,6 +397,24 @@ class AgnoService {
         success: true,
       });
 
+      const structuredResponseRaw = response.data.structured_response as Partial<StructuredResponse> | undefined;
+      const structuredResponse: StructuredResponse | undefined = structuredResponseRaw
+        ? {
+            version: structuredResponseRaw.version ?? "2.0",
+            methodology: structuredResponseRaw.methodology ?? request.methodology,
+            user_question: structuredResponseRaw.user_question ?? request.userQuery,
+            intro: structuredResponseRaw.intro ?? null,
+            reflection: structuredResponseRaw.reflection ?? null,
+            steps_markdown: structuredResponseRaw.steps_markdown ?? null,
+            steps_list: structuredResponseRaw.steps_list ?? [],
+            correct_example: structuredResponseRaw.correct_example ?? null,
+            incorrect_example: structuredResponseRaw.incorrect_example ?? null,
+            quizzes: structuredResponseRaw.quizzes ?? [],
+            final_code: structuredResponseRaw.final_code ?? null,
+            checklist_questions: structuredResponseRaw.checklist_questions ?? [],
+          }
+        : undefined;
+
       return {
         response: response.data.response,
         methodology: request.methodology,
@@ -357,6 +422,7 @@ class AgnoService {
         metadata: response.data.metadata,
         extras: response.data.extras,
         segments: response.data.segments as ResponseSegment[] | undefined,
+        structuredResponse,
       };
     } catch (error: any) {
       const durationMs = Math.round(((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - startedAt);

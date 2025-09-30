@@ -313,7 +313,8 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
                 ) : (
                   <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} gap-2 w-full`}>
                     {isCollapsed ? (
-                      <div className="flex items-center justify-center h-8 w-8 rounded-full bg-accent/60 text-sm font-medium text-primary-foreground">
+                      <div className="flex items-center justify-center h-8 w-8 rounded-full bg-accent/60 text-sm font-medium text-neutral-900">
+                        {/* compact mode initials should be dark (text-neutral-900) instead of white */}
                         {sessionInitial(session.title)}
                       </div>
                     ) : (

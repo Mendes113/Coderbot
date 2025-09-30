@@ -29,6 +29,7 @@ from app.services.template_service import TemplateContext, UnifiedTemplateServic
 
 # Import do nosso modelo customizado
 from .agno_models import create_model, get_available_models
+import time
 
 def _sanitize_api_key(raw: Optional[str]) -> str:
     """Remove aspas, quebras de linha e espaços de uma API key."""
@@ -437,6 +438,24 @@ class AgnoMethodologyService:
                 response = str(run_response)
             self.logger.info(f"{self.provider.upper()} retornou resposta de {len(response)} caracteres")
             
+            # NOVO: Validar se a resposta é muito curta ou incompleta (apenas quiz)
+            if methodology == MethodologyType.WORKED_EXAMPLES:
+                if self._is_incomplete_worked_example(response):
+                    self.logger.warning(
+                        "Resposta incompleta detectada (apenas quiz/resposta curta). "
+                        "Regenerando com prompt simplificado..."
+                    )
+                    # Tentar novamente com prompt mais direto e estruturado
+                    simplified_prompt = self._build_simplified_worked_examples_prompt(user_query, context)
+                    run_response = agent.run(simplified_prompt)
+                    if hasattr(run_response, 'content'):
+                        response = run_response.content
+                    elif isinstance(run_response, str):
+                        response = run_response
+                    else:
+                        response = str(run_response)
+                    self.logger.info(f"Regenerado: {len(response)} caracteres")
+            
             # Valida e formata resposta
             formatted_response = self._format_response(methodology, response)
             
@@ -488,6 +507,239 @@ class AgnoMethodologyService:
         # XML desabilitado: não validar nem tentar corrigir XML
         
         return formatted_response
+    
+    def process_ask_request(
+        self,
+        methodology: str,
+        user_query: str,
+        context: Optional[str] = None,
+        user_context: Optional[Dict[str, Any]] = None,
+        include_final_code: bool = True,
+        max_final_code_lines: Optional[int] = 150,
+    ) -> Dict[str, Any]:
+        """Processa uma requisição estruturada seguindo contrato do router AGNO."""
+        start_time = time.time()
+
+        try:
+            methodology_enum = MethodologyType(methodology)
+        except ValueError:
+            raise ValueError(f"Metodologia inválida: {methodology}")
+
+        if not self._validate_input(user_query, context):
+            raise ValueError("Entrada inválida: pergunta não pode estar vazia")
+
+        response = self.ask(methodology_enum, user_query, context)
+
+        final_code_info = None
+        if include_final_code:
+            final_code_info = self._extract_final_code_block(
+                response,
+                (max_final_code_lines or 150),
+            )
+
+        processing_time = round(time.time() - start_time, 4)
+        metadata: Dict[str, Any] = {
+            "processing_time": processing_time,
+            "provider": self.provider,
+            "model_id": self.model_id,
+            "methodology": methodology_enum.value,
+            "context_provided": bool(context),
+            "user_context_provided": bool(user_context),
+        }
+
+        if final_code_info:
+            metadata.update(
+                {
+                    "final_code_lines": final_code_info["line_count"],
+                    "final_code_total_lines": final_code_info["total_line_count"],
+                    "final_code_truncated": final_code_info["truncated"],
+                }
+            )
+
+        extras = None
+        if final_code_info:
+            extras = {
+                "final_code": final_code_info["code_block"],
+                "language": final_code_info["language"],
+                "line_count": final_code_info["line_count"],
+                "total_line_count": final_code_info["total_line_count"],
+                "truncated": final_code_info["truncated"],
+            }
+            if final_code_info["truncated"]:
+                extras["note"] = (
+                    f"Código truncado para {max_final_code_lines or 150} linhas para manter usabilidade."
+                )
+
+        segments = self._build_segments_from_response(response, final_code_info)
+
+        return {
+            "response": response,
+            "methodology": methodology_enum.value,
+            "is_xml_formatted": False,
+            "metadata": metadata,
+            "extras": extras,
+            "segments": segments,
+        }
+    
+    def _extract_final_code_block(
+        self, response: str, max_lines: int
+    ) -> Optional[Dict[str, Any]]:
+        """Extrai o último bloco de código da resposta, respeitando limite de linhas."""
+        code_pattern = re.compile(r"```([\w\-\+\.]+)?\s*\n([\s\S]*?)```", re.MULTILINE)
+        matches = list(code_pattern.finditer(response))
+        if not matches:
+            return None
+
+        last_match = matches[-1]
+        language = (last_match.group(1) or "").strip() or None
+        code_body = last_match.group(2).strip("\n")
+
+        all_lines = code_body.splitlines()
+        total_line_count = len(all_lines)
+        truncated = False
+        display_lines = all_lines
+        if max_lines and total_line_count > max_lines:
+            display_lines = all_lines[:max_lines]
+            truncated = True
+
+        code_for_output = "\n".join(display_lines)
+        fenced_code = (
+            f"```{language}\n{code_for_output}\n```"
+            if language
+            else f"```\n{code_for_output}\n```"
+        )
+
+        return {
+            "language": language,
+            "code": code_for_output,
+            "code_block": fenced_code,
+            "line_count": len(display_lines),
+            "total_line_count": total_line_count,
+            "truncated": truncated,
+        }
+    
+    def _build_segments_from_response(
+        self, response: str, final_code_info: Optional[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Gera segmentos básicos utilizados pelo frontend atual."""
+        segments: List[Dict[str, Any]] = []
+        
+        # Extrair exemplos interativos em JSON (se presentes)
+        examples_data = self._extract_examples_json(response)
+        
+        # LOG: Verificar o que foi extraído
+        if examples_data:
+            self.logger.info(f"📝 Exemplos extraídos: incorrect={bool(examples_data.get('incorrect_example'))}, correct={bool(examples_data.get('correct_example'))}")
+            if examples_data.get('incorrect_example'):
+                inc = examples_data['incorrect_example']
+                self.logger.info(f"  ❌ Incorreto: code={bool(inc.get('code'))}, error={bool(inc.get('error_explanation'))}, lang={inc.get('language')}")
+            if examples_data.get('correct_example'):
+                corr = examples_data['correct_example']
+                self.logger.info(f"  ✅ Correto: code={bool(corr.get('code'))}, explanation={bool(corr.get('explanation'))}, lang={corr.get('language')}")
+        else:
+            self.logger.warning("⚠️ Nenhum exemplo foi extraído da resposta")
+        
+        # Extrair quiz em JSON (se presente)
+        quiz_data = self._extract_quiz_json(response)
+        
+        # LOG: Verificar quiz
+        if quiz_data:
+            self.logger.info(f"❓ Quiz extraído: question={bool(quiz_data.get('question'))}, options={len(quiz_data.get('options', []))}")
+        else:
+            self.logger.warning("⚠️ Nenhum quiz foi extraído da resposta")
+        
+        # Remover os blocos examples e quiz da resposta principal para evitar duplicação
+        clean_response = response
+        if examples_data:
+            clean_response = re.sub(r'```examples\s*\n.*?\n```', '', clean_response, flags=re.DOTALL)
+        if quiz_data:
+            clean_response = re.sub(r'```quiz\s*\n.*?\n```', '', clean_response, flags=re.DOTALL)
+        
+        # ORDEM CORRETA DOS SEGMENTOS:
+        # 1. Resposta principal (reflexão + passo a passo)
+        if clean_response.strip():
+            segments.append(
+                {
+                    "id": "segment-main",
+                    "title": "Resposta Estruturada",
+                    "type": "steps",
+                    "content": clean_response.strip(),
+                    "language": None,
+                }
+            )
+        
+        # 2. Exemplos (correto e incorreto) - VALIDAR SE OS CAMPOS ESTÃO PREENCHIDOS
+        if examples_data and examples_data.get('incorrect_example'):
+            incorrect = examples_data['incorrect_example']
+            # Validar que os campos essenciais existem e não estão vazios
+            if incorrect.get('code') and incorrect.get('error_explanation'):
+                segments.append(
+                    {
+                        "id": "segment-example-incorrect",
+                        "title": incorrect.get('title', 'Exemplo Incorreto'),
+                        "type": "incorrect_example",
+                        "content": f"```{incorrect.get('language', '')}\n{incorrect.get('code', '')}\n```\n\n**Erro:** {incorrect.get('error_explanation', '')}\n\n**Correção:** {incorrect.get('correction', '')}",
+                        "language": incorrect.get('language'),
+                        "code": incorrect.get('code'),
+                        "error_explanation": incorrect.get('error_explanation'),
+                        "correction": incorrect.get('correction')
+                    }
+                )
+                self.logger.info("✅ Segmento incorrect_example criado com sucesso")
+            else:
+                self.logger.warning(f"❌ Exemplo incorreto INVÁLIDO (campos vazios): code={bool(incorrect.get('code'))}, error={bool(incorrect.get('error_explanation'))}")
+        
+        if examples_data and examples_data.get('correct_example'):
+            correct = examples_data['correct_example']
+            # Validar que os campos essenciais existem e não estão vazios
+            if correct.get('code') and correct.get('explanation'):
+                segments.append(
+                    {
+                        "id": "segment-example-correct",
+                        "title": correct.get('title', 'Exemplo Correto'),
+                        "type": "correct_example",
+                        "content": f"```{correct.get('language', '')}\n{correct.get('code', '')}\n```\n\n{correct.get('explanation', '')}",
+                        "language": correct.get('language'),
+                        "code": correct.get('code'),
+                        "explanation": correct.get('explanation')
+                    }
+                )
+                self.logger.info("✅ Segmento correct_example criado com sucesso")
+            else:
+                self.logger.warning(f"❌ Exemplo correto INVÁLIDO (campos vazios): code={bool(correct.get('code'))}, explanation={bool(correct.get('explanation'))}")
+        
+        # 3. Quiz (se presente) - VALIDAR ESTRUTURA
+        if quiz_data:
+            # Validar que tem question e options
+            if 'question' in quiz_data and 'options' in quiz_data and len(quiz_data['options']) > 0:
+                segments.append(
+                    {
+                        "id": "segment-quiz",
+                        "title": "Quiz",
+                        "type": "quiz",
+                        "content": json.dumps(quiz_data),
+                        "language": "quiz",
+                        "quiz_data": quiz_data
+                    }
+                )
+                self.logger.info(f"✅ Segmento quiz criado com {len(quiz_data['options'])} opções")
+            else:
+                self.logger.warning(f"❌ Quiz INVÁLIDO: question={bool(quiz_data.get('question'))}, options_count={len(quiz_data.get('options', []))}")
+        
+        # 4. Código final (último)
+        if final_code_info:
+            segments.append(
+                {
+                    "id": "segment-final-code",
+                    "title": "Código Final",
+                    "type": "final_code",
+                    "content": final_code_info["code_block"],
+                    "language": final_code_info["language"],
+                }
+            )
+
+        self.logger.info(f"📊 Total de {len(segments)} segmentos criados: {[s['type'] for s in segments]}")
+        return segments
     
     def _validate_xml_response(self, response: str) -> tuple[bool, str]:  # mantido por compat
         """
@@ -755,3 +1007,181 @@ class AgnoMethodologyService:
             MethodologyType.SCAFFOLDING
         ]
         return [methodology.value for methodology in xml_methodologies]
+    
+    def _extract_examples_json(self, response: str) -> Optional[Dict[str, Any]]:
+        """
+        Extrai exemplos em formato JSON estruturado da resposta.
+        
+        Args:
+            response: Resposta do modelo
+            
+        Returns:
+            Dict com exemplos correto e incorreto, ou None se não encontrado
+        """
+        # Procurar bloco ```examples
+        examples_pattern = re.compile(r'```examples\s*\n(.*?)\n```', re.DOTALL | re.IGNORECASE)
+        match = examples_pattern.search(response)
+        
+        if not match:
+            return None
+        
+        try:
+            examples_json = match.group(1).strip()
+            examples_data = json.loads(examples_json)
+            
+            # Validar estrutura esperada
+            if 'correct_example' in examples_data or 'incorrect_example' in examples_data:
+                return examples_data
+        except json.JSONDecodeError as e:
+            self.logger.warning(f"Erro ao parsear JSON de exemplos: {e}")
+        except Exception as e:
+            self.logger.warning(f"Erro ao extrair exemplos: {e}")
+        
+        return None
+    
+    def _extract_quiz_json(self, response: str) -> Optional[Dict[str, Any]]:
+        """
+        Extrai quiz em formato JSON estruturado da resposta.
+        
+        Args:
+            response: Resposta do modelo
+            
+        Returns:
+            Dict com dados do quiz, ou None se não encontrado
+        """
+        # Procurar bloco ```quiz
+        quiz_pattern = re.compile(r'```quiz\s*\n(.*?)\n```', re.DOTALL | re.IGNORECASE)
+        match = quiz_pattern.search(response)
+        
+        if not match:
+            return None
+        
+        try:
+            quiz_json = match.group(1).strip()
+            quiz_data = json.loads(quiz_json)
+            
+            # Validar estrutura esperada (deve ter question e options)
+            if 'question' in quiz_data and 'options' in quiz_data:
+                return quiz_data
+        except json.JSONDecodeError as e:
+            self.logger.warning(f"Erro ao parsear JSON do quiz: {e}")
+        except Exception as e:
+            self.logger.warning(f"Erro ao extrair quiz: {e}")
+        
+        return None
+    
+    def _is_incomplete_worked_example(self, response: str) -> bool:
+        """
+        Detecta se a resposta de worked example está incompleta (apenas quiz ou muito curta).
+        
+        Args:
+            response: Resposta do modelo
+            
+        Returns:
+            bool: True se a resposta está incompleta
+        """
+        # Se a resposta é muito curta (menos de 500 caracteres), provavelmente está incompleta
+        if len(response) < 500:
+            return True
+        
+        # Se contém apenas um bloco de código quiz, está incompleta
+        quiz_blocks = len(re.findall(r'```quiz', response, re.IGNORECASE))
+        total_blocks = len(re.findall(r'```\w*', response))
+        
+        if quiz_blocks > 0 and quiz_blocks == total_blocks:
+            # Apenas blocos quiz, sem conteúdo educacional
+            return True
+        
+        # Verificar se tem pelo menos algumas das seções esperadas
+        expected_sections = [
+            'Reflexão',
+            'Passo',
+            'Exemplo Correto',
+            'Exemplo Incorreto',
+            'Padrões',
+        ]
+        
+        sections_found = sum(1 for section in expected_sections if section.lower() in response.lower())
+        
+        # Se encontrou menos de 2 seções esperadas, está incompleto
+        if sections_found < 2:
+            return True
+        
+        return False
+    
+    def _build_simplified_worked_examples_prompt(self, user_query: str, context: Optional[str] = None) -> str:
+        """
+        Constrói um prompt simplificado e mais direto para worked examples.
+        Usado quando o modelo não segue o prompt complexo.
+        
+        Args:
+            user_query: Pergunta do usuário
+            context: Contexto adicional
+            
+        Returns:
+            str: Prompt simplificado
+        """
+        return f"""Você é um tutor de programação educativo. Responda à pergunta do estudante seguindo EXATAMENTE esta estrutura:
+
+## 🤔 Reflexão Inicial
+[Faça o estudante pensar sobre o problema antes de ver a solução]
+
+## 📝 Passo a Passo
+1. [Primeiro passo com explicação]
+2. [Segundo passo com explicação]
+3. [Continue até resolver completamente]
+
+## 💡 Exemplos Interativos
+Crie exemplos REAIS e RELEVANTES baseados na pergunta do usuário. Use código funcional relacionado ao tópico perguntado.
+
+```examples
+{{
+  "incorrect_example": {{
+    "title": "Exemplo Incorreto",
+    "code": "[código incorreto RELACIONADO à pergunta, com erro real]",
+    "language": "[linguagem apropriada]",
+    "error_explanation": "Explicação clara do erro cometido neste exemplo",
+    "correction": "Como corrigir o erro apresentado"
+  }},
+  "correct_example": {{
+    "title": "Exemplo Correto",
+    "code": "[código correto RELACIONADO à pergunta, versão funcional]",
+    "language": "[linguagem apropriada]",
+    "explanation": "Por que este exemplo está correto e como ele resolve o problema"
+  }}
+}}
+```
+
+IMPORTANTE: Os exemplos devem ser SOBRE O TÓPICO DA PERGUNTA, não exemplos genéricos de "Hello World".
+
+## 🎯 Padrões Importantes
+- [Padrão ou conceito-chave 1]
+- [Padrão ou conceito-chave 2]
+
+## 🚀 Próximos Passos
+[Sugira exercícios para praticar]
+
+## ❓ Quiz
+```quiz
+{{
+  "question": "Pergunta sobre o conceito",
+  "options": [
+    {{"id": "A", "text": "Opção A", "correct": true, "reason": "Explicação"}},
+    {{"id": "B", "text": "Opção B", "correct": false, "reason": "Explicação"}},
+    {{"id": "C", "text": "Opção C", "correct": false, "reason": "Explicação"}}
+  ],
+  "explanation": "Resumo da resposta correta"
+}}
+```
+
+PERGUNTA DO ESTUDANTE:
+{user_query}
+
+{f'CONTEXTO ADICIONAL:\n{context}' if context else ''}
+
+IMPORTANTE: 
+- Responda com TODAS as seções acima, não pule nenhuma.
+- Os exemplos DEVEM estar no bloco ```examples com JSON válido.
+- Use código funcional e realista nos exemplos.
+- Use \\n para quebras de linha no código JSON.
+"""

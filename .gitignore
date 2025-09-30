@@ -23,3 +23,5 @@ coderbot-v2/pocketbase_0.27.2_linux_amd64/pb_data/backups/
 node_modules/
 dist/
 .copilot/
+__pycache__/
+__pypackages__/

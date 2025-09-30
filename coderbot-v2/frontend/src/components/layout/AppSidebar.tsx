@@ -184,7 +184,7 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
         </div>
 
         <SidebarGroup className="edu-spacing-4">
-          <SidebarGroupLabel className="edu-heading-h4">Navegação</SidebarGroupLabel>
+          <SidebarGroupLabel className="edu-heading-h4"></SidebarGroupLabel>
           <SidebarGroupContent className="edu-spacing-3">
             <SidebarMenu>
               {filteredNavItems.map((item) => (

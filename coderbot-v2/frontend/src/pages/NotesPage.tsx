@@ -72,6 +72,32 @@ export default function NotesPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [newNoteTitle, setNewNoteTitle] = useState("");
 
+  const currentNoteId = currentNote?.id;
+  const currentNoteUpdatedAt = currentNote?.updatedAt?.getTime() ?? null;
+
+  useEffect(() => {
+    if (!currentNoteId) {
+      return;
+    }
+
+    const latest = notes.find(note => note.id === currentNoteId);
+
+    if (!latest) {
+      setCurrentNote(null);
+      setIsEditing(false);
+      return;
+    }
+
+    if (isEditing) {
+      return;
+    }
+
+    const latestUpdatedAt = latest.updatedAt.getTime();
+    if (currentNoteUpdatedAt === null || latestUpdatedAt !== currentNoteUpdatedAt) {
+      setCurrentNote(latest);
+    }
+  }, [notes, currentNoteId, currentNoteUpdatedAt, isEditing]);
+
   // Filtered notes based on current filters
   const filteredNotes = useMemo(() => {
     return filterNotes(filters);
@@ -101,7 +127,11 @@ export default function NotesPage() {
     if (!currentNote) return;
 
     try {
-      await updateNote(currentNote.id, { content });
+      const updated = await updateNote(currentNote.id, { content });
+      if (updated) {
+        setCurrentNote(updated);
+        setIsEditing(false);
+      }
       toast.success("Anotação salva!");
     } catch (error) {
       toast.error("Erro ao salvar anotação");
@@ -129,6 +159,9 @@ export default function NotesPage() {
   const handleToggleFavorite = async (noteId: string) => {
     try {
       await toggleFavorite(noteId);
+      if (currentNote?.id === noteId) {
+        setCurrentNote(prev => prev ? { ...prev, isFavorite: !prev.isFavorite } : prev);
+      }
       toast.success("Status de favorito atualizado!");
     } catch (error) {
       toast.error("Erro ao atualizar favorito");
@@ -138,6 +171,9 @@ export default function NotesPage() {
   const handleTogglePublic = async (noteId: string) => {
     try {
       await togglePublic(noteId);
+      if (currentNote?.id === noteId) {
+        setCurrentNote(prev => prev ? { ...prev, isPublic: !prev.isPublic } : prev);
+      }
       toast.success("Visibilidade atualizada!");
     } catch (error) {
       toast.error("Erro ao atualizar visibilidade");
@@ -408,6 +444,7 @@ export default function NotesPage() {
                     onChange={(content) => {
                       // Apenas atualizar o estado local se necessário
                       setCurrentNote(prev => prev ? { ...prev, content } : null);
+                      setIsEditing(true);
                     }}
                     onSave={() => handleSaveNote(currentNote.content)}
                     placeholder="Comece a escrever suas anotações de estudo..."
