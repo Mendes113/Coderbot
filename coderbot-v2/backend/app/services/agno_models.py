@@ -145,6 +145,17 @@ class ClaudeModel(Model):
         Returns:
             ModelResponse compatível com AGNO
         """
+        # DEBUG: Log the raw response from Claude to understand its structure
+        try:
+            raw_response_str = "N/A"
+            if hasattr(claude_response, 'model_dump_json'):
+                raw_response_str = claude_response.model_dump_json(indent=2)
+            else:
+                raw_response_str = str(claude_response)
+            logger.info(f"🔍 RAW CLAUDE RESPONSE:\n{raw_response_str}")
+        except Exception as e:
+            logger.warning(f"Could not serialize raw claude response for logging: {e}")
+
         # Extrair conteúdo da resposta - tratamento robusto para diferentes formatos
         content = ""
 
