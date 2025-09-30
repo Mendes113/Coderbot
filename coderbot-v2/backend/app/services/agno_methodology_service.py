@@ -293,8 +293,7 @@ class AgnoMethodologyService:
                 description=config["description"],
                 instructions=[self._build_markdown_instructions(config)],
                 markdown=True,
-                tools=[],  # Lista vazia de ferramentas
-                show_tool_calls=False  # Não processar tool calls
+                tools=[]  # Lista vazia de ferramentas
             )
         except Exception as e:
             self.logger.error(f"Erro ao criar agente {self.provider}: {e}")

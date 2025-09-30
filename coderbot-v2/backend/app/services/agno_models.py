@@ -210,6 +210,10 @@ class ClaudeModel(Model):
         """Implementa contrato obrigatório da classe base."""
         return self._create_model_response(response)
 
+    def _parse_provider_response(self, response: Any, **kwargs) -> ModelResponse:
+        """Implementa método abstrato requerido pela biblioteca AGNO."""
+        return self._create_model_response(response)
+
     def parse_provider_response_delta(self, response: Any) -> ModelResponse:
         """Processa respostas parciais do Claude (streaming)."""
         logger.debug(f"Processando delta Claude - tipo: {type(response)}")
@@ -231,6 +235,10 @@ class ClaudeModel(Model):
         content = str(response)
         logger.debug(f"Delta convertido para string: {len(content)} chars")
         return ModelResponse(content=content, extra={"delta": True})
+    
+    def _parse_provider_response_delta(self, response: Any) -> ModelResponse:
+        """Implementa método abstrato requerido pela biblioteca AGNO (streaming)."""
+        return self.parse_provider_response_delta(response)
     
     def invoke(self, messages: List[Dict[str, Any]], **kwargs) -> ModelResponse:
         """
@@ -444,6 +452,10 @@ class OllamaModel(Model):
             self.logger.error("Erro ao interpretar resposta do Ollama: %s", exc)
         return ModelResponse(content=str(response), provider_data={"model": self.model_name})
 
+    def _parse_provider_response(self, response: Any, **kwargs) -> ModelResponse:
+        """Implementa método abstrato requerido pela biblioteca AGNO."""
+        return self.parse_provider_response(response, **kwargs)
+
     def parse_provider_response_delta(self, delta: Any) -> ModelResponse:
         content: str
         if isinstance(delta, dict):
@@ -451,6 +463,10 @@ class OllamaModel(Model):
         else:
             content = str(delta)
         return ModelResponse(content=content, extra={"delta": True})
+
+    def _parse_provider_response_delta(self, delta: Any) -> ModelResponse:
+        """Implementa método abstrato requerido pela biblioteca AGNO (streaming)."""
+        return self.parse_provider_response_delta(delta)
 
 
 def create_model(provider: str, model_name: str, **kwargs) -> Model:
