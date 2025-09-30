@@ -432,7 +432,41 @@ class AgnoMethodologyService:
             )
             agent = self.get_agent(methodology)
             run_response = agent.run(prompt)
-            
+
+            # DEBUG: Inspecionar estrutura completa do run_response
+            try:
+                self.logger.info(f"🧬 run_response dir: {dir(run_response)}")
+                interesting_attrs = [
+                    "content",
+                    "messages",
+                    "raw_response",
+                    "response",
+                    "result",
+                    "data",
+                    "outputs",
+                    "output",
+                    "extra",
+                    "metadata",
+                    "text",
+                ]
+                for attr in interesting_attrs:
+                    if hasattr(run_response, attr):
+                        value = getattr(run_response, attr)
+                        try:
+                            preview = repr(value)
+                            if len(preview) > 500:
+                                preview = preview[:500] + "...<truncated>"
+                        except Exception as preview_exc:
+                            preview = f"<erro ao serializar: {preview_exc}>"
+                        self.logger.info(
+                            "🧪 run_response.%s -> type=%s | preview=%s",
+                            attr,
+                            type(value),
+                            preview,
+                        )
+            except Exception as inspect_exc:
+                self.logger.warning(f"Falha ao inspecionar run_response: {inspect_exc}")
+
             # Extrair conteúdo da resposta - PRIORIZAR messages[] sobre content
             # MOTIVO: run_response.content pode conter apenas "#" enquanto a resposta real está em messages
             response = None
