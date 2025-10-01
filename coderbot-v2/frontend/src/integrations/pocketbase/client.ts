@@ -237,6 +237,24 @@ export async function acceptInvite(token: string) {
   return res.data;
 }
 
+export async function joinClassByCode(code: string) {
+  const trimmed = (code || "").trim();
+  if (!trimmed) {
+    throw new Error("EMPTY_CODE");
+  }
+
+  try {
+    const res = await api.post(`/classes/join`, { code: trimmed }, getAuthHeaders());
+    return res.data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+    if (status === 404 || status === 405) {
+      return await acceptInvite(trimmed);
+    }
+    throw error;
+  }
+}
+
 // Events
 export async function listClassEvents(classId: string, opts?: { since?: string; until?: string }) {
   const cfg = { ...getAuthHeaders(), params: { since: opts?.since, until: opts?.until } } as any;
