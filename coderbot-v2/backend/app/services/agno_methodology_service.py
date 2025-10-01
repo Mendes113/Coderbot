@@ -237,16 +237,158 @@ class AgnoMethodologyService:
     def _get_model_name(self, model_id: str) -> str:
         """
         Obtém o nome real do modelo baseado na configuração.
-        
-        Args:
-            model_id: ID do modelo
-            
-        Returns:
-            str: Nome real do modelo
         """
         if model_id in self.model_config:
             return self.model_config[model_id].get('model_name', model_id)
         return model_id
+
+    def _extract_response_from_run_response(self, run_response: Any) -> Optional[str]:
+        """Extrai texto útil de um objeto RunResponse da AGNO."""
+        if run_response is None:
+            return None
+
+        # 1. Método utilitário oficial do RunResponse
+        if hasattr(run_response, "get_content_as_string"):
+            try:
+                text = run_response.get_content_as_string()
+                self.logger.debug(
+                    "🧪 get_content_as_string -> %r",
+                    text if len(str(text)) < 200 else str(text)[:200] + "...",
+                )
+                if isinstance(text, str) and text.strip() and text.strip() != "#":
+                    self.logger.info(
+                        "✅ Conteúdo extraído via get_content_as_string (%d chars)",
+                        len(text),
+                    )
+                    return text
+            except Exception as exc:
+                self.logger.warning(
+                    "Falha ao usar get_content_as_string: %s", exc
+                )
+
+        # 2. extra_data/output_text ou outros campos
+        extra_data = getattr(run_response, "extra_data", None)
+        if isinstance(extra_data, dict):
+            for key in ("output_text", "content", "text", "response"):
+                value = extra_data.get(key)
+                if isinstance(value, str) and value.strip() and value.strip() != "#":
+                    self.logger.info(
+                        "✅ Conteúdo extraído de extra_data['%s'] (%d chars)",
+                        key,
+                        len(value),
+                    )
+                    return value
+
+        # 3. Atributo content direto
+        content_attr = getattr(run_response, "content", None)
+        if isinstance(content_attr, str) and content_attr.strip() and content_attr.strip() != "#":
+            self.logger.info(
+                "✅ Conteúdo extraído do atributo content (%d chars)",
+                len(content_attr),
+            )
+            return content_attr
+
+        # 4. Percorrer mensagens procurando a última resposta substancial do assistente
+        messages = getattr(run_response, "messages", None)
+        if isinstance(messages, list) and messages:
+            for msg in reversed(messages):
+                msg_content = getattr(msg, "content", None)
+                msg_role = getattr(msg, "role", None)
+                if (
+                    msg_role == "assistant"
+                    and isinstance(msg_content, str)
+                    and len(msg_content.strip()) > 10
+                ):
+                    self.logger.info(
+                        "✅ Conteúdo extraído de messages (assistant) (%d chars)",
+                        len(msg_content),
+                    )
+                    return msg_content
+            # fallback: pegar última mensagem mesmo curta, mas evitando '#'
+            last_msg = messages[-1]
+            last_content = getattr(last_msg, "content", None)
+            if (
+                isinstance(last_content, str)
+                and last_content.strip()
+                and last_content.strip() != "#"
+            ):
+                self.logger.info(
+                    "⚠️ Conteúdo curto extraído da última mensagem (%d chars)",
+                    len(last_content),
+                )
+                return last_content
+
+        # 5. Se o objeto suportar serialização para JSON, tentar extrair campo "content"
+        if hasattr(run_response, "to_dict"):
+            try:
+                as_dict = run_response.to_dict()  # type: ignore[call-arg]
+                text_candidate = as_dict.get("content")
+                if (
+                    isinstance(text_candidate, str)
+                    and text_candidate.strip()
+                    and text_candidate.strip() != "#"
+                ):
+                    self.logger.info(
+                        "✅ Conteúdo extraído via to_dict content (%d chars)",
+                        len(text_candidate),
+                    )
+                    return text_candidate
+            except Exception:
+                pass
+
+        # 6. Fallback final: conversão para string, evitando representar o objeto inteiro
+        try:
+            rendered = str(run_response)
+            self.logger.debug(
+                "🧪 str(run_response) preview=%r",
+                rendered[:200] + "..." if len(rendered) > 200 else rendered,
+            )
+            if (
+                isinstance(rendered, str)
+                and rendered.strip()
+                and rendered.strip() != "#"
+                and not rendered.startswith("RunResponse(")
+            ):
+                self.logger.info(
+                    "⚠️ Conteúdo extraído via str(run_response) (%d chars)",
+                    len(rendered),
+                )
+                return rendered
+        except Exception:
+            pass
+
+        # DEBUG: registrar snapshot de atributos quando nada foi encontrado
+        try:
+            snapshot = {
+                "content": getattr(run_response, "content", None),
+                "messages": getattr(run_response, "messages", None),
+                "extra_data": getattr(run_response, "extra_data", None),
+                "content_type": getattr(run_response, "content_type", None),
+            }
+            self.logger.debug(
+                "🧪 RunResponse snapshot (sem conteúdo extraído): %s",
+                snapshot,
+            )
+            if hasattr(run_response, "to_dict"):
+                td = run_response.to_dict()  # type: ignore[call-arg]
+                if isinstance(td, dict):
+                    self.logger.debug(
+                        "🧪 RunResponse to_dict keys: %s",
+                        list(td.keys()),
+                    )
+                    for key in ("content", "text", "output_text", "response"):
+                        val = td.get(key)
+                        if isinstance(val, str) and val.strip() and val.strip() != "#":
+                            self.logger.info(
+                                "✅ Conteúdo extraído de to_dict['%s'] (%d chars)",
+                                key,
+                                len(val),
+                            )
+                            return val
+        except Exception:
+            pass
+
+        return None
 
     def get_agent(self, methodology: MethodologyType) -> Agent:
         """
@@ -432,84 +574,30 @@ class AgnoMethodologyService:
             )
             agent = self.get_agent(methodology)
             run_response = agent.run(prompt)
-
-            # DEBUG: Inspecionar estrutura completa do run_response
-            try:
-                self.logger.info(f"🧬 run_response dir: {dir(run_response)}")
-                interesting_attrs = [
-                    "content",
-                    "messages",
-                    "raw_response",
-                    "response",
-                    "result",
-                    "data",
-                    "outputs",
-                    "output",
-                    "extra",
-                    "metadata",
-                    "text",
-                ]
-                for attr in interesting_attrs:
-                    if hasattr(run_response, attr):
-                        value = getattr(run_response, attr)
-                        try:
-                            preview = repr(value)
-                            if len(preview) > 500:
-                                preview = preview[:500] + "...<truncated>"
-                        except Exception as preview_exc:
-                            preview = f"<erro ao serializar: {preview_exc}>"
-                        self.logger.info(
-                            "🧪 run_response.%s -> type=%s | preview=%s",
-                            attr,
-                            type(value),
-                            preview,
-                        )
-            except Exception as inspect_exc:
-                self.logger.warning(f"Falha ao inspecionar run_response: {inspect_exc}")
-
-            # Extrair conteúdo da resposta - PRIORIZAR messages[] sobre content
-            # MOTIVO: run_response.content pode conter apenas "#" enquanto a resposta real está em messages
-            response = None
             
-            if hasattr(run_response, 'messages') and len(run_response.messages) > 0:
-                # Procurar mensagem do assistente com conteúdo substancial
-                for msg in reversed(run_response.messages):
-                    if hasattr(msg, 'role') and msg.role == 'assistant' and hasattr(msg, 'content'):
-                        # Preferir mensagens com mais de 10 caracteres (evitar "#" ou respostas vazias)
-                        if len(msg.content) > 10:
-                            response = msg.content
-                            self.logger.info(f"✅ Usando mensagem do assistente com {len(response)} caracteres")
-                            break
+            # Extrair conteúdo da resposta - priorizando o método helper
+            response = self._extract_response_from_run_response(run_response)
+            self.logger.info(f"Response: {response}")
+
+         
                 
-                # Fallback: se não encontrou mensagem substancial, usar última mensagem
-                if not response:
-                    last_message = run_response.messages[-1]
-                    response = last_message.content if hasattr(last_message, 'content') else str(last_message)
-                    self.logger.warning(f"⚠️ Usando fallback: última mensagem com {len(response)} caracteres")
-            
-            # Fallback final: usar content se messages não funcionou
-            if not response and hasattr(run_response, 'content'):
-                response = run_response.content
-                self.logger.info(f"📝 Usando run_response.content com {len(response)} caracteres")
-            elif not response and hasattr(run_response, 'messages') and len(run_response.messages) > 0:
-                # AGNO RunResponse pode ter messages
-                last_message = run_response.messages[-1]
-                if hasattr(last_message, 'content'):
-                    response = last_message.content
+            if not response:
+                # manter compatibilidade com lógica anterior
+                if hasattr(run_response, "content") and isinstance(run_response.content, str):
+                    response = run_response.content
+                elif isinstance(run_response, str):
+                    response = run_response
                 else:
-                    response = str(last_message)
-            elif isinstance(run_response, str):
-                response = run_response
-            else:
-                # Fallback: tentar serializar
-                try:
-                    response = str(run_response)
-                    self.logger.warning(f"Tipo de resposta inesperado: {type(run_response)}. Usando str() fallback.")
-                except Exception as str_err:
-                    self.logger.error(f"Erro ao converter resposta para string: {str_err}")
-                    raise RuntimeError(f"Tipo de resposta não suportado: {type(run_response)}")
-            
-            self.logger.info(f"{self.provider.upper()} retornou resposta de {len(response)} caracteres")
+                    response = ""
+                    self.logger.warning(
+                        "⚠️ Não foi possível extrair conteúdo do RunResponse; utilizando string vazia."
+                    )
+
+            self.logger.info(
+                "%s retornou resposta de %d caracteres",
+                self.provider.upper(),
+                len(response),
+            )
             
             # NOVO: Validar se a resposta é muito curta ou incompleta (apenas quiz)
             if methodology == MethodologyType.WORKED_EXAMPLES:
@@ -521,25 +609,19 @@ class AgnoMethodologyService:
                     # Tentar novamente com prompt mais direto e estruturado
                     simplified_prompt = self._build_simplified_worked_examples_prompt(user_query, context)
                     run_response = agent.run(simplified_prompt)
-                    
-                    # Extrair conteúdo da resposta regenerada de maneira robusta
-                    if hasattr(run_response, 'content'):
-                        response = run_response.content
-                    elif hasattr(run_response, 'messages') and len(run_response.messages) > 0:
-                        last_message = run_response.messages[-1]
-                        if hasattr(last_message, 'content'):
-                            response = last_message.content
+
+                    response = self._extract_response_from_run_response(run_response)
+
+                    if not response:
+                        if hasattr(run_response, "content") and isinstance(run_response.content, str):
+                            response = run_response.content
+                        elif isinstance(run_response, str):
+                            response = run_response
                         else:
-                            response = str(last_message)
-                    elif isinstance(run_response, str):
-                        response = run_response
-                    else:
-                        try:
-                            response = str(run_response)
-                            self.logger.warning(f"Tipo de resposta regenerada inesperado: {type(run_response)}. Usando str() fallback.")
-                        except Exception as str_err:
-                            self.logger.error(f"Erro ao converter resposta regenerada para string: {str_err}")
-                            raise RuntimeError(f"Tipo de resposta não suportado: {type(run_response)}")
+                            response = ""
+                            self.logger.warning(
+                                "⚠️ Não foi possível extrair conteúdo do RunResponse regenerado; usando string vazia."
+                            )
                     
                     self.logger.info(f"Regenerado: {len(response)} caracteres")
             
