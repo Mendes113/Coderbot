@@ -14,7 +14,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { getCurrentUser } from "@/integrations/pocketbase/client";
+import { getCurrentUser, pb } from "@/integrations/pocketbase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTheme } from "@/context/ThemeContext";
 import { Button } from "@/components/ui/button";
@@ -43,13 +43,23 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isTeacherButtonAnimating, setIsTeacherButtonAnimating] = useState(false);
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>("");
   const { state } = useSidebar();
   const { theme } = useTheme();
 
   // Memoizar busca do usuário para evitar recálculos
   useEffect(() => {
     const user = getCurrentUser();
-    if (user) setUserRole(user.role);
+    if (user) {
+      setUserRole(user.role);
+      setUserName(user.name || user.email || "Usuário");
+      // Construir URL do avatar se existir
+      if (user.avatar) {
+        const avatarUrl = `${pb.baseUrl}/api/files/${user.collectionId}/${user.id}/${user.avatar}`;
+        setUserAvatarUrl(avatarUrl);
+      }
+    }
     setIsLoading(false);
   }, []); // Dependência vazia é intencional - só executar uma vez na montagem
   const normalizedUserRole = useMemo(() => (userRole || "").toLowerCase().trim(), [userRole]);
@@ -222,6 +232,25 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
                 </Button>
               </motion.div>
             )}
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="relative"
+            >
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] ring-2 ring-offset-2 ring-[hsl(var(--education-primary-light))] shadow-md cursor-pointer">
+                {userAvatarUrl ? (
+                  <img
+                    src={userAvatarUrl}
+                    alt={userName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-white font-bold text-sm">
+                    {userName.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+            </motion.div>
             <ThemeToggle />
           </div>
         ) : (
@@ -244,13 +273,27 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
                 </Button>
               </motion.div>
             )}
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-sidebar-border bg-white/80 px-3 py-2 text-xs text-slate-600 shadow-sm dark:bg-sidebar/30 dark:text-sidebar-foreground">
-              <div className="flex flex-col">
-                <span className="font-semibold">Tema</span>
-                <span className="text-[0.65rem] text-slate-500 dark:text-sidebar-foreground dark:opacity-70">
-                  {theme === "dark" ? "Modo escuro" : "Modo claro"}
-                </span>
-              </div>
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-sidebar-border bg-white/80 px-3 py-2 shadow-sm dark:bg-sidebar/30">
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="relative cursor-pointer"
+                onClick={() => navigate("/profile")}
+              >
+                <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] ring-2 ring-offset-1 ring-[hsl(var(--education-primary-light))] shadow-md">
+                  {userAvatarUrl ? (
+                    <img
+                      src={userAvatarUrl}
+                      alt={userName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white font-bold text-sm">
+                      {userName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
               <ThemeToggle />
             </div>
           </div>

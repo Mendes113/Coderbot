@@ -534,10 +534,25 @@ const ClassForumPage = () => {
                       </span>
                     </div>
                     <CardTitle className="text-xl font-semibold text-foreground">{post.title}</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      Publicado por {post.expand?.author?.name || 'usuário'}
-                      {post.expand?.author?.email ? ` · ${post.expand.author.email}` : ''}
-                    </p>
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] ring-2 ring-[hsl(var(--education-primary-light))] ring-offset-1 shadow-sm">
+                        {post.expand?.author?.avatar ? (
+                          <img
+                            src={`${pb.baseUrl}/api/files/${post.expand.author.collectionId}/${post.expand.author.id}/${post.expand.author.avatar}`}
+                            alt={post.expand.author.name || 'Usuário'}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-xs font-bold text-white">
+                            {(post.expand?.author?.name || 'U').charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Publicado por <span className="font-semibold text-foreground">{post.expand?.author?.name || 'usuário'}</span>
+                        {post.expand?.author?.email ? ` · ${post.expand.author.email}` : ''}
+                      </p>
+                    </div>
                   </CardHeader>
 
                   <CardContent className="space-y-5">
@@ -641,13 +656,30 @@ const ClassForumPage = () => {
                             ) : (
                               comments.map((comment) => (
                                 <div key={comment.id} className="rounded-lg border border-border/40 bg-background/80 p-3">
-                                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                                    <span className="font-semibold text-foreground">
-                                      {comment.expand?.author?.name || 'Participante'}
-                                    </span>
-                                    <span>{dateFormatter.format(new Date(comment.created))}</span>
+                                  <div className="flex items-start gap-3">
+                                    <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] ring-2 ring-[hsl(var(--education-primary-light))] ring-offset-1 shadow-sm">
+                                      {comment.expand?.author?.avatar ? (
+                                        <img
+                                          src={`${pb.baseUrl}/api/files/${comment.expand.author.collectionId}/${comment.expand.author.id}/${comment.expand.author.avatar}`}
+                                          alt={comment.expand.author.name || 'Participante'}
+                                          className="h-full w-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="flex h-full w-full items-center justify-center text-xs font-bold text-white">
+                                          {(comment.expand?.author?.name || 'P').charAt(0).toUpperCase()}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="flex-1">
+                                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                                        <span className="font-semibold text-foreground">
+                                          {comment.expand?.author?.name || 'Participante'}
+                                        </span>
+                                        <span>{dateFormatter.format(new Date(comment.created))}</span>
+                                      </div>
+                                      <p className="mt-2 text-sm text-foreground/90">{comment.content}</p>
+                                    </div>
                                   </div>
-                                  <p className="mt-2 text-sm text-foreground/90">{comment.content}</p>
                                 </div>
                               ))
                             )}
