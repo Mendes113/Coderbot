@@ -70,14 +70,7 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
 
   const mainNavItems: NavItem[] = useMemo(() => [
     { id: "chat", label: "Chat", icon: MessageSquare, accessKey: "c", path: "/dashboard/chat" },
-    {
-      id: "teacher",
-      label: "Professor",
-      icon: GraduationCap,
-      accessKey: "t",
-      path: "/teacher",
-      roles: ["teacher", "admin"],
-    },
+   
     {
       id: "student",
       label: "Aluno",

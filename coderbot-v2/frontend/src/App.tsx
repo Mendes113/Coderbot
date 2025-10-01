@@ -19,7 +19,7 @@ const UserProfile = React.lazy(() => import("./pages/UserProfile"));
 const Auth = React.lazy(() => import("./pages/Auth"));
 const ChatInterface = React.lazy(() => import("./pages/ChatInterface"));
 const ExerciseInterface = React.lazy(() => import("./pages/ExerciseInterface"));
-const TeacherDashboard = React.lazy(() => import("./pages/teacher/Dashboard"));
+// const TeacherDashboard = React.lazy(() => import("./pages/teacher/Dashboard"));
 import StudentDashboard from "./pages/StudentDashboard";
 import { TeacherStudentFallback, TeacherUnknownFallback } from "./pages/teacher/TeacherAccessFallback";
 const Whiteboard = React.lazy(() => import("./pages/Whiteboard"));
@@ -224,8 +224,8 @@ const App = () => {
                       </RequireAuth>
                     }
                   >
-                    <Route index element={<TeacherDashboard />} />
-                    <Route path="dashboard" element={<TeacherDashboard />} />
+                    {/* <Route index element={<TeacherDashboard />} />
+                    <Route path="dashboard" element={<TeacherDashboard />} /> */}
                     <Route path="*" element={<NotFound />} />
                   </Route>
                   <Route path="/profile" element={<RequireAuth><UserProfile /></RequireAuth>} />
