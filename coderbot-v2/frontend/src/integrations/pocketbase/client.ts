@@ -333,7 +333,6 @@ export const CLASS_FORUM_TYPES: ClassForumPostType[] = [
   'aviso',
   'info',
   'conteudo',
-  'arquivos',
   'links',
   'mensagens',
 ];

@@ -38,7 +38,6 @@ const forumTypeLabels: Record<ClassForumPostType, string> = {
   aviso: 'Aviso',
   info: 'Info',
   conteudo: 'Conteúdo',
-  arquivos: 'Arquivos',
   links: 'Links',
   mensagens: 'Mensagens',
 };
@@ -47,7 +46,6 @@ const forumTypeDescriptions: Record<ClassForumPostType, string> = {
   aviso: 'Comunicados importantes e urgentes',
   info: 'Informações gerais da turma',
   conteudo: 'Materiais didáticos e recursos',
-  arquivos: 'Documentos e materiais para download',
   links: 'Referências e recursos externos',
   mensagens: 'Mensagens gerais e discussões',
 };

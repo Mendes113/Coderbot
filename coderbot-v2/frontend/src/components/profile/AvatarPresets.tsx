@@ -81,7 +81,7 @@ export function AvatarPresets({ onSelect, currentAvatar }: AvatarPresetsProps) {
           Escolher Avatar Preset
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl max-h-[90vh]">
+      <DialogContent className="max-w-4xl max-h-[90vh] w-full">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-purple-500" />
@@ -125,8 +125,8 @@ export function AvatarPresets({ onSelect, currentAvatar }: AvatarPresetsProps) {
           </div>
 
           {/* Grid de Avatares */}
-          <ScrollArea className="h-[400px] pr-4">
-            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
+          <ScrollArea className="h-[400px] w-full">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 p-1">
               {currentAvatars.map((avatarUrl, index) => (
                 <motion.button
                   key={`${selectedStyle}-${index}-${randomSeed}`}
@@ -134,15 +134,16 @@ export function AvatarPresets({ onSelect, currentAvatar }: AvatarPresetsProps) {
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.02 }}
-                  whileHover={{ scale: 1.1 }}
+                  whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleSelectAvatar(avatarUrl)}
                   className={`
-                    relative rounded-full overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100 
-                    dark:from-purple-900/20 dark:to-pink-900/20 aspect-square
-                    ring-2 ring-offset-2 transition-all duration-200
-                    ${currentAvatar === avatarUrl 
-                      ? "ring-purple-500 ring-offset-purple-100 dark:ring-offset-purple-900" 
+                    relative rounded-full overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100
+                    dark:from-purple-900/20 dark:to-pink-900/20
+                    w-full aspect-square max-w-[80px]
+                    ring-2 ring-offset-1 transition-all duration-200
+                    ${currentAvatar === avatarUrl
+                      ? "ring-purple-500 ring-offset-purple-100 dark:ring-offset-purple-900"
                       : "ring-transparent hover:ring-purple-300 dark:hover:ring-purple-700"
                     }
                   `}
