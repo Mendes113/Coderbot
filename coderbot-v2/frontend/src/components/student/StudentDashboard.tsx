@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,8 @@ import {
   Clock,
   AlertTriangle,
   CheckCircle,
+  MessageSquare,
+  ArrowRight,
 } from "lucide-react";
 import { joinClassByCode, listClassEvents, listMyClasses } from "@/integrations/pocketbase/client";
 import type { ClassEvent } from "@/integrations/pocketbase/client";
@@ -147,6 +150,7 @@ function computeClassMetrics(events: ClassEvent[]): ClassMetrics {
 }
 
 export const StudentDashboard = () => {
+  const navigate = useNavigate();
   const [classes, setClasses] = useState<StudentClass[]>([]);
   const [classSummaries, setClassSummaries] = useState<Record<string, ClassSummaryState>>({});
   const [loading, setLoading] = useState<boolean>(false);
@@ -499,14 +503,33 @@ export const StudentDashboard = () => {
                   )}
                 </CardHeader>
                 <CardContent className="space-y-3">{renderSummary(summaryState)}</CardContent>
-                <CardFooter className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Info className="h-3.5 w-3.5" />
-                    {cls.teacherName ? `Professor responsável: ${cls.teacherName}` : "Professor responsável ainda não definido."}
-                  </span>
-                  <Badge variant="secondary" className="font-mono text-xs">
-                    ID {cls.classId}
-                  </Badge>
+                <CardFooter className="flex flex-col gap-3">
+                  <div className="flex w-full gap-2">
+                    <Button 
+                      onClick={() => navigate(`/class/${cls.classId}`)}
+                      className="flex-1 gap-2"
+                      variant="default"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      Acessar Fórum
+                    </Button>
+                    <Button 
+                      onClick={() => navigate(`/class/${cls.classId}`)}
+                      className="gap-2"
+                      variant="outline"
+                    >
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex w-full flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Info className="h-3.5 w-3.5" />
+                      {cls.teacherName ? `Professor: ${cls.teacherName}` : "Professor não definido"}
+                    </span>
+                    <Badge variant="secondary" className="font-mono text-xs">
+                      ID {cls.classId}
+                    </Badge>
+                  </div>
                 </CardFooter>
               </Card>
             );
