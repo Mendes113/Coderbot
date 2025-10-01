@@ -566,6 +566,7 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <nav className="hidden gap-2 sm:flex">
             <a href="/about" className="text-sm text-slate-600 hover:text-slate-900 dark:text-white/70 dark:hover:text-white">Sobre</a>
+            <a href="/classes" className="text-sm text-slate-600 hover:text-slate-900 dark:text-white/70 dark:hover:text-white">Turmas</a>
             <a href="/auth" className="text-sm text-slate-600 hover:text-slate-900 dark:text-white/70 dark:hover:text-white">Entrar</a>
             <a href="/dashboard" className="text-sm text-slate-600 hover:text-slate-900 dark:text-white/70 dark:hover:text-white">Dashboard</a>
           </nav>
