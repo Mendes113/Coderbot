@@ -172,6 +172,8 @@ const ClassForumPage = () => {
   const { classId: classIdentifier } = useParams<Params>();
   const navigate = useNavigate();
   const user = getCurrentUser();
+  const userId = user?.id;
+  const userRole = user?.role;
 
   const [classInfo, setClassInfo] = useState<any | null>(null);
   const [loadingClass, setLoadingClass] = useState(true);
@@ -227,12 +229,12 @@ const ClassForumPage = () => {
 
         setClassInfo(record);
 
-        if (!user) {
+        if (!userId) {
           setForbidden(true);
           return;
         }
 
-        const isOwner = record.createdBy === user.id;
+        const isOwner = record.createdBy === userId;
         let hasMembership = false;
 
         if (!isOwner) {
@@ -243,7 +245,7 @@ const ClassForumPage = () => {
           return;
         }
 
-        setForbidden(!(isOwner || hasMembership || user.role === 'admin'));
+        setForbidden(!(isOwner || hasMembership || userRole === 'admin'));
       } catch (error) {
         console.error('Erro ao carregar turma para o fórum:', error);
         toast.error('Não foi possível carregar as informações da turma.');
@@ -259,7 +261,7 @@ const ClassForumPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [classIdentifier, user]);
+  }, [classIdentifier, userId, userRole]);
 
   const loadPosts = useCallback(async () => {
     if (!classInfo || forbidden) {
