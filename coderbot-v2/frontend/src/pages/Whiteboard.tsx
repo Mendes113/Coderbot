@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState, useMemo, useEffect, Suspense } fr
 import { Excalidraw, serializeAsJSON } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
-import { Save, Plus, UploadCloud, Loader2, MessageCircle, Star, Trophy, Zap, Heart, Sparkles, ArrowLeft, Cpu, Database, Brain } from "lucide-react";
+import { Save, Plus, UploadCloud, Loader2, MessageCircle, Star, Trophy, Zap, Heart, Sparkles, ArrowLeft, Cpu, Database } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
 import {
@@ -22,91 +22,7 @@ import { Button } from "@/components/ui/button";
 /** Estrutura mínima do JSON exportado pelo Excalidraw */
 type SceneJSON = Record<string, unknown>;
 
-/** Contexto estruturado do whiteboard para IA */
-interface WhiteboardContext {
-  summary: string;
-  elements: any[];
-  metadata: {
-    totalElements: number;
-    types: string[];
-    complexity: 'simple' | 'medium' | 'complex';
-    lastModified: string;
-  };
-  insights: string[];
-}
-
 const getToday = () => new Date().toISOString().slice(0, 10);
-
-// Hook personalizado para gerenciar o contexto do whiteboard para IA
-const useWhiteboardAIContext = (apiRef: React.RefObject<ExcalidrawImperativeAPI>) => {
-  const [context, setContext] = useState<WhiteboardContext | null>(null);
-  const [isGeneratingContext, setIsGeneratingContext] = useState(false);
-
-  const generateContext = useCallback(async () => {
-    const api = apiRef.current;
-    if (!api) return null;
-
-    setIsGeneratingContext(true);
-    try {
-      const elements = api.getSceneElements();
-      const appState = api.getAppState();
-
-      // Análise básica dos elementos
-      const elementTypes = [...new Set(elements.map(el => el.type))];
-      const complexity = elements.length > 50 ? 'complex' :
-                        elements.length > 20 ? 'medium' : 'simple';
-
-      // Gera insights básicos sobre o conteúdo
-      const insights: string[] = [];
-      if (elements.some(el => el.type === 'text')) {
-        insights.push("Contém anotações textuais");
-      }
-      if (elements.some(el => el.type === 'rectangle' || el.type === 'ellipse')) {
-        insights.push("Possui formas geométricas");
-      }
-      if (elements.some(el => el.type === 'arrow')) {
-        insights.push("Contém conexões/setas indicando relacionamentos");
-      }
-      if (elements.length > 10) {
-        insights.push("Quadro com muitos elementos - pode representar um conceito complexo");
-      }
-
-      // Gera resumo simples
-      const summary = `Quadro com ${elements.length} elementos (${elementTypes.join(', ')}). ${
-        complexity === 'complex' ? 'Conteúdo complexo e detalhado.' :
-        complexity === 'medium' ? 'Conteúdo moderadamente detalhado.' :
-        'Conteúdo simples e direto.'
-      }`;
-
-      const newContext: WhiteboardContext = {
-        summary,
-        elements: elements.slice(0, 10), // Limita elementos para performance
-        metadata: {
-          totalElements: elements.length,
-          types: elementTypes,
-          complexity,
-          lastModified: new Date().toISOString()
-        },
-        insights
-      };
-
-      setContext(newContext);
-      return newContext;
-    } catch (error) {
-      console.error('Erro ao gerar contexto do whiteboard:', error);
-      return null;
-    } finally {
-      setIsGeneratingContext(false);
-    }
-  }, []); // Remove apiRef das dependências para evitar re-renders infinitos
-
-  return {
-    context,
-    generateContext,
-    isGeneratingContext,
-    clearContext: useCallback(() => setContext(null), [])
-  };
-};
 
 // Hook para otimizar salvamento com debounce
 const useDebouncedSave = (saveFunction: () => Promise<void>, delay: number = 2000) => {
@@ -188,9 +104,8 @@ const Whiteboard: React.FC = () => {
   const apiRef = useRef<ExcalidrawImperativeAPI>(null);
   const inflightRef = useRef(false); // evita salvar em paralelo
 
-  // ---------- Performance e contexto IA ----------
+  // ---------- Performance ----------
   const { metrics, isSlowConnection } = usePerformance();
-  const { context, generateContext, isGeneratingContext, clearContext } = useWhiteboardAIContext(apiRef);
   const { getCached, setCached, clearCache } = useDrawingCache();
 
   // ---------- Sessão do usuário ----------
@@ -206,7 +121,6 @@ const Whiteboard: React.FC = () => {
   const [motivationalMessage, setMotivationalMessage] = useState("");
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [lastContextUpdate, setLastContextUpdate] = useState<number>(0);
 
   // // Bônus diário ao acessar pela primeira vez no dia
   // React.useEffect(() => {
@@ -277,13 +191,8 @@ const Whiteboard: React.FC = () => {
 
   // Função otimizada para onChange - evita re-renders excessivos
   const handleExcalidrawChange = useCallback(() => {
-    const now = Date.now();
-    // Só atualiza contexto IA se passaram pelo menos 3 segundos desde a última atualização
-    if (autoSaveEnabled && now - lastContextUpdate > 3000) {
-      setLastContextUpdate(now);
-      generateContext();
-    }
-  }, [autoSaveEnabled, lastContextUpdate, generateContext]);
+    // Removida a geração automática de contexto IA
+  }, []);
 
   // Hook para detectar mudanças no quadro e acionar auto-save
   useEffect(() => {
@@ -350,9 +259,7 @@ const Whiteboard: React.FC = () => {
   /* ===================== AÇÕES DO MENU INICIAL OTIMIZADAS ===================== */
   const handleOpenEditor = useCallback(() => {
     setEditorVisible(true);
-    // Gera contexto inicial para IA quando abre o editor
-    setTimeout(() => generateContext(), 1000);
-  }, []); // Remove generateContext dependency to prevent re-renders
+  }, []);
 
   const openLocalFile = useCallback(async (file: File) => {
     try {
@@ -408,14 +315,13 @@ const Whiteboard: React.FC = () => {
     setActiveId(null);
     setLastSaved(null);
 
-    // Limpa cache e contexto
+    // Limpa cache
     clearCache();
-    clearContext();
     
 
     handleOpenEditor();
     toast.success("Novo quadro criado!", { duration: 1500 });
-  }, [handleOpenEditor, clearCache, clearContext]);
+  }, [handleOpenEditor, clearCache]);
 
   /* ===================== COMPONENTES OTIMIZADOS ===================== */
 
@@ -446,23 +352,6 @@ const Whiteboard: React.FC = () => {
     );
   }, [isSlowConnection, metrics.cls]);
 
-  // Indicador de contexto IA (discreto)
-  const AIContextIndicator = useMemo(() => {
-    if (!isGeneratingContext && !context) return null;
-
-    return (
-      <div className="fixed bottom-20 right-4 z-30 bg-purple-500/80 text-white px-2 py-1 rounded-md text-xs backdrop-blur-sm border border-purple-400/30">
-        <div className="flex items-center gap-1">
-          {isGeneratingContext ? (
-            <Loader2 className="w-3 h-3 animate-spin" />
-          ) : (
-            <Brain className="w-3 h-3" />
-          )}
-        </div>
-      </div>
-    );
-  }, [isGeneratingContext, context]);
-
   // Função para obter o JSON atual do quadro
   const getCurrentSceneJSON = useCallback((): Record<string, any> | null => {
     const api = apiRef.current;
@@ -480,33 +369,6 @@ const Whiteboard: React.FC = () => {
     }
   }, []);
 
-  // Contexto estruturado para IA - memoizado para performance
-  const structuredWhiteboardContext = useMemo(() => {
-    if (!context) return null;
-
-    return {
-      whiteboard: {
-        summary: context.summary,
-        complexity: context.metadata.complexity,
-        elementCount: context.metadata.totalElements,
-        elementTypes: context.metadata.types,
-        insights: context.insights,
-        lastModified: context.metadata.lastModified,
-        // Dados limitados para performance
-        sampleElements: context.elements.slice(0, 5)
-      },
-      user: {
-        hasActiveDrawing: !!activeId,
-        drawingTitle: "Quadro atual",
-        isAutoSaveEnabled: autoSaveEnabled
-      },
-      performance: {
-        isSlowConnection,
-        lastSaved: lastSaved?.toISOString()
-      }
-    };
-  }, [context?.summary, context?.metadata.totalElements, activeId, autoSaveEnabled, isSlowConnection, lastSaved]);
-
   /* ===================== RENDER OTIMIZADO ===================== */
   return (
     <div className="flex flex-col w-full min-h-screen bg-background text-foreground relative">
@@ -514,7 +376,6 @@ const Whiteboard: React.FC = () => {
 
       {/* Indicadores de Performance */}
       {editorVisible && PerformanceIndicator}
-      {editorVisible && AIContextIndicator}
 
       {/* Celebration Overlay */}
       {showCelebration && (
@@ -630,9 +491,6 @@ const Whiteboard: React.FC = () => {
           >
             <Plus size={20} />
             Novo quadro
-            <div className="ml-2 px-2 py-1 bg-white/20 rounded-full text-xs">
-              IA Integrada
-            </div>
           </button>
 
               {/* Lista de quadros com design emocional */}
@@ -720,10 +578,8 @@ const Whiteboard: React.FC = () => {
           <button
             onClick={() => {
               setEditorVisible(false);
-              // Limpa contexto quando volta para a lista
-              clearContext();
             }}
-            title="Voltar para a lista (limpa contexto da IA)"
+            title="Voltar para a lista"
             className="group fixed top-5 left-5 z-50 p-3 rounded-full shadow-2xl bg-gradient-to-r from-gray-600 to-gray-700 text-white hover:from-gray-700 hover:to-gray-800 hover:scale-110 transition-all duration-300 border-2 border-white/20"
           >
             <div className="relative">
@@ -734,31 +590,24 @@ const Whiteboard: React.FC = () => {
             <div className="absolute inset-0 bg-gray-400/20 rounded-full animate-ping opacity-50"></div>
           </button>
 
-          {/* ---------- Chat Popup com IA Integrada ---------- */}
+          {/* ---------- Chat Popup ---------- */}
           <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
             <SheetTrigger asChild>
               <button
-                title="Abrir chat com IA (contexto do quadro disponível)"
+                title="Abrir chat"
                 className="fixed bottom-20 ml-2 z-50 p-5 rounded-full shadow-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 transition-all duration-300 hover:scale-105"
               >
-                <div className="relative">
-                  <MessageCircle size={24} />
-                  {context && (
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                  )}
-                </div>
+                <MessageCircle size={24} />
               </button>
             </SheetTrigger>
             <SheetContent side="bottom" className="h-[70vh] p-0">
-              {/* Passar o contexto estruturado do quadro para o chat */}
               <ChatInterface
-                whiteboardContext={structuredWhiteboardContext || scene || undefined}
                 methodology="worked_examples"
               />
             </SheetContent>
           </Sheet>
 
-          {/* Controles de Performance e IA (menores) */}
+          {/* Controles de Performance (menores) */}
           <div className="fixed top-20 right-4 z-30 flex flex-col gap-1">
             <Button
               variant={autoSaveEnabled ? "default" : "outline"}
@@ -768,21 +617,6 @@ const Whiteboard: React.FC = () => {
               title="Ativar/desativar salvamento automático inteligente"
             >
               <Database className="w-3 h-3" />
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={generateContext}
-              disabled={isGeneratingContext}
-              className="text-xs h-7 px-2"
-              title="Atualizar contexto da IA com o quadro atual"
-            >
-              {isGeneratingContext ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <Brain className="w-3 h-3" />
-              )}
             </Button>
 
             <Button
