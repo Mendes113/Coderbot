@@ -296,6 +296,7 @@ export type ClassForumPostType =
   | 'aviso'
   | 'info'
   | 'conteudo'
+  | 'arquivos'
   | 'links'
   | 'mensagens';
 

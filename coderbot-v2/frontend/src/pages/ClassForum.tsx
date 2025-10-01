@@ -39,6 +39,7 @@ import {
   listClassForumPosts,
   pb,
   updateClassForumPost,
+  UserRecord,
 } from '@/integrations/pocketbase/client';
 
 type ForumInteractionType = 'post_viewed' | 'post_expanded' | 'comment_created' | 'external_link_clicked';
@@ -141,6 +142,38 @@ const normalizeLinks = (links: unknown): ClassForumLink[] => {
   return [];
 };
 
+/**
+ * Verifica se o usuário atual pode editar um post específico.
+ * - Professores podem editar sempre
+ * - Alunos podem editar apenas nos primeiros 15 minutos após criação
+ */
+const canEditPost = (post: ClassForumPostRecord, currentUser: UserRecord | undefined): boolean => {
+  if (!currentUser || !post.expand?.author) {
+    return false;
+  }
+
+  // Verifica se é o autor do post
+  if (post.expand.author.id !== currentUser.id) {
+    return false;
+  }
+
+  // Professores podem editar sempre
+  if (currentUser.role === 'teacher' || currentUser.role === 'admin') {
+    return true;
+  }
+
+  // Alunos podem editar apenas nos primeiros 15 minutos
+  if (currentUser.role === 'student') {
+    const postDate = new Date(post.created);
+    const now = new Date();
+    const fifteenMinutesInMs = 15 * 60 * 1000;
+
+    return (now.getTime() - postDate.getTime()) <= fifteenMinutesInMs;
+  }
+
+  return false;
+};
+
 const renderLoadingState = () => (
   <div className="flex min-h-screen flex-col items-center justify-center bg-muted/20 px-6">
     <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -200,6 +233,8 @@ const ClassForumPage = () => {
   const [commentsLoading, setCommentsLoading] = useState<LoadingState>({});
   const [commentDrafts, setCommentDrafts] = useState<DraftState>({});
   const [commentSubmitting, setCommentSubmitting] = useState<LoadingState>({});
+  const [editingPost, setEditingPost] = useState<EditingPostState>(null);
+  const [updatingPost, setUpdatingPost] = useState(false);
 
   const dateFormatter = useMemo(
     () =>
@@ -400,6 +435,50 @@ const ClassForumPage = () => {
     void loadPosts();
   }, [loadPosts]);
 
+  const handleEditPost = useCallback((post: ClassForumPostRecord) => {
+    setEditingPost({
+      id: post.id,
+      title: post.title,
+      content: post.content || '',
+      type: post.type,
+    });
+  }, []);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingPost(null);
+  }, []);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!editingPost) return;
+
+    setUpdatingPost(true);
+
+    try {
+      await updateClassForumPost(editingPost.id, {
+        title: editingPost.title,
+        content: editingPost.content,
+        type: editingPost.type,
+      });
+
+      // Atualizar o post na lista local
+      setPosts(prevPosts =>
+        prevPosts.map(post =>
+          post.id === editingPost.id
+            ? { ...post, title: editingPost.title, content: editingPost.content, type: editingPost.type }
+            : post
+        )
+      );
+
+      setEditingPost(null);
+      toast.success('Post atualizado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao atualizar post:', error);
+      toast.error('Não foi possível atualizar o post.');
+    } finally {
+      setUpdatingPost(false);
+    }
+  }, [editingPost]);
+
   const trackForumInteraction = useCallback(async (
     interactionType: ForumInteractionType,
     postId?: string,
@@ -578,24 +657,37 @@ const ClassForumPage = () => {
                       </span>
                     </div>
                     <CardTitle className="text-xl font-semibold text-foreground">{post.title}</CardTitle>
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] ring-2 ring-[hsl(var(--education-primary-light))] ring-offset-1 shadow-sm">
-                        {post.expand?.author?.avatar ? (
-                          <img
-                            src={`${pb.baseUrl}/api/files/${post.expand.author.collectionId}/${post.expand.author.id}/${post.expand.author.avatar}`}
-                            alt={post.expand.author.name || 'Usuário'}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-xs font-bold text-white">
-                            {(post.expand?.author?.name || 'U').charAt(0).toUpperCase()}
-                          </div>
-                        )}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] ring-2 ring-[hsl(var(--education-primary-light))] ring-offset-1 shadow-sm">
+                          {post.expand?.author?.avatar ? (
+                            <img
+                              src={`${pb.baseUrl}/api/files/${post.expand.author.collectionId}/${post.expand.author.id}/${post.expand.author.avatar}`}
+                              alt={post.expand.author.name || 'Usuário'}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-xs font-bold text-white">
+                              {(post.expand?.author?.name || 'U').charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Publicado por <span className="font-semibold text-foreground">{post.expand?.author?.name || 'usuário'}</span>
+                          {post.expand?.author?.email ? ` · ${post.expand.author.email}` : ''}
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        Publicado por <span className="font-semibold text-foreground">{post.expand?.author?.name || 'usuário'}</span>
-                        {post.expand?.author?.email ? ` · ${post.expand.author.email}` : ''}
-                      </p>
+
+                      {canEditPost(post, user) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditPost(post)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </CardHeader>
 
@@ -768,6 +860,86 @@ const ClassForumPage = () => {
           </div>
         )}
       </div>
+
+      {/* Modal de Edição de Post */}
+      <Dialog open={!!editingPost} onOpenChange={(open) => !open && handleCancelEdit()}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Editar Post</DialogTitle>
+            <DialogDescription>
+              Faça as alterações necessárias no seu post. Lembre-se que alunos só podem editar nos primeiros 15 minutos após a publicação.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editingPost && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-title">Título</Label>
+                <Input
+                  id="edit-title"
+                  value={editingPost.title}
+                  onChange={(e) => setEditingPost(prev => prev ? { ...prev, title: e.target.value } : null)}
+                  placeholder="Digite o título do post..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-type">Categoria</Label>
+                <Select
+                  value={editingPost.type}
+                  onValueChange={(value: ClassForumPostType) =>
+                    setEditingPost(prev => prev ? { ...prev, type: value } : null)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CLASS_FORUM_TYPES.map((type) => {
+                      const meta = forumTypeMeta[type];
+                      return (
+                        <SelectItem key={type} value={type}>
+                          {meta.label}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-content">Conteúdo</Label>
+                <Textarea
+                  id="edit-content"
+                  value={editingPost.content}
+                  onChange={(e) => setEditingPost(prev => prev ? { ...prev, content: e.target.value } : null)}
+                  placeholder="Digite o conteúdo do post..."
+                  rows={6}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelEdit} disabled={updatingPost}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={updatingPost || !editingPost?.title.trim()}>
+              {updatingPost ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Salvar Alterações
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
