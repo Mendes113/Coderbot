@@ -145,6 +145,11 @@ class ClaudeModel(Model):
         Returns:
             ModelResponse compatível com AGNO
         """
+        # CRITICAL FIX: Se já recebemos um ModelResponse, retornar imediatamente
+        if isinstance(claude_response, ModelResponse):
+            logger.info(f"🔍 _create_model_response recebeu ModelResponse (já processado), retornando direto: {len(claude_response.content)} chars")
+            return claude_response
+        
         # DEBUG: Log the raw response from Claude to understand its structure
         try:
             raw_response_str = "N/A"
