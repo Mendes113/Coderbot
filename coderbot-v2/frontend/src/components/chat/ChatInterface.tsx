@@ -1010,6 +1010,73 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
 
   const [sessionId, setSessionId] = useState<string>("");
 
+  // Chat context state
+  const [chatContext, setChatContext] = useState<{
+    classId?: string;
+    subject?: string;
+  }>({});
+
+  // Save chat context to session
+  const saveChatContext = useCallback(async (classId?: string, subject?: string) => {
+    if (!sessionId) return;
+
+    try {
+      await pb.collection('chat_sessions').update(sessionId, {
+        class: classId || null,
+        subject: subject || null,
+        last_interaction: new Date().toISOString(),
+      });
+
+      setChatContext({ classId, subject });
+    } catch (error) {
+      console.error('Erro ao salvar contexto do chat:', error);
+    }
+  }, [sessionId]);
+
+  // Load chat context from session
+  const loadChatContext = useCallback(async (currentSessionId: string) => {
+    if (!currentSessionId) return;
+
+    try {
+      const session = await pb.collection('chat_sessions').getOne(currentSessionId);
+      if (session) {
+        setChatContext({
+          classId: session.class || undefined,
+          subject: session.subject || undefined,
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar contexto do chat:', error);
+    }
+  }, []);
+
+  // Track chat interactions
+  const trackChatInteraction = useCallback(async (
+    interactionType: 'message_sent' | 'message_received' | 'session_started' | 'session_ended' | 'error_occurred' | 'feedback_provided',
+    targetId?: string,
+    metadata?: Record<string, any>
+  ) => {
+    const user = getCurrentUser();
+    if (!user || !sessionId) return;
+
+    try {
+      await pb.collection('chat_interactions').create({
+        user: user.id,
+        session: sessionId,
+        class: chatContext.classId || null,
+        interaction_type: interactionType,
+        target_id: targetId || '',
+        metadata: {
+          ...metadata,
+          subject: chatContext.subject,
+          classId: chatContext.classId,
+        },
+      });
+    } catch (error) {
+      console.error('Erro ao rastrear interação do chat:', error);
+    }
+  }, [sessionId, chatContext]);
+
   useEffect(() => {
     const initializeSession = async () => {
       const lastSessionId = sessionStorage.getItem("coderbot_last_chat_session");
@@ -1034,9 +1101,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
         const newSessionId = await chatService.createSession();
         setSessionId(newSessionId);
         sessionStorage.setItem("coderbot_last_chat_session", newSessionId);
-        
+
+        // Track session started
+        trackChatInteraction('session_started', newSessionId);
+
         trackEvent('edu_chat_session_created', { sessionId: newSessionId });
-        
+
         console.log("New session created:", newSessionId); // Debug log
       } catch (error) {
         console.error("Error creating new chat session:", error);
@@ -1072,7 +1142,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
       setSessionId(newSessionId);
       sessionStorage.setItem("coderbot_last_chat_session", newSessionId);
       scrollToBottom();
-      
+
+      // Load chat context for existing session
+      await loadChatContext(newSessionId);
+
       trackEvent('edu_chat_session_loaded', { sessionId: newSessionId, numMessages: sessionMessages?.length ?? 0 });
     } catch (error) {
       console.error("Error changing session:", error);
@@ -1300,6 +1373,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
         sessionId,
       });
 
+      // Track message sent
+      trackChatInteraction('message_sent', userMsgId, {
+        messageLength: input.length,
+        hasContext: !!(chatContext.classId && chatContext.subject),
+      });
+
       // Update the user message with the real ID from PocketBase
       setMessages(prev => 
         prev.map(msg => 
@@ -1334,7 +1413,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
         const userIdStr = typeof userId === 'string' ? userId : (userId ? JSON.stringify(userId) : "anonymous");
         const userContext = {
           userId: userIdStr,
-          currentTopic: "", // Pode ser extraído do contexto
+          currentTopic: chatContext.subject || "",
+          classId: chatContext.classId || null,
           difficultyLevel: userProfile.difficulty_level || "medium",
           learningProgress: userProfile.learning_progress || {},
           quizStats: {
@@ -1465,7 +1545,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
             isAi: true,
             sessionId,
           });
-          
+
+          // Track message received
+          trackChatInteraction('message_received', aiMsgId, {
+            responseLength: response.content.length,
+            hasWorkedExample: !!workedExampleData,
+          });
+
           // Update the AI message with content and real ID
           setMessages(prev => 
             prev.map(msg => 
@@ -2010,4 +2096,15 @@ Obrigado pela paciência! 🤖✨`,
       </div>
     </div>
   );
+};
+
+// Export chat context functions for use in other components
+export const useChatContext = () => {
+  const chatInterfaceRef = useRef<any>();
+
+  const saveContext = useCallback((classId?: string, subject?: string) => {
+    chatInterfaceRef.current?.saveChatContext?.(classId, subject);
+  }, []);
+
+  return { saveContext };
 };

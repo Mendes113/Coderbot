@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   CalendarIcon,
+  Edit,
   FileText,
   Link2,
   Loader2,
@@ -14,7 +15,11 @@ import { CreateForumPostDialog } from '@/components/teacher/CreateForumPostDialo
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
@@ -33,6 +38,7 @@ import {
   listClassForumComments,
   listClassForumPosts,
   pb,
+  updateClassForumPost,
 } from '@/integrations/pocketbase/client';
 
 type ForumInteractionType = 'post_viewed' | 'post_expanded' | 'comment_created' | 'external_link_clicked';
@@ -75,6 +81,12 @@ type ForumFilterOption = 'all' | ClassForumPostType;
 type CommentsState = Record<string, ClassForumCommentRecord[]>;
 type LoadingState = Record<string, boolean>;
 type DraftState = Record<string, string>;
+type EditingPostState = {
+  id: string;
+  title: string;
+  content: string;
+  type: ClassForumPostType;
+} | null;
 
 type Params = {
   classId?: string;
