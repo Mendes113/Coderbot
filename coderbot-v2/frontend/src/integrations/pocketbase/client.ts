@@ -189,6 +189,11 @@ export async function listTeachingClasses() {
   return (res.data?.items ?? []) as ClassSummary[];
 }
 
+export async function listPublicClasses() {
+  const res = await api.get("/classes/public");
+  return (res.data?.items ?? []) as ClassSummary[];
+}
+
 export async function listMyClasses() {
   const res = await api.get("/classes/mine", getAuthHeaders());
   return (res.data?.items ?? []) as any[]; // may include expand from backend when using class_members
