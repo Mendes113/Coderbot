@@ -125,8 +125,8 @@ export function AvatarPresets({ onSelect, currentAvatar }: AvatarPresetsProps) {
           </div>
 
           {/* Grid de Avatares */}
-          <ScrollArea className="h-[400px] pr-4 w-full">
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 pb-2">
+          <ScrollArea className="h-[400px] w-full">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 p-1">
               {currentAvatars.map((avatarUrl, index) => (
                 <motion.button
                   key={`${selectedStyle}-${index}-${randomSeed}`}
@@ -140,7 +140,7 @@ export function AvatarPresets({ onSelect, currentAvatar }: AvatarPresetsProps) {
                   className={`
                     relative rounded-full overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100
                     dark:from-purple-900/20 dark:to-pink-900/20
-                    w-full aspect-square
+                    w-full aspect-square max-w-[80px]
                     ring-2 ring-offset-1 transition-all duration-200
                     ${currentAvatar === avatarUrl
                       ? "ring-purple-500 ring-offset-purple-100 dark:ring-offset-purple-900"
