@@ -121,7 +121,7 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalo
       {/* Sugestões inteligentes */}
       {showSmartSuggestions && !input && (
         <div className="absolute -top-16 left-0 right-0 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-sm border border-gray-100 dark:border-neutral-800 rounded-xl p-3 shadow-lg animate-fade-in">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-2 z-10">
             <Bot className="h-4 w-4 text-purple-600" />
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Sugestões para começar:</span>
           </div>
