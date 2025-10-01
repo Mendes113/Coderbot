@@ -81,18 +81,20 @@ export function AvatarPresets({ onSelect, currentAvatar }: AvatarPresetsProps) {
           Escolher Avatar Preset
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] w-full">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-purple-500" />
-            Escolha seu Avatar
-          </DialogTitle>
-          <DialogDescription>
-            Selecione um estilo e escolha seu avatar preferido
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] w-full overflow-hidden p-0">
+        <div className="p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-500" />
+              Escolha seu Avatar
+            </DialogTitle>
+            <DialogDescription>
+              Selecione um estilo e escolha seu avatar preferido
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
-        <div className="space-y-4">
+        <div className="px-6 pb-6 space-y-4 max-h-[calc(90vh-200px)] overflow-hidden">
           {/* Seletor de Estilo */}
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -126,7 +128,7 @@ export function AvatarPresets({ onSelect, currentAvatar }: AvatarPresetsProps) {
 
           {/* Grid de Avatares */}
           <ScrollArea className="h-[400px] w-full">
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 p-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 p-1">
               {currentAvatars.map((avatarUrl, index) => (
                 <motion.button
                   key={`${selectedStyle}-${index}-${randomSeed}`}
@@ -140,7 +142,7 @@ export function AvatarPresets({ onSelect, currentAvatar }: AvatarPresetsProps) {
                   className={`
                     relative rounded-full overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100
                     dark:from-purple-900/20 dark:to-pink-900/20
-                    w-full aspect-square max-w-[80px]
+                    w-full aspect-square max-w-[60px]
                     ring-2 ring-offset-1 transition-all duration-200
                     ${currentAvatar === avatarUrl
                       ? "ring-purple-500 ring-offset-purple-100 dark:ring-offset-purple-900"
