@@ -131,7 +131,7 @@ migrate((app) => {
     "id": "pbc_class_forum_posts",
     "indexes": [
       "CREATE INDEX `idx_class_forum_posts_class` ON `class_forum_posts` (`class`)",
-      "CREATE INDEX `idx_class_forum_posts_type` ON `class_forum_posts` (`type`)
+      "CREATE INDEX `idx_class_forum_posts_type` ON `class_forum_posts` (`type`)"
     ],
     "listRule": "@request.auth.id != \"\" && (class.createdBy ?= @request.auth.id || @request.auth.role = \"admin\" || (@collection.class_members.user.id ?= @request.auth.id && @collection.class_members.class.id ?= class))",
     "name": "class_forum_posts",
