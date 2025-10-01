@@ -741,8 +741,13 @@ class AgnoMethodologyService:
 
         segments = self._build_segments_from_response(response, final_code_info)
 
+        # Remover blocos quiz e examples da resposta principal (já estão nos segments)
+        clean_response = response
+        clean_response = re.sub(r'```examples\s*\n.*?\n```', '', clean_response, flags=re.DOTALL)
+        clean_response = re.sub(r'```quiz\s*\n.*?\n```', '', clean_response, flags=re.DOTALL)
+
         return {
-            "response": response,
+            "response": clean_response.strip(),
             "methodology": methodology_enum.value,
             "is_xml_formatted": False,
             "metadata": metadata,
