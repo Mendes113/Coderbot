@@ -201,14 +201,14 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
     <Tabs defaultValue="profile" className="w-full">
       <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="profile">Perfil</TabsTrigger>
-        <TabsTrigger value="invitations" className="relative">
+        {/* <TabsTrigger value="invitations" className="relative">
           Convites
           {invitations.length > 0 && (
             <Badge className="ml-2 absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0">
               {invitations.length}
             </Badge>
           )}
-        </TabsTrigger>
+        </TabsTrigger> */}
       </TabsList>
       
       <TabsContent value="profile">

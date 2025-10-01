@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React, { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { pb } from "@/integrations/pocketbase/client";
+import { RequireRole } from "@/components/auth/RequireRole";
 import posthog from "posthog-js";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AnalyticsConsentBanner } from "@/components/consent/AnalyticsConsentBanner";
@@ -18,8 +19,9 @@ const UserProfile = React.lazy(() => import("./pages/UserProfile"));
 const Auth = React.lazy(() => import("./pages/Auth"));
 const ChatInterface = React.lazy(() => import("./pages/ChatInterface"));
 const ExerciseInterface = React.lazy(() => import("./pages/ExerciseInterface"));
-const TeacherDashboard = React.lazy(() => import("./pages/TeacherDashboard"));
+const TeacherDashboard = React.lazy(() => import("./pages/teacher/Dashboard"));
 import StudentDashboard from "./pages/StudentDashboard";
+import { TeacherStudentFallback, TeacherUnknownFallback } from "./pages/teacher/TeacherAccessFallback";
 const Whiteboard = React.lazy(() => import("./pages/Whiteboard"));
 const Home = React.lazy(() => import("./home/Home"));
 const AboutProject = React.lazy(() => import("./pages/AboutProject"));
@@ -199,13 +201,30 @@ const App = () => {
                   <Route path="/about" element={<AboutProject />} />
                   <Route path="dashboard" element={<RequireAuth><Index /></RequireAuth>}>
                     <Route path="chat" element={<ChatInterface />} />
-                 
                     <Route path="exercises" element={<ExerciseInterface />} />
-                
-                    <Route path="teacher" element={<TeacherDashboard />} />
                     <Route path="student" element={<StudentDashboard />} />
                     <Route path="whiteboard" element={<Whiteboard />} />
                     <Route path="notes" element={<NotesPage />} />
+                  </Route>
+                  <Route
+                    path="teacher/*"
+                    element={
+                      <RequireAuth>
+                        <RequireRole
+                          allowedRoles={["teacher", "admin"]}
+                          fallbackByRole={{
+                            student: <TeacherStudentFallback />,
+                            default: <TeacherUnknownFallback />,
+                          }}
+                        >
+                          <Index />
+                        </RequireRole>
+                      </RequireAuth>
+                    }
+                  >
+                    <Route index element={<TeacherDashboard />} />
+                    <Route path="dashboard" element={<TeacherDashboard />} />
+                    <Route path="*" element={<NotFound />} />
                   </Route>
                   <Route path="/profile" element={<RequireAuth><UserProfile /></RequireAuth>} />
                   <Route path="/auth" element={<Auth />} />

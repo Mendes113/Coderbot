@@ -198,8 +198,8 @@ export default function NotesPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="h-full bg-background">
-        <div className="container mx-auto px-4 py-8 pb-16">
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8 pb-32">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
               <BookOpen className="h-8 w-8 text-primary" />
@@ -227,7 +227,7 @@ export default function NotesPage() {
   // Error state
   if (error) {
     return (
-      <div className="h-full bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="max-w-md">
           <CardContent className="pt-6">
             <div className="text-center">
@@ -244,7 +244,7 @@ export default function NotesPage() {
   }
 
   return (
-    <div className="h-full bg-background">
+    <div className="min-h-screen bg-background">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-32 h-32 bg-purple-200/20 rounded-full blur-xl animate-pulse"></div>
@@ -252,7 +252,7 @@ export default function NotesPage() {
         <div className="absolute top-1/2 left-1/4 w-16 h-16 bg-pink-200/20 rounded-full blur-md animate-pulse" style={{ animationDelay: '2s' }}></div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 pb-32">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <BookOpen className="h-8 w-8 text-primary" />
@@ -269,7 +269,7 @@ export default function NotesPage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-32">
           {/* Sidebar */}
           <div className="lg:col-span-1 space-y-6">
             {/* Search */}
