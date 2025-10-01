@@ -244,14 +244,10 @@ class AgnoMethodologyService:
 
     def _extract_response_from_run_response(self, run_response: Any) -> Optional[str]:
         """Extrai texto útil de um objeto RunResponse da AGNO."""
-        self.logger.info(f"🔍 INÍCIO _extract_response_from_run_response | run_response type: {type(run_response)}")
-        
         if run_response is None:
-            self.logger.warning("⚠️ run_response é None!")
             return None
 
         # 1. Método utilitário oficial do RunResponse
-        self.logger.debug("🧪 Passo 1: Tentando get_content_as_string")
         if hasattr(run_response, "get_content_as_string"):
             try:
                 text = run_response.get_content_as_string()
@@ -265,19 +261,13 @@ class AgnoMethodologyService:
                         len(text),
                     )
                     return text
-                else:
-                    self.logger.debug(f"❌ get_content_as_string rejeitado: text={repr(text)[:100]}, is_string={isinstance(text, str)}, stripped={text.strip() if isinstance(text, str) else 'N/A'}")
             except Exception as exc:
                 self.logger.warning(
                     "Falha ao usar get_content_as_string: %s", exc
                 )
-        else:
-            self.logger.debug("❌ Não tem método get_content_as_string")
 
         # 2. extra_data/output_text ou outros campos
-        self.logger.debug("🧪 Passo 2: Tentando extra_data")
         extra_data = getattr(run_response, "extra_data", None)
-        self.logger.debug(f"extra_data type: {type(extra_data)}, is_dict: {isinstance(extra_data, dict)}")
         if isinstance(extra_data, dict):
             for key in ("output_text", "content", "text", "response"):
                 value = extra_data.get(key)
@@ -290,30 +280,16 @@ class AgnoMethodologyService:
                     return value
 
         # 3. Atributo content direto
-        self.logger.debug("🧪 Passo 3: Tentando atributo content direto")
         content_attr = getattr(run_response, "content", None)
-        self.logger.debug(f"content_attr: {repr(content_attr)[:100] if content_attr else None}, is_string: {isinstance(content_attr, str)}")
         if isinstance(content_attr, str) and content_attr.strip() and content_attr.strip() != "#":
             self.logger.info(
                 "✅ Conteúdo extraído do atributo content (%d chars)",
                 len(content_attr),
             )
             return content_attr
-        else:
-            self.logger.debug(f"❌ content_attr rejeitado: {repr(content_attr)[:100] if content_attr else None}")
 
         # 4. Percorrer mensagens procurando a última resposta substancial do assistente
-        self.logger.debug("🧪 Passo 4: Tentando messages")
         messages = getattr(run_response, "messages", None)
-        self.logger.debug(f"🧪 messages type: {type(messages)}, has messages: {messages is not None}, is_list: {isinstance(messages, list)}")
-        if isinstance(messages, list):
-            self.logger.info(f"🧪 messages list length: {len(messages)}")
-            for idx, msg in enumerate(messages):
-                msg_role = getattr(msg, "role", None)
-                msg_content = getattr(msg, "content", None)
-                content_preview = str(msg_content)[:100] if msg_content else "None"
-                self.logger.info(f"🧪 message[{idx}] role={msg_role}, content length={len(str(msg_content)) if msg_content else 0}, preview={content_preview}")
-        
         if isinstance(messages, list) and messages:
             for msg in reversed(messages):
                 msg_content = getattr(msg, "content", None)
@@ -599,32 +575,17 @@ class AgnoMethodologyService:
             agent = self.get_agent(methodology)
             run_response = agent.run(prompt)
             
-            # DEBUG: Log imediatamente após agent.run()
-            self.logger.info(f"🔍 AGNO retornou run_response type={type(run_response)}")
-            if hasattr(run_response, 'content'):
-                self.logger.info(f"🔍 run_response.content type={type(run_response.content)}, len={len(str(run_response.content))}, preview={str(run_response.content)[:200]}")
-            if hasattr(run_response, 'messages'):
-                self.logger.info(f"🔍 run_response.messages len={len(run_response.messages) if run_response.messages else 0}")
-                if run_response.messages:
-                    for idx, msg in enumerate(run_response.messages):
-                        self.logger.info(f"🔍 msg[{idx}]: role={getattr(msg, 'role', '?')}, content_len={len(str(getattr(msg, 'content', '')))}")
-            
-            # CRITICAL FIX: O AGNO coloca o conteúdo real em run_response.content, NÃO em messages
-            # Extrair DIRETAMENTE de run_response.content ANTES de tentar o helper
-            response = ""
-            if hasattr(run_response, "content") and isinstance(run_response.content, str):
-                response = run_response.content
-                self.logger.info(f"✅ Response extraído diretamente de run_response.content: {len(response)} caracteres")
-            
-            # Se ainda não tem resposta OU se é apenas "#", tentar helper
-            if not response or response.strip() == "#":
-                self.logger.warning(f"⚠️ content é '{response}', tentando helper...")
-                response = self._extract_response_from_run_response(run_response)
-                self.logger.info(f"Response do helper: {len(response) if response else 0} caracteres")
+            # Extrair conteúdo da resposta - priorizando o método helper
+            response = self._extract_response_from_run_response(run_response)
+            self.logger.info(f"Response: {response}")
+
+         
                 
-            # Último fallback
             if not response:
-                if isinstance(run_response, str):
+                # manter compatibilidade com lógica anterior
+                if hasattr(run_response, "content") and isinstance(run_response.content, str):
+                    response = run_response.content
+                elif isinstance(run_response, str):
                     response = run_response
                 else:
                     response = ""
