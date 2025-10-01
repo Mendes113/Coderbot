@@ -22,6 +22,7 @@ import { useUserData } from "@/hooks/useUserData";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { AvatarPresets } from "./AvatarPresets";
 
 interface ProfileFormProps {
   isEditing: boolean;
@@ -47,6 +48,7 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
   const [updating, setUpdating] = useState(false);
   const [avatar, setAvatar] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [presetAvatarUrl, setPresetAvatarUrl] = useState<string | null>(null);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loadingInvitations, setLoadingInvitations] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -118,6 +120,26 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
+  };
+
+  const handlePresetSelect = async (url: string) => {
+    try {
+      // Baixa a imagem do preset
+      const response = await fetch(url);
+      const blob = await response.blob();
+      
+      // Converte para File
+      const file = new File([blob], `avatar-preset-${Date.now()}.svg`, { type: 'image/svg+xml' });
+      
+      setAvatar(file);
+      setPresetAvatarUrl(url);
+      setAvatarPreview(url);
+      
+      toast.success('Avatar preset selecionado!');
+    } catch (error) {
+      console.error('Erro ao baixar preset:', error);
+      toast.error('Erro ao selecionar avatar preset');
+    }
   };
 
   const handleAcceptInvitation = async (invitationId: string, classId: string) => {
@@ -247,19 +269,25 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
                       className="hidden"
                     />
                     
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      type="button"
-                      onClick={triggerFileInput}
-                      className="relative group overflow-hidden shadow-sm ring-1 ring-black/5 hover:shadow-md transition-all duration-200"
-                    >
-                      <Camera className="mr-2 h-4 w-4" />
-                      Alterar Foto
-                      <span className="absolute inset-0 flex items-center justify-center bg-coderbot-purple text-white opacity-0 group-hover:opacity-100 transition-opacity rounded">
-                        Escolher arquivo
-                      </span>
-                    </Button>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <AvatarPresets 
+                        onSelect={handlePresetSelect}
+                        currentAvatar={presetAvatarUrl}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        onClick={triggerFileInput}
+                        className="relative group overflow-hidden shadow-sm ring-1 ring-black/5 hover:shadow-md transition-all duration-200"
+                      >
+                        <Camera className="mr-2 h-4 w-4" />
+                        Enviar Foto
+                        <span className="absolute inset-0 flex items-center justify-center bg-coderbot-purple text-white opacity-0 group-hover:opacity-100 transition-opacity rounded">
+                          Escolher arquivo
+                        </span>
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="grid gap-6 md:grid-cols-2">
