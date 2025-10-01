@@ -546,29 +546,34 @@ export const deleteClassForumComment = async (commentId: string): Promise<boolea
 };
 
 /**
- * Obtém uma turma usando id, código ou nome.
+ * Obtém uma turma usando id ou nome.
  */
 export const getClassByIdentifier = async (identifier: string): Promise<any | null> => {
+  
   if (!identifier?.trim()) {
     return null;
   }
 
   const trimmed = identifier.trim();
 
+  // Primeiro tenta como ID direto
   try {
-    const record = await pb.collection('classes').getOne(trimmed);
+    const record = await pb.collection('classes').getOne(trimmed, {
+      requestKey: null, // Evita cache/autocancellation
+    } as any);
     return record;
   } catch (error) {
-    console.debug('Identificador não é um ID direto, tentando buscar por código ou nome.', error);
+    console.debug('Identificador não é um ID direto, tentando buscar por nome.', error);
   }
 
+  // Se não encontrar como ID, tenta como nome
   const safeIdentifier = trimmed.replace(/"/g, '\\"');
 
   try {
     const record = await pb.collection('classes').getFirstListItem(
-      `code = "${safeIdentifier}" || name = "${safeIdentifier}"`,
+      `name = "${safeIdentifier}"`,
       {
-        requestKey: `class_lookup_${safeIdentifier}_${Date.now()}`,
+        requestKey: null, // Evita cache/autocancellation
       } as any,
     );
     return record;
