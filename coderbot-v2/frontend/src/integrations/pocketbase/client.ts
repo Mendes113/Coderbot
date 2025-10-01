@@ -287,3 +287,316 @@ export async function hasClassApiKey(classId: string, provider: 'openai'|'claude
   const res = await api.get(`/classes/${classId}/api-keys/${provider}`, getAuthHeaders());
   return res.data as { hasKey: boolean; masked?: string };
 }
+
+// ============================
+// Class Forum (direct PocketBase)
+// ============================
+
+export type ClassForumPostType =
+  | 'aviso'
+  | 'info'
+  | 'conteudo'
+  | 'arquivos'
+  | 'links'
+  | 'mensagens';
+
+export interface ClassForumLink {
+  label?: string;
+  url: string;
+}
+
+export interface ClassForumPostRecord extends PBRecord {
+  class: string;
+  author: string;
+  title: string;
+  content?: string;
+  type: ClassForumPostType;
+  attachments?: string[];
+  links?: ClassForumLink[] | null;
+  expand?: {
+    author?: UserRecord;
+    class?: any;
+  };
+}
+
+export interface ClassForumCommentRecord extends PBRecord {
+  post: string;
+  author: string;
+  content: string;
+  expand?: {
+    author?: UserRecord;
+    post?: ClassForumPostRecord;
+  };
+}
+
+export const CLASS_FORUM_TYPES: ClassForumPostType[] = [
+  'aviso',
+  'info',
+  'conteudo',
+  'arquivos',
+  'links',
+  'mensagens',
+];
+
+/**
+ * Lista posts do fórum de eventos da turma.
+ */
+export const listClassForumPosts = async (
+  classId: string,
+  options?: { type?: ClassForumPostType }
+): Promise<ClassForumPostRecord[]> => {
+  try {
+    const filters = [`class = "${classId}"`];
+    const requestedType = options?.type;
+    if (requestedType && CLASS_FORUM_TYPES.includes(requestedType)) {
+      filters.push(`type = "${requestedType}"`);
+    }
+
+    const filter = filters.join(' && ');
+
+    const records = await pb.collection('class_forum_posts').getFullList({
+      filter,
+      sort: '-created',
+      expand: 'author',
+      requestKey: `class_forum_posts_${classId}_${requestedType ?? 'all'}_${Date.now()}`,
+    } as any);
+
+    return records as ClassForumPostRecord[];
+  } catch (error) {
+    console.error('Erro ao listar posts do fórum:', error);
+    return [];
+  }
+};
+
+/**
+ * Cria um novo post no fórum de eventos da turma.
+ */
+export const createClassForumPost = async (data: {
+  classId: string;
+  title: string;
+  content?: string;
+  type: ClassForumPostType;
+  attachments?: File[];
+  links?: ClassForumLink[];
+}): Promise<ClassForumPostRecord | null> => {
+  const user = getCurrentUser();
+  if (!user) {
+    throw new Error('Usuário não autenticado');
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append('class', data.classId);
+    formData.append('author', user.id);
+    formData.append('title', data.title);
+    formData.append('type', data.type);
+
+    if (data.content) {
+      formData.append('content', data.content);
+    }
+
+    if (data.links && data.links.length > 0) {
+      formData.append('links', JSON.stringify(data.links));
+    }
+
+    if (data.attachments && data.attachments.length > 0) {
+      data.attachments.forEach((file) => {
+        formData.append('attachments', file);
+      });
+    }
+
+    const record = await pb.collection('class_forum_posts').create(formData);
+    return record as ClassForumPostRecord;
+  } catch (error) {
+    console.error('Erro ao criar post do fórum:', error);
+    throw error;
+  }
+};
+
+/**
+ * Atualiza um post existente no fórum.
+ */
+export const updateClassForumPost = async (
+  postId: string,
+  data: {
+    title?: string;
+    content?: string;
+    type?: ClassForumPostType;
+    links?: ClassForumLink[];
+  }
+): Promise<ClassForumPostRecord | null> => {
+  try {
+    const updateData: any = {};
+
+    if (data.title !== undefined) {
+      updateData.title = data.title;
+    }
+
+    if (data.content !== undefined) {
+      updateData.content = data.content;
+    }
+
+    if (data.type !== undefined) {
+      updateData.type = data.type;
+    }
+
+    if (data.links !== undefined) {
+      updateData.links = data.links;
+    }
+
+    const record = await pb.collection('class_forum_posts').update(postId, updateData);
+    return record as ClassForumPostRecord;
+  } catch (error) {
+    console.error('Erro ao atualizar post do fórum:', error);
+    throw error;
+  }
+};
+
+/**
+ * Remove um post do fórum.
+ */
+export const deleteClassForumPost = async (postId: string): Promise<boolean> => {
+  try {
+    await pb.collection('class_forum_posts').delete(postId);
+    return true;
+  } catch (error) {
+    console.error('Erro ao remover post do fórum:', error);
+    return false;
+  }
+};
+
+/**
+ * Recupera um post específico do fórum.
+ */
+export const getClassForumPost = async (postId: string): Promise<ClassForumPostRecord | null> => {
+  try {
+    const record = await pb.collection('class_forum_posts').getOne(postId, {
+      expand: 'author,class',
+      requestKey: `forum_post_${postId}_${Date.now()}`,
+    } as any);
+    return record as ClassForumPostRecord;
+  } catch (error) {
+    console.error('Erro ao obter post do fórum:', error);
+    return null;
+  }
+};
+
+/**
+ * Lista comentários de um post.
+ */
+export const listClassForumComments = async (
+  postId: string
+): Promise<ClassForumCommentRecord[]> => {
+  try {
+    const records = await pb.collection('class_forum_comments').getFullList({
+      filter: `post = "${postId}"`,
+      sort: 'created',
+      expand: 'author',
+      requestKey: `forum_comments_${postId}_${Date.now()}`,
+    } as any);
+
+    return records as ClassForumCommentRecord[];
+  } catch (error) {
+    console.error('Erro ao listar comentários do fórum:', error);
+    return [];
+  }
+};
+
+/**
+ * Cria um novo comentário em um post do fórum.
+ */
+export const createClassForumComment = async (
+  postId: string,
+  content: string
+): Promise<ClassForumCommentRecord | null> => {
+  const trimmedContent = content.trim();
+  if (!trimmedContent) {
+    return null;
+  }
+
+  const user = getCurrentUser();
+  if (!user) {
+    throw new Error('Usuário não autenticado');
+  }
+
+  try {
+    const record = await pb.collection('class_forum_comments').create({
+      post: postId,
+      content: trimmedContent,
+      author: user.id,
+    });
+    return record as ClassForumCommentRecord;
+  } catch (error) {
+    console.error('Erro ao criar comentário no fórum:', error);
+    throw error;
+  }
+};
+
+/**
+ * Remove um comentário (apenas autor, professor ou admin).
+ */
+export const deleteClassForumComment = async (commentId: string): Promise<boolean> => {
+  try {
+    await pb.collection('class_forum_comments').delete(commentId);
+    return true;
+  } catch (error) {
+    console.error('Erro ao remover comentário:', error);
+    return false;
+  }
+};
+
+/**
+ * Obtém uma turma usando id, código ou nome.
+ */
+export const getClassByIdentifier = async (identifier: string): Promise<any | null> => {
+  if (!identifier?.trim()) {
+    return null;
+  }
+
+  const trimmed = identifier.trim();
+
+  try {
+    const record = await pb.collection('classes').getOne(trimmed);
+    return record;
+  } catch (error) {
+    console.debug('Identificador não é um ID direto, tentando buscar por código ou nome.', error);
+  }
+
+  const safeIdentifier = trimmed.replace(/"/g, '\\"');
+
+  try {
+    const record = await pb.collection('classes').getFirstListItem(
+      `code = "${safeIdentifier}" || name = "${safeIdentifier}"`,
+      {
+        requestKey: `class_lookup_${safeIdentifier}_${Date.now()}`,
+      } as any,
+    );
+    return record;
+  } catch (error) {
+    console.error('Não foi possível encontrar turma pelo identificador fornecido:', error);
+    return null;
+  }
+};
+
+/**
+ * Verifica se o usuário autenticado participa da turma.
+ */
+export const isCurrentUserMemberOfClass = async (classId: string): Promise<boolean> => {
+  const user = getCurrentUser();
+  if (!user) {
+    return false;
+  }
+
+  try {
+    await pb.collection('class_members').getFirstListItem(
+      `class = "${classId}" && user = "${user.id}"`,
+      {
+        requestKey: `class_member_check_${classId}_${user.id}_${Date.now()}`,
+      } as any,
+    );
+    return true;
+  } catch (error) {
+    console.warn('Usuário não parece fazer parte da turma ou não foi possível verificar:', error);
+    return false;
+  }
+};
