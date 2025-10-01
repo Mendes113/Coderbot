@@ -35,6 +35,8 @@ import {
   pb,
 } from '@/integrations/pocketbase/client';
 
+type ForumInteractionType = 'post_viewed' | 'post_expanded' | 'comment_created' | 'external_link_clicked';
+
 const forumTypeMeta: Record<ClassForumPostType, { label: string; badgeClass: string; description: string }> = {
   aviso: {
     label: 'Aviso',
@@ -315,6 +317,11 @@ const ClassForumPage = () => {
 
       setExpandedPosts((prev) => (isOpen ? prev.filter((id) => id !== postId) : [...prev, postId]));
 
+      // Track post expansion
+      if (!isOpen) {
+        trackForumInteraction('post_expanded', postId);
+      }
+
       if (!isOpen) {
         void loadComments(postId);
       }
@@ -360,6 +367,10 @@ const ClassForumPage = () => {
         }));
 
         setCommentDrafts((prev) => ({ ...prev, [post.id]: '' }));
+
+        // Track comment creation
+        trackForumInteraction('comment_created', post.id);
+
         toast.success('Comentário publicado com sucesso.');
       } catch (error) {
         console.error('Erro ao enviar comentário para o fórum:', error);
@@ -376,6 +387,27 @@ const ClassForumPage = () => {
     setExpandedPosts([]);
     void loadPosts();
   }, [loadPosts]);
+
+  const trackForumInteraction = useCallback(async (
+    interactionType: ForumInteractionType,
+    postId?: string,
+    metadata?: Record<string, any>
+  ) => {
+    const user = getCurrentUser();
+    if (!user || !classInfo) return;
+
+    try {
+      await pb.collection('forum_user_interactions').create({
+        user: user.id,
+        class: classInfo.id,
+        interaction_type: interactionType,
+        target_id: postId || '',
+        metadata: metadata || {},
+      });
+    } catch (error) {
+      console.error('Erro ao rastrear interação do fórum:', error);
+    }
+  }, [classInfo]);
 
   if (loadingClass) {
     return renderLoadingState();
@@ -605,6 +637,10 @@ const ClassForumPage = () => {
                                 href={link.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                onClick={() => trackForumInteraction('external_link_clicked', post.id, {
+                                  target_url: link.url,
+                                  link_title: link.label || link.url
+                                })}
                               >
                                 <Link2 className="h-3.5 w-3.5" />
                                 {link.label || link.url}
