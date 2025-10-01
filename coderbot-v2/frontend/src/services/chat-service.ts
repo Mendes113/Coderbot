@@ -120,12 +120,26 @@ export const chatService = {
       for (const messageId of messageIDs) {
         try {
           const msg = await pb.collection('chat_messages').getOne(messageId);
+          
+          // Parse segments if they exist
+          let parsedSegments = undefined;
+          if (msg.segments) {
+            try {
+              parsedSegments = typeof msg.segments === 'string' 
+                ? JSON.parse(msg.segments) 
+                : msg.segments;
+              console.log(`✅ Loaded message ${messageId} with ${parsedSegments?.length || 0} segments`);
+            } catch (e) {
+              console.error(`Failed to parse segments for message ${messageId}:`, e);
+            }
+          }
+          
           messages.push({
             id: msg.id,
             content: msg.content,
             isAi: msg.isAi,
             timestamp: new Date(msg.timestamp),
-            segments: msg.segments ? JSON.parse(msg.segments) : undefined,
+            segments: parsedSegments,
           });
         } catch (error) {
           console.error(`Failed to load message ${messageId}:`, error);
