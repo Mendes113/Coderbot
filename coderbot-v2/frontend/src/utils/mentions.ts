@@ -71,7 +71,7 @@ export const resolveMentions = async (mentions: Mention[], classId?: string): Pr
 
         // Se temos filtro de membros da turma, adicionar à consulta
         if (classMemberIds.length > 0) {
-          const memberIdsString = classMemberIds.map(id => `"${id}"`).join(',');
+          const memberIdsString = classMemberIds.join(',');
           filter += ` && id in (${memberIdsString})`;
         }
 
