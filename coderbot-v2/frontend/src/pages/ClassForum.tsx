@@ -11,11 +11,21 @@ import {
   RefreshCw,
   Users,
   X,
+  Target,
+  Trophy,
+  Clock,
+  Play,
+  CheckCircle,
+  BookOpen,
+  Code,
+  Music,
+  Zap,
 } from 'lucide-react';
 import { CreateForumPostDialog } from '@/components/teacher/CreateForumPostDialog';
+import { QuickMissionCreator } from '@/components/teacher/QuickMissionCreator';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,9 +53,39 @@ import {
   pb,
   updateClassForumPost,
   UserRecord,
+  listClassMissions,
+  updateStudentMissionProgress,
+  registerUserAction,
+  ClassMissionRecord,
+  MissionType,
 } from '@/integrations/pocketbase/client';
 
-type ForumInteractionType = 'post_viewed' | 'post_expanded' | 'comment_created' | 'external_link_clicked';
+type ForumInteractionType = 'post_viewed' | 'post_expanded' | 'comment_created' | 'external_link_clicked' | 'activity_started' | 'activity_completed' | 'mission_progress_updated';
+
+interface ActivityProgress {
+  mission: ClassMissionRecord;
+  currentValue: number;
+  targetValue: number;
+  percentage: number;
+  isCompleted: boolean;
+  isInProgress: boolean;
+}
+
+const missionTypeIcons: Record<string, React.ReactNode> = {
+  chat_interaction: <MessageCircle className="h-4 w-4" />,
+  code_execution: <Code className="h-4 w-4" />,
+  exercise_completion: <BookOpen className="h-4 w-4" />,
+  notes_creation: <Music className="h-4 w-4" />,
+  custom: <Target className="h-4 w-4" />,
+};
+
+const missionTypeLabels: Record<string, string> = {
+  chat_interaction: 'Conversa com IA',
+  code_execution: 'Execução de Código',
+  exercise_completion: 'Exercícios',
+  notes_creation: 'Notas Musicais',
+  custom: 'Personalizada',
+};
 
 const forumTypeMeta: Record<ClassForumPostType, { label: string; badgeClass: string; description: string }> = {
   aviso: {
@@ -249,6 +289,9 @@ const ClassForumPage = () => {
   const [editingPost, setEditingPost] = useState<EditingPostState>(null);
   const [updatingPost, setUpdatingPost] = useState(false);
   const [viewingPost, setViewingPost] = useState<ViewingPostState>(null);
+  const [missions, setMissions] = useState<ClassMissionRecord[]>([]);
+  const [loadingMissions, setLoadingMissions] = useState(false);
+  const [activitiesMap, setActivitiesMap] = useState<Record<string, ActivityProgress>>({});
 
   const dateFormatter = useMemo(
     () =>
@@ -350,6 +393,95 @@ const ClassForumPage = () => {
   useEffect(() => {
     loadPosts();
   }, [loadPosts]);
+
+  // Carregar missões da turma para integração com atividades
+  const loadMissions = useCallback(async () => {
+    if (!classInfo || forbidden) {
+      setMissions([]);
+      return;
+    }
+
+    setLoadingMissions(true);
+
+    try {
+      const classMissions = await listClassMissions(classInfo.id, { status: 'active' });
+      setMissions(classMissions);
+
+      // Para cada missão, inicializar o progresso do usuário atual
+      if (userId) {
+        const progressPromises = classMissions.map(async (mission) => {
+          try {
+            const progress = await pb.collection('student_mission_progress').getFirstListItem(
+              `mission = "${mission.id}" && student = "${userId}"`
+            );
+
+            const currentValue = progress?.current_value || 0;
+            const targetValue = mission.target_value;
+            const percentage = targetValue > 0 ? Math.min((currentValue / targetValue) * 100, 100) : 0;
+
+            return {
+              mission,
+              currentValue,
+              targetValue,
+              percentage,
+              isCompleted: progress?.status === 'completed' || percentage >= 100,
+              isInProgress: progress?.status === 'in_progress' && !progress?.completed_at,
+            };
+          } catch (error) {
+            // Se não encontrou progresso, inicializar com zero
+            return {
+              mission,
+              currentValue: 0,
+              targetValue: mission.target_value,
+              percentage: 0,
+              isCompleted: false,
+              isInProgress: false,
+            };
+          }
+        });
+
+        const activitiesData = await Promise.all(progressPromises);
+        const activitiesMapData: Record<string, ActivityProgress> = {};
+        activitiesData.forEach(activity => {
+          activitiesMapData[activity.mission.id] = activity;
+        });
+        setActivitiesMap(activitiesMapData);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar missões:', error);
+      toast.error('Não foi possível carregar as missões desta turma.');
+    } finally {
+      setLoadingMissions(false);
+    }
+  }, [classInfo, forbidden, userId]);
+
+  useEffect(() => {
+    if (classInfo && userId) {
+      loadMissions();
+    }
+  }, [loadMissions]);
+
+  // Função para rastrear interações no fórum
+  const trackForumInteraction = useCallback(async (
+    interactionType: ForumInteractionType,
+    postId?: string,
+    metadata?: Record<string, any>
+  ) => {
+    const user = getCurrentUser();
+    if (!user || !classInfo) return;
+
+    try {
+      await pb.collection('forum_user_interactions').create({
+        user: user.id,
+        class: classInfo.id,
+        interaction_type: interactionType,
+        target_id: postId || '',
+        metadata: metadata || {},
+      });
+    } catch (error) {
+      console.error('Erro ao rastrear interação do fórum:', error);
+    }
+  }, [classInfo]);
 
   const loadComments = useCallback(
     async (postId: string, force = false) => {
@@ -460,7 +592,8 @@ const ClassForumPage = () => {
     setCommentsMap({});
     setExpandedPosts([]);
     void loadPosts();
-  }, [loadPosts]);
+    void loadMissions(); // Também recarregar missões
+  }, [loadPosts, loadMissions]);
 
   const handleEditPost = useCallback((post: ClassForumPostRecord) => {
     setEditingPost({
@@ -517,26 +650,123 @@ const ClassForumPage = () => {
     setViewingPost(null);
   }, []);
 
-  const trackForumInteraction = useCallback(async (
-    interactionType: ForumInteractionType,
-    postId?: string,
-    metadata?: Record<string, any>
-  ) => {
-    const user = getCurrentUser();
-    if (!user || !classInfo) return;
+  // Função para iniciar ou atualizar progresso de uma atividade
+  const handleActivityProgress = useCallback(async (missionId: string, actionType: MissionType, increment: number = 1) => {
+    if (!userId || !classInfo) return;
 
     try {
-      await pb.collection('forum_user_interactions').create({
-        user: user.id,
-        class: classInfo.id,
-        interaction_type: interactionType,
-        target_id: postId || '',
-        metadata: metadata || {},
-      });
+      const activity = activitiesMap[missionId];
+      if (!activity) {
+        toast.error('Atividade não encontrada');
+        return;
+      }
+
+      if (activity.isCompleted) {
+        toast.info('Esta atividade já foi concluída!');
+        return;
+      }
+
+      const newValue = activity.currentValue + increment;
+      const shouldComplete = newValue >= activity.targetValue;
+
+      // Atualizar progresso no banco
+      await updateStudentMissionProgress(
+        missionId,
+        userId,
+        newValue,
+        {
+          actionType,
+          timestamp: new Date().toISOString(),
+          previousValue: activity.currentValue,
+        }
+      );
+
+      // Registrar ação de gamificação
+      await registerUserAction(userId, actionType, `mission_${missionId}`);
+
+      // Se completou a missão, dar pontos extras
+      if (shouldComplete) {
+        await registerUserAction(userId, 'complete_mission', `mission_${missionId}_${activity.mission.reward_points}`);
+        toast.success(`🎉 Missão "${activity.mission.title}" completa! +${activity.mission.reward_points} pontos!`);
+
+        // Atualizar estado local
+        setActivitiesMap(prev => ({
+          ...prev,
+          [missionId]: {
+            ...prev[missionId],
+            currentValue: newValue,
+            percentage: 100,
+            isCompleted: true,
+          }
+        }));
+
+        // Track activity completion in forum
+        trackForumInteraction('activity_completed', undefined, {
+          mission_id: missionId,
+          points_earned: activity.mission.reward_points
+        });
+      } else {
+        toast.success(`Progresso atualizado: ${newValue}/${activity.targetValue}`);
+
+        // Atualizar estado local
+        setActivitiesMap(prev => ({
+          ...prev,
+          [missionId]: {
+            ...prev[missionId],
+            currentValue: newValue,
+            percentage: Math.min((newValue / activity.targetValue) * 100, 100),
+          }
+        }));
+
+        // Track activity progress in forum
+        trackForumInteraction('mission_progress_updated', undefined, {
+          mission_id: missionId,
+          progress: newValue,
+          target: activity.targetValue
+        });
+      }
+
+      // Recarregar missões para manter sincronização
+      await loadMissions();
     } catch (error) {
-      console.error('Erro ao rastrear interação do fórum:', error);
+      console.error('Erro ao atualizar progresso da atividade:', error);
+      toast.error('Não foi possível atualizar o progresso da atividade.');
     }
-  }, [classInfo]);
+  }, [userId, classInfo, activitiesMap, trackForumInteraction, loadMissions]);
+
+  // Função para iniciar uma atividade
+  const handleStartActivity = useCallback(async (missionId: string) => {
+    const activity = activitiesMap[missionId];
+    if (!activity) {
+      toast.error('Atividade não encontrada');
+      return;
+    }
+
+    // Track activity start
+    trackForumInteraction('activity_started', undefined, {
+      mission_id: missionId,
+      mission_type: activity.mission.type
+    });
+
+    // Redirecionar baseado no tipo de missão
+    switch (activity.mission.type) {
+      case 'chat_interaction':
+        navigate('/chat');
+        break;
+      case 'notes_creation':
+        navigate('/notes');
+        break;
+      case 'code_execution':
+        navigate('/editor');
+        break;
+      case 'exercise_completion':
+        navigate('/exercises');
+        break;
+      default:
+        toast.info('Atividade iniciada! Continue no ambiente apropriado.');
+    }
+  }, [activitiesMap, trackForumInteraction, navigate]);
+
 
   if (loadingClass) {
     return renderLoadingState();
@@ -573,6 +803,13 @@ const ClassForumPage = () => {
             </div>
           </div>
           <div className="flex gap-2 self-start sm:self-center">
+            <Button
+              variant="secondary"
+              onClick={() => navigate('/')}
+              className="bg-primary/10 hover:bg-primary/20 text-primary border-primary/20"
+            >
+              Voltar ao CoderBot
+            </Button>
             {canCreatePost && (
               <CreateForumPostDialog classId={classInfo.id} onPostCreated={handleRefresh} />
             )}
@@ -580,6 +817,22 @@ const ClassForumPage = () => {
               <RefreshCw className="mr-2 h-4 w-4" /> Atualizar
             </Button>
           </div>
+
+          {/* Ferramentas para Professores */}
+          {(isOwner || isTeacher) && (
+            <div className="mt-4 p-4 bg-muted/30 rounded-lg border">
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <Target className="h-4 w-4" />
+                Ferramentas do Professor
+              </h4>
+              <div className="grid gap-4 md:grid-cols-2">
+                <QuickMissionCreator
+                  classId={classInfo.id}
+                  onMissionCreated={handleRefresh}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <Card className="mb-8 border-dashed">
@@ -622,6 +875,144 @@ const ClassForumPage = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Seção de Atividades e Missões */}
+        {!loadingMissions && missions.length > 0 && (
+          <Card className="mb-8 border-primary/20 bg-gradient-to-r from-primary/5 via-background to-primary/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5 text-primary" />
+                Missões e Atividades da Turma
+              </CardTitle>
+              <CardDescription>
+                Participe das missões propostas pelo professor e ganhe pontos de recompensa
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {missions.slice(0, 6).map((mission) => {
+                  const activity = activitiesMap[mission.id];
+                  const isCompleted = activity?.isCompleted || false;
+                  const isInProgress = activity?.isInProgress || false;
+                  const progress = activity?.percentage || 0;
+
+                  return (
+                    <Card key={mission.id} className={`transition-all hover:shadow-md ${
+                      isCompleted ? 'border-green-200 bg-green-50/50' :
+                      isInProgress ? 'border-primary/20 bg-primary/5' :
+                      'border-border/50'
+                    }`}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2">
+                            {isCompleted ? (
+                              <CheckCircle className="h-5 w-5 text-green-600" />
+                            ) : isInProgress ? (
+                              <Clock className="h-5 w-5 text-primary" />
+                            ) : (
+                              missionTypeIcons[mission.type] || <Target className="h-5 w-5 text-muted-foreground" />
+                            )}
+                            <CardTitle className="text-sm font-medium leading-tight">
+                              {mission.title}
+                            </CardTitle>
+                          </div>
+                          <Badge variant={isCompleted ? "default" : isInProgress ? "secondary" : "outline"} className="text-xs">
+                            {mission.reward_points} pts
+                          </Badge>
+                        </div>
+                        {mission.description && (
+                          <CardDescription className="text-xs line-clamp-2">
+                            {mission.description}
+                          </CardDescription>
+                        )}
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">
+                            {missionTypeLabels[mission.type] || mission.type}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            Meta: {mission.target_value}
+                          </span>
+                        </div>
+
+                        {isInProgress && (
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-xs">
+                              <span>Progresso</span>
+                              <span className="font-medium">
+                                {activity?.currentValue || 0}/{mission.target_value}
+                              </span>
+                            </div>
+                            <div className="w-full bg-muted rounded-full h-2">
+                              <div
+                                className="bg-primary h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {progress.toFixed(0)}% concluído
+                            </p>
+                          </div>
+                        )}
+
+                        {isCompleted && (
+                          <div className="flex items-center gap-2 text-green-600">
+                            <Trophy className="h-4 w-4" />
+                            <span className="text-sm font-medium">Concluída!</span>
+                          </div>
+                        )}
+
+                        <Button
+                          size="sm"
+                          className="w-full"
+                          variant={isCompleted ? "outline" : "default"}
+                          onClick={() => isCompleted ? undefined : handleStartActivity(mission.id)}
+                          disabled={isCompleted}
+                        >
+                          {isCompleted ? (
+                            <>
+                              <CheckCircle className="mr-2 h-3 w-3" />
+                              Concluída
+                            </>
+                          ) : isInProgress ? (
+                            <>
+                              <Play className="mr-2 h-3 w-3" />
+                              Continuar
+                            </>
+                          ) : (
+                            <>
+                              <Play className="mr-2 h-3 w-3" />
+                              Iniciar
+                            </>
+                          )}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              {missions.length > 6 && (
+                <div className="mt-4 text-center">
+                  <Button variant="outline" size="sm">
+                    Ver todas as {missions.length} missões
+                  </Button>
+                </div>
+              )}
+
+              {missions.length === 0 && (
+                <div className="text-center py-8">
+                  <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Nenhuma missão disponível</h3>
+                  <p className="text-sm text-muted-foreground">
+                    O professor ainda não criou missões para esta turma.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <div className="mb-6 flex flex-wrap items-center gap-2">
           {filterOptions.map((option) => {
@@ -683,6 +1074,12 @@ const ClassForumPage = () => {
               const isExpanded = expandedPosts.includes(post.id);
               const comments = commentsMap[post.id] ?? [];
 
+              // Verificar se este post está relacionado a uma missão específica
+              const relatedMission = post.type === 'atividade' && post.metadata?.mission_id
+                ? missions.find(m => m.id === post.metadata.mission_id)
+                : null;
+              const activityProgress = relatedMission ? activitiesMap[relatedMission.id] : null;
+
               return (
                 <Card key={post.id} className="shadow-sm transition hover:shadow-md">
                   <CardHeader className="space-y-2">
@@ -693,7 +1090,56 @@ const ClassForumPage = () => {
                       <span className="text-xs text-muted-foreground">
                         {dateFormatter.format(new Date(post.created))}
                       </span>
+                      {relatedMission && (
+                        <Badge variant="outline" className="text-xs">
+                          {missionTypeIcons[relatedMission.type]}
+                          <span className="ml-1">{missionTypeLabels[relatedMission.type]}</span>
+                        </Badge>
+                      )}
                     </div>
+
+                    {/* Indicadores de progresso para posts de atividades */}
+                    {relatedMission && activityProgress && (
+                      <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg border border-border/50">
+                        <div className="flex items-center gap-2">
+                          {activityProgress.isCompleted ? (
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                          ) : activityProgress.isInProgress ? (
+                            <Clock className="h-4 w-4 text-primary" />
+                          ) : (
+                            <Target className="h-4 w-4 text-muted-foreground" />
+                          )}
+                          <span className="text-sm font-medium">
+                            {activityProgress.isCompleted ? 'Concluída' :
+                             activityProgress.isInProgress ? 'Em Progresso' : 'Não Iniciada'}
+                          </span>
+                        </div>
+
+                        <div className="flex-1">
+                          <div className="flex justify-between text-xs mb-1">
+                            <span>Progresso</span>
+                            <span>{activityProgress.currentValue}/{activityProgress.targetValue}</span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full transition-all duration-300 ${
+                                activityProgress.isCompleted ? 'bg-green-500' : 'bg-primary'
+                              }`}
+                              style={{ width: `${activityProgress.percentage}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        <Badge className={cn(
+                          'text-xs',
+                          activityProgress.isCompleted ? 'bg-green-100 text-green-800' :
+                          activityProgress.isInProgress ? 'bg-primary/10 text-primary' :
+                          'bg-muted text-muted-foreground'
+                        )}>
+                          {activityProgress.mission.reward_points} pts
+                        </Badge>
+                      </div>
+                    )}
                     <CardTitle className="text-xl font-semibold text-foreground">{post.title}</CardTitle>
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
@@ -808,6 +1254,34 @@ const ClassForumPage = () => {
                           </span>
                         )}
                       </Button>
+
+                      {/* Botões específicos para atividades */}
+                      {relatedMission && (
+                        <div className="flex gap-2">
+                          {!activityProgress?.isCompleted && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleStartActivity(relatedMission.id)}
+                            >
+                              <Play className="mr-2 h-4 w-4" />
+                              {activityProgress?.isInProgress ? 'Continuar' : 'Iniciar'} Atividade
+                            </Button>
+                          )}
+
+                          {activityProgress?.isInProgress && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleActivityProgress(relatedMission.id, relatedMission.type, 1)}
+                            >
+                              <Zap className="mr-2 h-4 w-4" />
+                              +1 Progresso
+                            </Button>
+                          )}
+                        </div>
+                      )}
+
                       {isExpanded && (
                         <Button
                           variant="ghost"
@@ -997,6 +1471,19 @@ const ClassForumPage = () => {
                 <span className="text-sm text-muted-foreground">
                   {viewingPost ? dateFormatter.format(new Date(viewingPost.post.created)) : ''}
                 </span>
+                {viewingPost && (() => {
+                  const modalRelatedMission = viewingPost.post.type === 'atividade' && viewingPost.post.metadata?.mission_id
+                    ? missions.find(m => m.id === viewingPost.post.metadata.mission_id)
+                    : null;
+                  const modalActivityProgress = modalRelatedMission ? activitiesMap[modalRelatedMission.id] : null;
+
+                  return modalRelatedMission && (
+                    <Badge variant="outline" className="text-xs">
+                      {missionTypeIcons[modalRelatedMission.type]}
+                      <span className="ml-1">{missionTypeLabels[modalRelatedMission.type]}</span>
+                    </Badge>
+                  );
+                })()}
               </div>
               <Button variant="ghost" size="icon" onClick={() => handleClosePostView()}>
                 <X className="h-4 w-4" />
@@ -1035,6 +1522,80 @@ const ClassForumPage = () => {
           {viewingPost && (
             <div className="flex-1 overflow-y-auto">
               <div className="space-y-6 p-6">
+                {/* Indicadores de progresso para atividades no modal */}
+                {(() => {
+                  const modalRelatedMission = viewingPost.post.type === 'atividade' && viewingPost.post.metadata?.mission_id
+                    ? missions.find(m => m.id === viewingPost.post.metadata.mission_id)
+                    : null;
+                  const modalActivityProgress = modalRelatedMission ? activitiesMap[modalRelatedMission.id] : null;
+
+                  return modalRelatedMission && modalActivityProgress && (
+                  <div className="bg-gradient-to-r from-primary/5 to-secondary/5 rounded-lg border border-primary/20 p-4">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        {modalActivityProgress.isCompleted ? (
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                        ) : modalActivityProgress.isInProgress ? (
+                          <Clock className="h-5 w-5 text-primary" />
+                        ) : (
+                          <Target className="h-5 w-5 text-muted-foreground" />
+                        )}
+                        <div>
+                          <p className="font-semibold text-sm">
+                            {modalActivityProgress.mission.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {missionTypeLabels[modalActivityProgress.mission.type]}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex-1">
+                        <div className="flex justify-between text-sm mb-2">
+                          <span>Progresso da Missão</span>
+                          <span className="font-medium">
+                            {modalActivityProgress.currentValue}/{modalActivityProgress.targetValue}
+                          </span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-3">
+                          <div
+                            className={`h-3 rounded-full transition-all duration-300 ${
+                              modalActivityProgress.isCompleted ? 'bg-green-500' : 'bg-primary'
+                            }`}
+                            style={{ width: `${modalActivityProgress.percentage}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {modalActivityProgress.percentage.toFixed(0)}% concluído • {modalActivityProgress.mission.reward_points} pontos de recompensa
+                        </p>
+                      </div>
+
+                      {!modalActivityProgress.isCompleted && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleStartActivity(modalActivityProgress.mission.id)}
+                          >
+                            <Play className="mr-2 h-4 w-4" />
+                            {modalActivityProgress.isInProgress ? 'Continuar' : 'Iniciar'}
+                          </Button>
+                          {modalActivityProgress.isInProgress && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleActivityProgress(modalActivityProgress.mission.id, modalActivityProgress.mission.type, 1)}
+                            >
+                              <Zap className="mr-2 h-4 w-4" />
+                              +1
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+                })()}
+
                 {/* Conteúdo do post */}
                 <div className="prose prose-lg max-w-none dark:prose-invert">
                   {viewingPost.post.content ? (
