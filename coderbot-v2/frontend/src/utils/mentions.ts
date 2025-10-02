@@ -1,4 +1,5 @@
 import { pb } from '@/integrations/pocketbase/client';
+import api from '@/lib/axios';
 
 export interface Mention {
   username: string;
@@ -160,13 +161,11 @@ export const createMentionNotifications = async (
         }
       };
 
-      await pb.send('/api/notifications/', {
-        method: 'POST',
+      // Usar o axios configurado com o baseURL correto
+      await api.post('/notifications/', notificationData, {
         headers: {
-          'Content-Type': 'application/json',
           'X-User-Id': senderId,
-        },
-        body: JSON.stringify(notificationData)
+        }
       });
     } catch (error) {
       console.error('Erro ao criar notificação de menção:', error);
