@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Loader2, Plus, Link2, FileText, X } from 'lucide-react';
+import { Loader2, Plus, Link2, FileText, X, Target } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -48,6 +48,7 @@ const forumTypeDescriptions: Record<ClassForumPostType, string> = {
   conteudo: 'Materiais didáticos e recursos',
   links: 'Referências e recursos externos',
   mensagens: 'Mensagens gerais e discussões',
+  atividade: 'Lançar atividades e missões para os alunos',
 };
 
 export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPostDialogProps) => {
@@ -61,6 +62,12 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
   const [linkInput, setLinkInput] = useState({ url: '', label: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Estado específico para atividades
+  const [activityType, setActivityType] = useState<'mission' | 'quick_task' | 'project'>('mission');
+  const [activityTarget, setActivityTarget] = useState(20);
+  const [activityReward, setActivityReward] = useState(100);
+  const [activityInstructions, setActivityInstructions] = useState('');
+
   const resetForm = () => {
     setTitle('');
     setContent('');
@@ -68,6 +75,10 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
     setAttachments([]);
     setLinks([]);
     setLinkInput({ url: '', label: '' });
+    setActivityType('mission');
+    setActivityTarget(20);
+    setActivityReward(100);
+    setActivityInstructions('');
   };
 
   const handleAddLink = () => {
@@ -114,6 +125,22 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
     if (!title.trim()) {
       toast.message('Digite um título para o post');
       return;
+    }
+
+    // Validação específica para atividades
+    if (type === 'atividade') {
+      if (activityTarget <= 0) {
+        toast.error('A meta da atividade deve ser maior que zero');
+        return;
+      }
+      if (activityReward < 0) {
+        toast.error('Os pontos de recompensa não podem ser negativos');
+        return;
+      }
+      if (!activityInstructions.trim()) {
+        toast.error('Digite as instruções da atividade');
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -206,6 +233,93 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
               Use a barra de ferramentas para formatar o texto, adicionar listas e links.
             </p>
           </div>
+
+          {/* Configurações específicas para atividades */}
+          {type === 'atividade' && (
+            <div className="space-y-4 p-4 border border-primary/20 rounded-lg bg-primary/5">
+              <div className="flex items-center gap-2">
+                <Target className="h-5 w-5 text-primary" />
+                <Label className="text-base font-semibold">Configurações da Atividade</Label>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="activity-type">Tipo de atividade</Label>
+                  <Select value={activityType} onValueChange={(value) => setActivityType(value as any)}>
+                    <SelectTrigger id="activity-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mission">Missão</SelectItem>
+                      <SelectItem value="quick_task">Tarefa Rápida</SelectItem>
+                      <SelectItem value="project">Projeto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="activity-target">Meta</Label>
+                  <Input
+                    id="activity-target"
+                    type="number"
+                    placeholder="Ex: 20 mensagens"
+                    value={activityTarget}
+                    onChange={(e) => setActivityTarget(parseInt(e.target.value) || 1)}
+                    min={1}
+                    disabled={submitting}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Quantidade de ações necessárias
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="activity-reward">Pontos de recompensa</Label>
+                <Input
+                  id="activity-reward"
+                  type="number"
+                  placeholder="Ex: 100 pontos"
+                  value={activityReward}
+                  onChange={(e) => setActivityReward(parseInt(e.target.value) || 0)}
+                  min={0}
+                  disabled={submitting}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Pontos concedidos ao completar a atividade
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="activity-instructions">Instruções da atividade</Label>
+                <Textarea
+                  id="activity-instructions"
+                  placeholder="Descreva detalhadamente como os alunos devem realizar esta atividade..."
+                  value={activityInstructions}
+                  onChange={(e) => setActivityInstructions(e.target.value)}
+                  maxLength={500}
+                  disabled={submitting}
+                  rows={3}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {activityInstructions.length}/500 caracteres
+                </p>
+              </div>
+
+              {/* Preview da atividade */}
+              <div className="p-3 bg-background border rounded-md">
+                <h4 className="font-medium text-sm mb-2">Preview da atividade:</h4>
+                <div className="text-sm space-y-1">
+                  <p><strong>Tipo:</strong> {activityType === 'mission' ? 'Missão' : activityType === 'quick_task' ? 'Tarefa Rápida' : 'Projeto'}</p>
+                  <p><strong>Meta:</strong> {activityTarget} ações</p>
+                  <p><strong>Recompensa:</strong> {activityReward} pontos</p>
+                  {activityInstructions && (
+                    <p><strong>Instruções:</strong> {activityInstructions}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Anexos */}
           <div className="space-y-2">

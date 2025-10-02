@@ -1,0 +1,91 @@
+{
+  "name": "CoderBot - Ensino de Programação com IA",
+  "short_name": "CoderBot",
+  "description": "Plataforma educacional de programação com chat IA, exercícios interativos e acompanhamento personalizado",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait-primary",
+  "categories": ["education", "productivity"],
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/coderbot.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/coderbot2.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/coderbot_colorfull.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/coderbot_colorfull.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Chat IA",
+      "short_name": "Chat",
+      "description": "Conversar com o tutor de IA",
+      "url": "/dashboard/chat",
+      "icons": [
+        {
+          "src": "/coderbot.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Exercícios",
+      "short_name": "Exercícios",
+      "description": "Praticar exercícios de programação",
+      "url": "/dashboard/exercises",
+      "icons": [
+        {
+          "src": "/coderbot.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Quadro",
+      "short_name": "Quadro",
+      "description": "Usar quadro colaborativo",
+      "url": "/dashboard/whiteboard",
+      "icons": [
+        {
+          "src": "/coderbot.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/coderbot.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/coderbot2.png",
+      "sizes": "1024x768",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ]
+}
