@@ -59,7 +59,15 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
           return;
         }
 
-        const memberIds = membersResponse.map(member => member.user);
+        const memberIds = membersResponse
+          .map(member => member.user)
+          .filter(id => id && typeof id === 'string' && id.trim().length > 0);
+
+        if (memberIds.length === 0) {
+          setUsers([]);
+          return;
+        }
+
         const memberIdsString = memberIds.map(id => `"${id}"`).join(',');
 
         const response = await pb.collection('users').getList(1, 50, {

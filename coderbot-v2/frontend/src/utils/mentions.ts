@@ -47,7 +47,15 @@ export const resolveMentions = async (mentions: Mention[], classId?: string): Pr
           filter: `class = "${classId}"`,
           fields: 'user'
         });
-        classMemberIds = membersResponse.map(member => member.user);
+
+        classMemberIds = membersResponse
+          .map(member => member.user)
+          .filter(id => id && typeof id === 'string' && id.trim().length > 0);
+
+        if (classMemberIds.length === 0) {
+          console.warn('Nenhum membro válido encontrado na turma:', classId);
+          return userMap;
+        }
       } catch (error) {
         console.error('Erro ao buscar membros da turma:', error);
         // Se não conseguir buscar membros, retorna mapa vazio para evitar menções inválidas
