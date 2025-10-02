@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Bell, BellOff, Check, CheckCheck, Trash2, MessageSquare, Users, Trophy, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -199,9 +199,19 @@ export const NotificationsList: React.FC<NotificationsListProps> = ({ className 
 
   const currentUser = getCurrentUser();
   const userId = currentUser?.id;
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const loadNotifications = useCallback(async (reset = false) => {
     if (!userId) return;
+
+    // Cancelar request anterior se existir
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Criar novo AbortController
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
 
     try {
       if (reset) {
@@ -213,28 +223,37 @@ export const NotificationsList: React.FC<NotificationsListProps> = ({ className 
       }
 
       const currentPage = reset ? 0 : page;
-      const offset = currentPage * 50;
 
       const response = await pb.collection('notifications').getList(currentPage + 1, 50, {
         filter: `recipient = "${userId}"`,
         sort: '-created',
-        expand: 'sender'
+        expand: 'sender',
+        signal // Passar o signal do AbortController
       });
 
+      // Verificar se o request foi cancelado
+      if (signal.aborted) return;
+
       if (reset) {
-        setNotifications(response.items as Notification[]);
+        setNotifications(response.items as unknown as Notification[]);
       } else {
-        setNotifications(prev => [...prev, ...(response.items as Notification[])]);
+        setNotifications(prev => [...prev, ...(response.items as unknown as Notification[])]);
       }
 
       setHasMore(response.items.length === 50 && (currentPage + 1) * 50 < response.totalItems);
       setPage(currentPage + 1);
     } catch (error) {
+      // Não mostrar erro se foi cancelado pelo usuário
+      if (error.name === 'AbortError' || signal.aborted) {
+        return;
+      }
       console.error('Erro ao carregar notificações:', error);
       toast.error('Erro ao carregar notificações');
     } finally {
-      setLoading(false);
-      setLoadingMore(false);
+      if (!signal.aborted) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
   }, [userId, page]);
 
@@ -300,6 +319,13 @@ export const NotificationsList: React.FC<NotificationsListProps> = ({ className 
 
   useEffect(() => {
     loadNotifications(true);
+
+    // Cleanup function
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [loadNotifications]);
 
   const unreadCount = notifications.filter(n => !n.read).length;

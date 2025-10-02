@@ -1,4 +1,4 @@
-import { User, MessageSquare, GraduationCap, Presentation, BookOpen, Bell } from "lucide-react";
+import { User, MessageSquare, GraduationCap, Presentation, BookOpen, Bell, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -18,7 +18,8 @@ import { getCurrentUser, pb } from "@/integrations/pocketbase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTheme } from "@/context/ThemeContext";
 import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
+import { Card, CardContent } from "@/components/ui/card";
+import { motion, AnimatePresence } from "framer-motion";
 
 // Temporarily disable NextAuth.js for hydration issues
 // import { useSession } from 'next-auth/react';
@@ -48,6 +49,8 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>("");
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState<number>(0);
+  const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
+  const [showNotificationsCard, setShowNotificationsCard] = useState(false);
   const { state } = useSidebar();
   const { theme } = useTheme();
 
@@ -67,30 +70,60 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     setIsLoading(false);
   }, []); // Dependência vazia é intencional - só executar uma vez na montagem
 
-  // Buscar notificações não lidas
+  // Buscar notificações não lidas e recentes
   useEffect(() => {
-    const fetchUnreadNotifications = async () => {
-      if (!userId) return;
+    if (!userId) return;
 
+    let isMounted = true;
+
+    const fetchNotifications = async () => {
       try {
-        const response = await pb.send('/api/notifications/unread-count', {
+        // Buscar contagem de notificações não lidas
+        const countResponse = await pb.send('/api/notifications/unread-count', {
           method: 'GET',
           headers: {
             'X-User-Id': userId,
           }
         });
-        setUnreadNotificationsCount(response.count || 0);
+
+        if (!isMounted) return;
+        setUnreadNotificationsCount(countResponse.count || 0);
+
+        // Buscar notificações recentes (últimas 3 não lidas)
+        if (countResponse.count > 0) {
+          try {
+            const recentResponse = await pb.collection('notifications').getList(1, 3, {
+              filter: `recipient = "${userId}" && read = false`,
+              sort: '-created',
+              expand: 'sender'
+            });
+
+            if (!isMounted) return;
+            setRecentNotifications(recentResponse.items || []);
+          } catch (recentError) {
+            console.error('Erro ao buscar notificações recentes:', recentError);
+          }
+        } else {
+          if (!isMounted) return;
+          setRecentNotifications([]);
+        }
       } catch (error) {
-        console.error('Erro ao buscar notificações não lidas:', error);
+        if (!isMounted) return;
+        console.error('Erro ao buscar notificações:', error);
+        setUnreadNotificationsCount(0);
+        setRecentNotifications([]);
       }
     };
 
-    fetchUnreadNotifications();
+    fetchNotifications();
 
     // Atualizar a cada 30 segundos
-    const interval = setInterval(fetchUnreadNotifications, 30000);
+    const interval = setInterval(fetchNotifications, 30000);
 
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [userId]);
   const normalizedUserRole = useMemo(() => (userRole || "").toLowerCase().trim(), [userRole]);
   const canAccessTeacherPanel = normalizedUserRole === "teacher" || normalizedUserRole === "admin";
@@ -111,9 +144,8 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     },
     { id: "whiteboard", label: "Quadro", icon: Presentation, accessKey: "w", path: "/dashboard/whiteboard" },
     { id: "notes", label: "Notas", icon: BookOpen, accessKey: "n", path: "/dashboard/notes" },
-    { id: "notifications", label: "Notificações", icon: Bell, accessKey: "n", path: "/profile" },
     { id: "profile", label: "Perfil", icon: User, accessKey: "p", path: "/profile" },
-  ], [unreadNotificationsCount]);
+  ], []);
 
   const filteredNavItems = useMemo(() => {
     return mainNavItems.filter((item) => {
@@ -359,6 +391,107 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
             </div>
           </div>
         )}
+
+        {/* Card de Notificações */}
+        <AnimatePresence>
+          {recentNotifications.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="px-3 pb-3"
+            >
+              <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Bell className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                        Notificações
+                      </span>
+                      <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
+                        {unreadNotificationsCount}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowNotificationsCard(!showNotificationsCard)}
+                      className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700"
+                    >
+                      {showNotificationsCard ? <X className="h-3 w-3" /> : <Bell className="h-3 w-3" />}
+                    </Button>
+                  </div>
+
+                  <AnimatePresence>
+                    {showNotificationsCard && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="space-y-2 mt-2"
+                      >
+                        {recentNotifications.slice(0, 3).map((notification) => (
+                          <div
+                            key={notification.id}
+                            className="p-2 bg-white dark:bg-gray-800 rounded-md border border-blue-100 dark:border-blue-800 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                            onClick={() => navigate('/profile')}
+                          >
+                            <div className="flex items-start gap-2">
+                              <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                {notification.expand?.sender?.avatar ? (
+                                  <img
+                                    src={`${pb.baseUrl}/api/files/${notification.expand.sender.collectionId}/${notification.expand.sender.id}/${notification.expand.sender.avatar}`}
+                                    alt={notification.expand.sender.name}
+                                    className="w-full h-full object-cover rounded-full"
+                                  />
+                                ) : (
+                                  <span className="text-xs font-bold text-blue-600">
+                                    {(notification.expand?.sender?.name || 'U').charAt(0).toUpperCase()}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">
+                                  {notification.title}
+                                </p>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                  {notification.content}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                  {new Date(notification.created).toLocaleDateString('pt-BR', {
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+
+                        {unreadNotificationsCount > 3 && (
+                          <div className="text-center pt-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate('/profile')}
+                              className="text-xs h-7 border-blue-200 text-blue-600 hover:bg-blue-50"
+                            >
+                              Ver todas ({unreadNotificationsCount})
+                            </Button>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <SidebarTrigger />
       </SidebarFooter>
     </Sidebar>
