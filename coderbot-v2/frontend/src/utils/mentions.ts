@@ -67,21 +67,21 @@ export const resolveMentions = async (mentions: Mention[], classId?: string): Pr
 
     for (const username of usernames) {
       try {
-        let filter = `name ~ "${username}"`;
+        let filterTemplate = 'name ~ {:username}';
+        const filterParams: Record<string, any> = { username };
 
-        // Se temos filtro de membros da turma, adicionar à consulta
         if (classMemberIds.length > 0) {
-          // Construir filtro de forma mais segura, verificando se temos IDs válidos
-          const validIds = classMemberIds.filter(id => /^[a-z0-9]{15,}$/.test(id));
+          const validIds = classMemberIds.filter(id => /^[a-z0-9]{15,}$/i.test(id));
           if (validIds.length === 0) {
             console.warn(`Pulando busca de ${username} - nenhum ID válido na turma`);
             continue;
           }
 
-          // Usar array de IDs individuais com aspas para evitar problemas de sintaxe
-          const idFilter = validIds.map(id => `id = "${id}"`).join(' || ');
-          filter += ` && (${idFilter})`;
+          filterTemplate += ' && id ?= {:ids}';
+          filterParams.ids = validIds;
         }
+
+        const filter = pb.filter(filterTemplate, filterParams);
 
         console.log('Consulta de usuários:', { username, filter, classMemberIds: classMemberIds.length });
 
