@@ -75,17 +75,45 @@ export const resolveMentions = async (mentions: Mention[], classId?: string): Pr
           filter += ` && id in (${memberIdsString})`;
         }
 
+        // Pular consulta se não há membros válidos na turma
+        if (classMemberIds.length === 0) {
+          console.warn(`Pulando busca de ${username} - nenhum membro válido na turma`);
+          continue;
+        }
+
         console.log('Consulta de usuários:', { username, filter, classMemberIds: classMemberIds.length });
 
-        const response = await pb.collection('users').getList(1, 1, {
-          filter,
-          fields: 'id,name'
-        });
+        try {
+          const response = await pb.collection('users').getList(1, 1, {
+            filter,
+            fields: 'id,name'
+          });
 
-        if (response.items.length > 0) {
-          userMap.set(username, response.items[0].id);
-        } else {
-          console.warn(`Usuário não encontrado: ${username} com filtro: ${filter}`);
+          if (response.items.length > 0) {
+            userMap.set(username, response.items[0].id);
+          } else {
+            console.warn(`Usuário não encontrado: ${username} com filtro: ${filter}`);
+          }
+        } catch (error) {
+          console.error(`Erro ao buscar usuário ${username}:`, error);
+
+          // Se houve erro na consulta específica, tentar buscar sem filtro de turma
+          if (classMemberIds.length > 0) {
+            try {
+              console.warn(`Tentando buscar ${username} sem filtro de turma`);
+              const fallbackResponse = await pb.collection('users').getList(1, 1, {
+                filter: `name ~ "${username}"`,
+                fields: 'id,name'
+              });
+
+              if (fallbackResponse.items.length > 0) {
+                userMap.set(username, fallbackResponse.items[0].id);
+                console.log(`Usuário ${username} encontrado no fallback`);
+              }
+            } catch (fallbackError) {
+              console.error(`Erro no fallback para ${username}:`, fallbackError);
+            }
+          }
         }
       } catch (error) {
         console.error(`Erro ao buscar usuário ${username}:`, error);
