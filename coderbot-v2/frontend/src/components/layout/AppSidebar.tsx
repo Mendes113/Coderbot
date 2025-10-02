@@ -42,6 +42,7 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
   const location = useLocation();
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [isTeacherButtonAnimating, setIsTeacherButtonAnimating] = useState(false);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
@@ -55,6 +56,7 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     const user = getCurrentUser();
     if (user) {
       setUserRole(user.role);
+      setUserId(user.id);
       setUserName(user.name || user.email || "Usuário");
       // Construir URL do avatar se existir
       if (user.avatar) {
