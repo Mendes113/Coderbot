@@ -238,7 +238,7 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       {/* Card de Perfil */}
       <Card className="bg-gradient-to-br from-background/90 to-background/50 backdrop-blur-sm border-sidebar-border/50 shadow-xl ring-1 ring-black/5 rounded-2xl">
         <CardHeader className="pb-4">
@@ -252,7 +252,7 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
           </CardDescription>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="p-6">
           {isEditing ? (
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -355,8 +355,8 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
             </Form>
           ) : (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     <User className="h-5 w-5 text-primary" />
                     <div>
@@ -374,7 +374,7 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
                   </div>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     <School className="h-5 w-5 text-primary" />
                     <div>
@@ -411,7 +411,7 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
       </Card>
 
       {/* Card de Notificações */}
-      <Card className="bg-gradient-to-br from-background/90 to-background/50 backdrop-blur-sm border-sidebar-border/50 shadow-xl ring-1 ring-black/5 rounded-2xl">
+      <Card className="bg-gradient-to-br from-background/90 to-background/50 backdrop-blur-sm border-sidebar-border/50 shadow-xl ring-1 ring-black/5 rounded-2xl max-w-full">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -438,7 +438,7 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
           </div>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="p-6">
           {/* Componente de notificações rápidas */}
           {userId && (
             <div className="mb-6">
@@ -453,7 +453,7 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
               <div className="h-12 bg-muted rounded"></div>
             </div>
           ) : notifications.length > 0 ? (
-            <ScrollArea className="h-[500px]">
+            <ScrollArea className="h-[400px]">
               <div className="space-y-4 pr-4">
                 {notifications.map((notification) => (
                   <Card
