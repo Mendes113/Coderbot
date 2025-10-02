@@ -881,6 +881,7 @@ const ClassForumPage = () => {
                             placeholder="Compartilhe suas dúvidas, percepções ou feedback com a turma... (use @nome para mencionar alguém)"
                             disabled={commentSubmitting[post.id]}
                             rows={3}
+                            classId={classInfo.id}
                           />
                           <div className="flex justify-end">
                             <Button
@@ -1176,6 +1177,7 @@ const ClassForumPage = () => {
                         placeholder="Compartilhe suas dúvidas, percepções ou feedback..."
                         disabled={commentSubmitting[viewingPost.post.id]}
                         rows={3}
+                        classId={viewingPost.post.class}
                       />
                       <div className="flex justify-end">
                         <Button
