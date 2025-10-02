@@ -14,14 +14,14 @@ import { useMobileDetection } from "@/hooks/useMobileDetection";
 import MobileLayout from "@/components/layout/MobileLayout";
 import MobileHome from "@/components/mobile/MobileHome";
 import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
+import Auth from "./pages/Auth";
 // import { CodeEditorProvider } from "@/context/CodeEditorContext";
 
 // Lazy loading otimizado com preload para rotas críticas
 const Index = React.lazy(() => import("./pages/Index"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const UserProfile = React.lazy(() => import("./pages/UserProfile"));
-const Auth = React.lazy(() => import("./pages/Auth"));
-const ChatInterface = React.lazy(() => import("./pages/ChatInterface"));
+import ChatInterface from "./pages/ChatInterface";
 const ExerciseInterface = React.lazy(() => import("./pages/ExerciseInterface"));
 // const TeacherDashboard = React.lazy(() => import("./pages/teacher/Dashboard"));
 import StudentDashboard from "./pages/StudentDashboard";

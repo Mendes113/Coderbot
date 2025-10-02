@@ -2100,11 +2100,12 @@ Obrigado pela paciência! 🤖✨`,
 
 // Export chat context functions for use in other components
 export const useChatContext = () => {
-  const chatInterfaceRef = useRef<any>();
-
-  const saveContext = useCallback((classId?: string, subject?: string) => {
-    chatInterfaceRef.current?.saveChatContext?.(classId, subject);
-  }, []);
+  // Esta função será usada para acessar métodos do componente ChatInterface
+  // Os hooks foram removidos para evitar problemas de múltiplas versões do React
+  const saveContext = (classId?: string, subject?: string) => {
+    // Esta função será implementada quando o componente for usado
+    console.warn('useChatContext: Esta função precisa ser implementada no contexto do componente');
+  };
 
   return { saveContext };
 };

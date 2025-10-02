@@ -13,6 +13,7 @@ interface User {
   name: string;
   email?: string;
   avatar?: string;
+  collectionId?: string;
 }
 
 interface MentionTextareaProps {
@@ -22,6 +23,7 @@ interface MentionTextareaProps {
   disabled?: boolean;
   className?: string;
   rows?: number;
+  classId?: string; // ID da turma para filtrar usuários
 }
 
 export const MentionTextarea: React.FC<MentionTextareaProps> = ({
@@ -31,6 +33,7 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
   disabled = false,
   className,
   rows = 3,
+  classId,
 }) => {
   const [showMentions, setShowMentions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
@@ -44,15 +47,40 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
   // Buscar usuários para menções
   const fetchUsers = useCallback(async () => {
     try {
-      const response = await pb.collection('users').getList(1, 50, {
-        sort: 'name',
-        fields: 'id,name,email,avatar'
-      });
-      setUsers(response.items as User[]);
+      if (classId) {
+        // Buscar membros da turma específica
+        const membersResponse = await pb.collection('class_members').getFullList({
+          filter: `class = "${classId}"`,
+          fields: 'user'
+        });
+
+        if (membersResponse.length === 0) {
+          setUsers([]);
+          return;
+        }
+
+        const memberIds = membersResponse.map(member => member.user);
+        const memberIdsString = memberIds.map(id => `"${id}"`).join(',');
+
+        const response = await pb.collection('users').getList(1, 50, {
+          filter: `id in (${memberIdsString})`,
+          sort: 'name',
+          fields: 'id,name,email,avatar'
+        });
+        setUsers(response.items as unknown as User[]);
+      } else {
+        // Buscar todos os usuários (fallback para casos sem classId)
+        const response = await pb.collection('users').getList(1, 50, {
+          sort: 'name',
+          fields: 'id,name,email,avatar'
+        });
+        setUsers(response.items as unknown as User[]);
+      }
     } catch (error) {
       console.error('Erro ao buscar usuários:', error);
+      setUsers([]);
     }
-  }, []);
+  }, [classId]);
 
   useEffect(() => {
     fetchUsers();
@@ -218,7 +246,7 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-secondary flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">
-                        {user.avatar ? (
+                        {user.avatar && user.collectionId ? (
                           <img
                             src={`${pb.baseUrl}/api/files/${user.collectionId}/${user.id}/${user.avatar}`}
                             alt={user.name}

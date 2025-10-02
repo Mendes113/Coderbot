@@ -28,8 +28,9 @@ export const extractMentions = (text: string): Mention[] => {
 
 /**
  * Busca usuários por nome de usuário para resolver menções
+ * Filtra apenas usuários que são membros da turma especificada
  */
-export const resolveMentions = async (mentions: Mention[]): Promise<Map<string, string>> => {
+export const resolveMentions = async (mentions: Mention[], classId?: string): Promise<Map<string, string>> => {
   const userMap = new Map<string, string>();
 
   if (mentions.length === 0) return userMap;
@@ -38,9 +39,33 @@ export const resolveMentions = async (mentions: Mention[]): Promise<Map<string, 
     // Buscar usuários cujos nomes contenham as menções
     const usernames = [...new Set(mentions.map(m => m.username))];
 
+    // Se temos um classId, buscar apenas usuários membros desta turma
+    let classMemberIds: string[] = [];
+    if (classId) {
+      try {
+        const membersResponse = await pb.collection('class_members').getFullList({
+          filter: `class = "${classId}"`,
+          fields: 'user'
+        });
+        classMemberIds = membersResponse.map(member => member.user);
+      } catch (error) {
+        console.error('Erro ao buscar membros da turma:', error);
+        // Se não conseguir buscar membros, retorna mapa vazio para evitar menções inválidas
+        return userMap;
+      }
+    }
+
     for (const username of usernames) {
+      let filter = `name ~ "${username}"`;
+
+      // Se temos filtro de membros da turma, adicionar à consulta
+      if (classMemberIds.length > 0) {
+        const memberIdsString = classMemberIds.map(id => `"${id}"`).join(',');
+        filter += ` && id in (${memberIdsString})`;
+      }
+
       const response = await pb.collection('users').getList(1, 1, {
-        filter: `name ~ "${username}"`,
+        filter,
         fields: 'id,name'
       });
 
@@ -68,7 +93,7 @@ export const createMentionNotifications = async (
 ): Promise<void> => {
   if (mentions.length === 0) return;
 
-  const userMap = await resolveMentions(mentions);
+  const userMap = await resolveMentions(mentions, classId);
 
   for (const mention of mentions) {
     const userId = userMap.get(mention.username);
