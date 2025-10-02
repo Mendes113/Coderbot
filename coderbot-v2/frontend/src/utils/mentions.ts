@@ -67,8 +67,7 @@ export const resolveMentions = async (mentions: Mention[], classId?: string): Pr
 
     for (const username of usernames) {
       try {
-        let filterTemplate = 'name ~ {:username}';
-        const filterParams: Record<string, any> = { username };
+        let filter = `name ~ "${username}"`;
 
         if (classMemberIds.length > 0) {
           const validIds = classMemberIds.filter(id => /^[a-z0-9]{15,}$/i.test(id));
@@ -77,11 +76,9 @@ export const resolveMentions = async (mentions: Mention[], classId?: string): Pr
             continue;
           }
 
-          filterTemplate += ' && id ?= {:ids}';
-          filterParams.ids = validIds;
+          const idFilter = validIds.map(id => `id = "${id}"`).join(' || ');
+          filter += ` && (${idFilter})`;
         }
-
-        const filter = pb.filter(filterTemplate, filterParams);
 
         console.log('Consulta de usuários:', { username, filter, classMemberIds: classMemberIds.length });
 
