@@ -45,7 +45,14 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
   const currentUser = getCurrentUser();
 
   // Buscar usuários para menções
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(async (force = false) => {
+    // Se já temos usuários e não é forçado, não buscar novamente
+    if (users.length > 0 && !force) {
+      return;
+    }
+
+    console.log('Iniciando busca de usuários:', { classId, force, currentUsers: users.length });
+
     try {
       if (classId) {
         // Buscar membros da turma específica
@@ -143,6 +150,30 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
     fetchUsers();
   }, [fetchUsers]);
 
+  // Buscar usuários quando o componente ganha foco e não há usuários
+  useEffect(() => {
+    const handleFocus = () => {
+      if (users.length === 0 && classId) {
+        console.log('Textarea focado - buscando usuários novamente');
+        fetchUsers(true); // Forçar busca mesmo se já foi tentada
+      }
+    };
+
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.addEventListener('focus', handleFocus);
+      return () => textarea.removeEventListener('focus', handleFocus);
+    }
+  }, [users.length, classId, fetchUsers]);
+
+  // Buscar usuários se não houver nenhum e estivermos com classId
+  useEffect(() => {
+    if (classId && users.length === 0) {
+      console.log('Componente montado sem usuários - iniciando busca');
+      fetchUsers(true);
+    }
+  }, [classId, users.length, fetchUsers]);
+
   // Filtrar usuários baseado na query de menção
   useEffect(() => {
     if (mentionQuery) {
@@ -170,6 +201,21 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
 
     if (mentionMatch) {
       const query = mentionMatch[1];
+
+      // Se não há usuários carregados, tentar buscar novamente
+      if (users.length === 0 && classId && query.length >= 1) {
+        console.log('Tentando buscar usuários novamente para menções');
+        fetchUsers().then(() => {
+          setMentionQuery(query);
+          setShowMentions(true);
+        }).catch((error) => {
+          console.error('Erro ao buscar usuários para menções:', error);
+          setMentionQuery('');
+          setShowMentions(false);
+        });
+        return;
+      }
+
       setMentionQuery(query);
 
       // Calcular posição do popup de menções
@@ -297,7 +343,7 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
                 {filteredUsers.length === 0 ? (
                   <div className="p-3 text-sm text-muted-foreground text-center">
                     {users.length === 0 ?
-                      'Nenhum usuário disponível para menções' :
+                      'Nenhum usuário disponível para menções. Certifique-se de que há membros na turma.' :
                       'Nenhum usuário encontrado com esses critérios'
                     }
                   </div>
