@@ -19,7 +19,6 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -824,7 +823,7 @@ const ClassForumPage = () => {
 
                     {isExpanded && (
                       <div className="w-full space-y-4">
-                        <ScrollArea className="max-h-96 w-full rounded-md border border-border/60">
+                        <div className="max-h-[60vh] w-full overflow-y-auto rounded-md border border-border/60">
                           <div className="space-y-3 p-4">
                             {commentsLoading[post.id] ? (
                               <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -869,7 +868,7 @@ const ClassForumPage = () => {
                               ))
                             )}
                           </div>
-                        </ScrollArea>
+                        </div>
 
                         <div className="space-y-2">
                           <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1130,7 +1129,7 @@ const ClassForumPage = () => {
                       Seja o primeiro a comentar neste post.
                     </p>
                   ) : (
-                    <ScrollArea className="max-h-[500px] w-full">
+                    <div className="max-h-[55vh] w-full overflow-y-auto pr-1">
                       <div className="space-y-4 p-1">
                       {viewingPost.comments.map((comment) => (
                         <div key={comment.id} className="rounded-lg border border-border/40 bg-background/80 p-4">
@@ -1164,7 +1163,7 @@ const ClassForumPage = () => {
                         </div>
                       ))}
                       </div>
-                    </ScrollArea>
+                    </div>
                   )}
 
                   {/* Formulário de novo comentário */}
@@ -1207,7 +1206,5 @@ const ClassForumPage = () => {
 };
 
 export default ClassForumPage;
-
-
 
 

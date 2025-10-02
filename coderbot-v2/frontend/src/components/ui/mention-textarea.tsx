@@ -63,25 +63,34 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
           .map(member => member.user)
           .filter(id => id && typeof id === 'string' && id.trim().length > 0);
 
+        console.log('IDs de membros encontrados:', memberIds);
+
         if (memberIds.length === 0) {
+          console.warn('Nenhum membro válido encontrado na turma:', classId);
           setUsers([]);
           return;
         }
 
         const memberIdsString = memberIds.map(id => `"${id}"`).join(',');
 
+        console.log('Buscando usuários da turma:', { classId, memberIdsCount: memberIds.length, memberIdsString });
+
         const response = await pb.collection('users').getList(1, 50, {
           filter: `id in (${memberIdsString})`,
           sort: 'name',
           fields: 'id,name,email,avatar'
         });
+
+        console.log('Resposta da busca de usuários:', { count: response.items.length, totalItems: response.totalItems });
         setUsers(response.items as unknown as User[]);
       } else {
         // Buscar todos os usuários (fallback para casos sem classId)
+        console.log('Buscando todos os usuários (sem filtro de turma)');
         const response = await pb.collection('users').getList(1, 50, {
           sort: 'name',
           fields: 'id,name,email,avatar'
         });
+        console.log('Resposta da busca de todos os usuários:', { count: response.items.length });
         setUsers(response.items as unknown as User[]);
       }
     } catch (error) {
