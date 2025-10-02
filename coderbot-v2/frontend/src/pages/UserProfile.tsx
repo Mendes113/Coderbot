@@ -11,6 +11,7 @@ import { pb, startGithubOAuth } from "@/integrations/pocketbase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StudentInvitations } from "@/components/student/StudentInvitations";
+import { NotificationsList } from "@/components/profile/NotificationsList";
 
 const UserProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
@@ -101,8 +102,9 @@ const UserProfile = () => {
         <div className="container mx-auto py-6 space-y-6 max-w-6xl">
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="profile">Perfil</TabsTrigger>
+          <TabsTrigger value="notifications">Notificações</TabsTrigger>
           <TabsTrigger value="invites">Convites</TabsTrigger>
         </TabsList>
 
@@ -111,10 +113,14 @@ const UserProfile = () => {
             isEditing={isEditing}
             onEditToggle={() => setIsEditing(!isEditing)}
           />
-          <ProfileForm 
-            isEditing={isEditing} 
-            onSaved={() => setIsEditing(false)} 
+          <ProfileForm
+            isEditing={isEditing}
+            onSaved={() => setIsEditing(false)}
           />
+        </TabsContent>
+
+        <TabsContent value="notifications" className="space-y-6">
+          <NotificationsList />
         </TabsContent>
 
         <TabsContent value="invites" className="space-y-6">

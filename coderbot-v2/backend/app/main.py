@@ -10,6 +10,7 @@ from app.routers.whiteboard_router import router as whiteboard_router
 from app.routers.agno_router import router as agno_router
 from app.routers.classes_router import router as classes_router
 from app.routers.format_router import router as format_router
+from app.routers.notifications_router import router as notifications_router
 import logging
 
 # Configuração de logging
@@ -82,6 +83,7 @@ app.include_router(whiteboard_router)
 app.include_router(agno_router)  # Sistema AGNO com worked examples
 app.include_router(classes_router)  # Gestão de turmas, convites, eventos e API keys por turma
 app.include_router(format_router)  # Formatação de código
+app.include_router(notifications_router)  # Sistema de notificações
 
 # Rota raiz para teste simples
 @app.get("/", tags=["Root"])

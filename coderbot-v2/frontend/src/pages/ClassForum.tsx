@@ -23,8 +23,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { MentionTextarea } from '@/components/ui/mention-textarea';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { extractMentions, createMentionNotifications, highlightMentions } from '@/utils/mentions';
 import {
   CLASS_FORUM_TYPES,
   ClassForumCommentRecord,
@@ -414,6 +416,19 @@ const ClassForumPage = () => {
         }));
 
         setCommentDrafts((prev) => ({ ...prev, [post.id]: '' }));
+
+        // Detectar menções e criar notificações
+        const mentions = extractMentions(draft);
+        if (mentions.length > 0 && userId && classInfo) {
+          await createMentionNotifications(
+            mentions,
+            userId,
+            classInfo.id,
+            post.id,
+            record.id,
+            `Você foi mencionado em: "${draft.length > 50 ? draft.substring(0, 50) + '...' : draft}"`
+          );
+        }
 
         // Track comment creation
         trackForumInteraction('comment_created', post.id);
@@ -817,7 +832,10 @@ const ClassForumPage = () => {
                                         </span>
                                         <span>{dateFormatter.format(new Date(comment.created))}</span>
                                       </div>
-                                      <p className="mt-2 text-sm text-foreground/90">{comment.content}</p>
+                                      <p
+                                        className="mt-2 text-sm text-foreground/90"
+                                        dangerouslySetInnerHTML={{ __html: highlightMentions(comment.content) }}
+                                      />
                                     </div>
                                   </div>
                                 </div>
@@ -830,10 +848,10 @@ const ClassForumPage = () => {
                           <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                             Nova mensagem
                           </label>
-                          <Textarea
-                            placeholder="Compartilhe suas dúvidas, percepções ou feedback com a turma..."
+                          <MentionTextarea
                             value={commentDrafts[post.id] ?? ''}
-                            onChange={(event) => handleDraftChange(post.id, event.target.value)}
+                            onChange={(value) => handleDraftChange(post.id, value)}
+                            placeholder="Compartilhe suas dúvidas, percepções ou feedback com a turma... (use @nome para mencionar alguém)"
                             disabled={commentSubmitting[post.id]}
                             rows={3}
                           />

@@ -36,6 +36,8 @@ class PocketBaseService:
             "class_invites": "class_invites",
             "class_events": "class_events",
             "class_api_keys": "class_api_keys",
+            # Notification system collections
+            "notifications": "notifications",
         }
         
         # Try to authenticate on initialization
@@ -815,6 +817,88 @@ class PocketBaseService(PocketBaseService):
             if items:
                 return items[0].get("api_key")
         return None
+
+    # ---- Notifications ----
+
+    def create_notification(self, recipient_id: str, sender_id: str, title: str, content: str, type: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        payload = {
+            "recipient": recipient_id,
+            "sender": sender_id,
+            "title": title,
+            "content": content,
+            "type": type,
+            "read": False,
+            "metadata": metadata or {}
+        }
+        r = self._post(self.collections["notifications"], payload)
+        if r.status_code in (200, 201):
+            return r.json()
+        self._handle_response_error(r, "Create notification")
+        return {}
+
+    def get_notification(self, notification_id: str) -> Optional[Dict[str, Any]]:
+        r = self._get(self.collections["notifications"], params={"filter": f"id = '{notification_id}'", "perPage": 1})
+        if r.status_code == 200:
+            items = r.json().get("items", [])
+            return items[0] if items else None
+        return None
+
+    def list_notifications_for_user(self, user_id: str, limit: int = 50, offset: int = 0, unread_only: bool = False) -> List[Dict[str, Any]]:
+        flt = f"recipient = '{user_id}'"
+        if unread_only:
+            flt += " && read = false"
+        params = {
+            "filter": flt,
+            "perPage": limit,
+            "skip": offset,
+            "sort": "-created"
+        }
+        r = self._get(self.collections["notifications"], params=params)
+        if r.status_code == 200:
+            return r.json().get("items", [])
+        return []
+
+    def get_unread_notifications_count(self, user_id: str) -> int:
+        params = {
+            "filter": f"recipient = '{user_id}' && read = false",
+            "perPage": 1
+        }
+        r = self._get(self.collections["notifications"], params=params)
+        if r.status_code == 200:
+            return r.json().get("totalItems", 0)
+        return 0
+
+    def update_notification(self, notification_id: str, read: Optional[bool] = None) -> Dict[str, Any]:
+        payload = {}
+        if read is not None:
+            payload["read"] = read
+
+        if not payload:
+            return self.get_notification(notification_id) or {}
+
+        r = self._patch(self.collections["notifications"], notification_id, payload)
+        if r.status_code == 200:
+            return r.json()
+        self._handle_response_error(r, "Update notification")
+        return {}
+
+    def mark_notification_as_read(self, notification_id: str) -> Dict[str, Any]:
+        return self.update_notification(notification_id, read=True)
+
+    def mark_all_notifications_as_read(self, user_id: str) -> int:
+        # Get all unread notifications for the user
+        unread_notifications = self.list_notifications_for_user(user_id, unread_only=True)
+        marked_count = 0
+
+        for notification in unread_notifications:
+            if self.mark_notification_as_read(notification["id"]):
+                marked_count += 1
+
+        return marked_count
+
+    def delete_notification(self, notification_id: str) -> bool:
+        r = self._delete(self.collections["notifications"], notification_id)
+        return r.status_code == 204
 
 # Recreate global instance AFTER extending the class so it includes class management methods
 from app.config import settings
