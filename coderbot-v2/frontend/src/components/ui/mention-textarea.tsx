@@ -75,23 +75,63 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
 
         console.log('Buscando usuários da turma:', { classId, memberIdsCount: memberIds.length, memberIdsString });
 
-        const response = await pb.collection('users').getList(1, 50, {
-          filter: `id in (${memberIdsString})`,
-          sort: 'name',
-          fields: 'id,name,email,avatar'
-        });
+        // Se não há membros válidos, não faz sentido buscar usuários
+        if (memberIds.length === 0) {
+          console.warn('Nenhum membro válido na turma - pulando busca de usuários');
+          setUsers([]);
+          return;
+        }
 
-        console.log('Resposta da busca de usuários:', { count: response.items.length, totalItems: response.totalItems });
-        setUsers(response.items as unknown as User[]);
+        // Verificar se há IDs válidos antes de fazer a consulta
+        if (memberIdsString.trim() === '') {
+          console.warn('Nenhum ID válido para buscar usuários');
+          setUsers([]);
+          return;
+        }
+
+        try {
+          const response = await pb.collection('users').getList(1, 50, {
+            filter: `id in (${memberIdsString})`,
+            sort: 'name',
+            fields: 'id,name,email,avatar'
+          });
+
+          console.log('Resposta da busca de usuários:', { count: response.items.length, totalItems: response.totalItems });
+          setUsers(response.items as unknown as User[]);
+        } catch (error) {
+          console.error('Erro na consulta de usuários:', error);
+
+          // Se a consulta falhou devido a IDs inválidos, tentar buscar todos os usuários como fallback
+          if (error.message && error.message.includes('400')) {
+            console.warn('Tentando fallback: buscar todos os usuários');
+            try {
+              const fallbackResponse = await pb.collection('users').getList(1, 50, {
+                sort: 'name',
+                fields: 'id,name,email,avatar'
+              });
+              setUsers(fallbackResponse.items as unknown as User[]);
+            } catch (fallbackError) {
+              console.error('Erro no fallback:', fallbackError);
+              setUsers([]);
+            }
+          } else {
+            setUsers([]);
+          }
+        }
       } else {
-        // Buscar todos os usuários (fallback para casos sem classId)
+        // Buscar todos os usuários (fallback para casos sem classId ou quando não há membros na turma)
         console.log('Buscando todos os usuários (sem filtro de turma)');
-        const response = await pb.collection('users').getList(1, 50, {
-          sort: 'name',
-          fields: 'id,name,email,avatar'
-        });
-        console.log('Resposta da busca de todos os usuários:', { count: response.items.length });
-        setUsers(response.items as unknown as User[]);
+        try {
+          const response = await pb.collection('users').getList(1, 50, {
+            sort: 'name',
+            fields: 'id,name,email,avatar'
+          });
+          console.log('Resposta da busca de todos os usuários:', { count: response.items.length });
+          setUsers(response.items as unknown as User[]);
+        } catch (error) {
+          console.error('Erro ao buscar todos os usuários:', error);
+          setUsers([]);
+        }
       }
     } catch (error) {
       console.error('Erro ao buscar usuários:', error);
@@ -254,7 +294,15 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
           <CardContent className="p-2">
             <ScrollArea className="max-h-48">
               <div className="space-y-1">
-                {filteredUsers.map((user, index) => (
+                {filteredUsers.length === 0 ? (
+                  <div className="p-3 text-sm text-muted-foreground text-center">
+                    {users.length === 0 ?
+                      'Nenhum usuário disponível para menções' :
+                      'Nenhum usuário encontrado com esses critérios'
+                    }
+                  </div>
+                ) : (
+                  filteredUsers.map((user, index) => (
                   <Button
                     key={user.id}
                     variant={index === selectedUserIndex ? "secondary" : "ghost"}
@@ -283,7 +331,8 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
                       </div>
                     </div>
                   </Button>
-                ))}
+                  ))
+                )}
               </div>
             </ScrollArea>
           </CardContent>
