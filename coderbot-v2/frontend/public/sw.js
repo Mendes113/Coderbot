@@ -1,4 +1,5 @@
 // Service Worker for CoderBot PWA
+// Updated to avoid interfering with React dynamic module loading (lazy loading)
 const CACHE_NAME = 'coderbot-v1';
 const STATIC_CACHE_URLS = [
   '/',
@@ -60,6 +61,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // For dynamic JS modules, always fetch from network
+  if (isDynamicModule(new URL(event.request.url).pathname)) {
+    event.respondWith(
+      fetch(event.request)
+        .catch((error) => {
+          console.error('Service Worker: Failed to load dynamic module', event.request.url, error);
+          throw error;
+        })
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then((cachedResponse) => {
@@ -108,14 +121,18 @@ self.addEventListener('fetch', (event) => {
 function shouldCache(request) {
   const url = new URL(request.url);
 
-  // Cache static assets, API responses, and pages
+  // Don't cache dynamic JS modules (React lazy loading)
+  if (url.pathname.endsWith('.js') && isDynamicModule(url.pathname)) {
+    return false;
+  }
+
+   // Cache static assets, API responses, and pages
   return (
     request.destination === 'document' ||
     request.destination === 'style' ||
     request.destination === 'script' ||
     request.destination === 'image' ||
     url.pathname.startsWith('/api/') ||
-    url.pathname.endsWith('.js') ||
     url.pathname.endsWith('.css') ||
     url.pathname.endsWith('.png') ||
     url.pathname.endsWith('.jpg') ||
@@ -123,6 +140,28 @@ function shouldCache(request) {
     url.pathname.endsWith('.svg') ||
     url.pathname.endsWith('.ico')
   );
+}
+
+// Check if a JS file is a dynamic module (React lazy loading)
+function isDynamicModule(pathname) {
+  // Dynamic modules usually have hash-like names with multiple parts and hyphens
+  // Examples: Home-BO88QvcT.js, Component-A1B2C3D4.js, etc.
+  // But NOT static chunks like: index.js, vendor.js, main.js
+  if (!pathname.endsWith('.js')) return false;
+
+  const parts = pathname.split('-');
+
+  // Must have at least 2 parts separated by hyphens
+  if (parts.length < 2) return false;
+
+  // Must contain hyphens (dynamic modules usually have them)
+  if (!pathname.includes('-')) return false;
+
+  // Exclude common static chunk names
+  const staticChunks = ['index', 'vendor', 'main', 'runtime', 'polyfills'];
+  const baseName = parts[0].toLowerCase();
+
+  return !staticChunks.includes(baseName);
 }
 
 // Handle background sync for offline actions
