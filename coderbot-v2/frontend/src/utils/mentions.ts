@@ -1,0 +1,112 @@
+import { pb } from '@/integrations/pocketbase/client';
+
+export interface Mention {
+  username: string;
+  userId?: string;
+  startIndex: number;
+  endIndex: number;
+}
+
+/**
+ * Extrai menções (@usuario) de um texto
+ */
+export const extractMentions = (text: string): Mention[] => {
+  const mentionRegex = /@(\w+)/g;
+  const mentions: Mention[] = [];
+  let match;
+
+  while ((match = mentionRegex.exec(text)) !== null) {
+    mentions.push({
+      username: match[1],
+      startIndex: match.index,
+      endIndex: match.index + match[0].length,
+    });
+  }
+
+  return mentions;
+};
+
+/**
+ * Busca usuários por nome de usuário para resolver menções
+ */
+export const resolveMentions = async (mentions: Mention[]): Promise<Map<string, string>> => {
+  const userMap = new Map<string, string>();
+
+  if (mentions.length === 0) return userMap;
+
+  try {
+    // Buscar usuários cujos nomes contenham as menções
+    const usernames = [...new Set(mentions.map(m => m.username))];
+
+    for (const username of usernames) {
+      const response = await pb.collection('users').getList(1, 1, {
+        filter: `name ~ "${username}"`,
+        fields: 'id,name'
+      });
+
+      if (response.items.length > 0) {
+        userMap.set(username, response.items[0].id);
+      }
+    }
+  } catch (error) {
+    console.error('Erro ao resolver menções:', error);
+  }
+
+  return userMap;
+};
+
+/**
+ * Cria notificações para usuários mencionados
+ */
+export const createMentionNotifications = async (
+  mentions: Mention[],
+  senderId: string,
+  classId: string,
+  postId: string,
+  commentId?: string,
+  message?: string
+): Promise<void> => {
+  if (mentions.length === 0) return;
+
+  const userMap = await resolveMentions(mentions);
+
+  for (const mention of mentions) {
+    const userId = userMap.get(mention.username);
+    if (!userId || userId === senderId) continue; // Não notificar o próprio autor
+
+    try {
+      const notificationData = {
+        recipient_id: userId,
+        sender_id: senderId,
+        title: 'Você foi mencionado',
+        content: message || `Você foi mencionado em um comentário`,
+        type: 'mention',
+        metadata: {
+          classId,
+          postId,
+          commentId,
+          mentionedBy: senderId,
+          context: 'forum_comment'
+        }
+      };
+
+      await pb.send('/api/notifications/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': senderId,
+        },
+        body: JSON.stringify(notificationData)
+      });
+    } catch (error) {
+      console.error('Erro ao criar notificação de menção:', error);
+    }
+  }
+};
+
+/**
+ * Destaca menções em um texto para exibição (retorna texto com spans HTML)
+ */
+export const highlightMentions = (text: string): string => {
+  return text.replace(/@(\w+)/g, '<span class="bg-primary/10 text-primary px-1 py-0.5 rounded text-sm font-medium">@$1</span>');
+};

@@ -1,4 +1,4 @@
-import { User, MessageSquare, GraduationCap, Presentation, BookOpen } from "lucide-react";
+import { User, MessageSquare, GraduationCap, Presentation, BookOpen, Bell } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -35,9 +35,10 @@ type NavItem = {
 type AppSidebarProps = {
   currentNav?: string;
   onNavChange?: (nav: string) => void;
+  onNotificationClick?: () => void;
 };
 
-export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
+export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: AppSidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -45,6 +46,7 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
   const [isTeacherButtonAnimating, setIsTeacherButtonAnimating] = useState(false);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>("");
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState<number>(0);
   const { state } = useSidebar();
   const { theme } = useTheme();
 
@@ -62,6 +64,32 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
     }
     setIsLoading(false);
   }, []); // Dependência vazia é intencional - só executar uma vez na montagem
+
+  // Buscar notificações não lidas
+  useEffect(() => {
+    const fetchUnreadNotifications = async () => {
+      if (!userId) return;
+
+      try {
+        const response = await pb.send('/api/notifications/unread-count', {
+          method: 'GET',
+          headers: {
+            'X-User-Id': userId,
+          }
+        });
+        setUnreadNotificationsCount(response.count || 0);
+      } catch (error) {
+        console.error('Erro ao buscar notificações não lidas:', error);
+      }
+    };
+
+    fetchUnreadNotifications();
+
+    // Atualizar a cada 30 segundos
+    const interval = setInterval(fetchUnreadNotifications, 30000);
+
+    return () => clearInterval(interval);
+  }, [userId]);
   const normalizedUserRole = useMemo(() => (userRole || "").toLowerCase().trim(), [userRole]);
   const canAccessTeacherPanel = normalizedUserRole === "teacher" || normalizedUserRole === "admin";
 
@@ -70,7 +98,7 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
 
   const mainNavItems: NavItem[] = useMemo(() => [
     { id: "chat", label: "Chat", icon: MessageSquare, accessKey: "c", path: "/dashboard/chat" },
-   
+
     {
       id: "student",
       label: "Aluno",
@@ -81,8 +109,9 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
     },
     { id: "whiteboard", label: "Quadro", icon: Presentation, accessKey: "w", path: "/dashboard/whiteboard" },
     { id: "notes", label: "Notas", icon: BookOpen, accessKey: "n", path: "/dashboard/notes" },
+    { id: "notifications", label: "Notificações", icon: Bell, accessKey: "n", path: "/profile" },
     { id: "profile", label: "Perfil", icon: User, accessKey: "p", path: "/profile" },
-  ], []);
+  ], [unreadNotificationsCount]);
 
   const filteredNavItems = useMemo(() => {
     return mainNavItems.filter((item) => {
@@ -149,6 +178,15 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
     return currentNav === item.id || location.pathname.startsWith(item.path);
   }, [currentNav, location.pathname]);
 
+  // Função para lidar com clique no ícone de notificações
+  const handleNotificationClick = useCallback(() => {
+    if (onNotificationClick) {
+      onNotificationClick();
+    } else {
+      navigate('/profile');
+    }
+  }, [onNotificationClick, navigate]);
+
   if (isLoading) {
     return (
       <Sidebar collapsible="icon">
@@ -190,16 +228,44 @@ export const AppSidebar = ({ currentNav, onNavChange }: AppSidebarProps) => {
           <SidebarGroupLabel className="edu-heading-h4"></SidebarGroupLabel>
           <SidebarGroupContent className="edu-spacing-3">
             <SidebarMenu>
-              {filteredNavItems.map((item) => (
-                <SidebarMenuItem key={item.id} className="edu-card-hover">
-                  <SidebarMenuButton asChild isActive={isItemActive(item)} className="edu-focus">
-                    <Link to={item.path} onClick={() => onNavChange && onNavChange(item.id)}>
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {filteredNavItems.map((item) => {
+                if (item.id === "notifications") {
+                  return (
+                    <SidebarMenuItem key={item.id} className="edu-card-hover">
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isItemActive(item)}
+                        className="edu-focus relative"
+                      >
+                        <button onClick={handleNotificationClick} className="flex items-center w-full">
+                          <div className="relative">
+                            <item.icon />
+                            {unreadNotificationsCount > 0 && (
+                              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">
+                                  {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <span>{item.label}</span>
+                        </button>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                }
+
+                return (
+                  <SidebarMenuItem key={item.id} className="edu-card-hover">
+                    <SidebarMenuButton asChild isActive={isItemActive(item)} className="edu-focus">
+                      <Link to={item.path} onClick={() => onNavChange && onNavChange(item.id)}>
+                        <item.icon />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
