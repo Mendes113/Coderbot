@@ -78,7 +78,7 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
           return;
         }
 
-        const memberIdsString = memberIds.map(id => `"${id}"`).join(',');
+        const memberIdsString = memberIds.join(',');
 
         console.log('Buscando usuários da turma:', { classId, memberIdsCount: memberIds.length, memberIdsString });
 

@@ -1,6 +1,6 @@
 // Service Worker for CoderBot PWA
-// Updated to avoid interfering with React dynamic module loading (lazy loading)
-const CACHE_NAME = 'coderbot-v1';
+// Temporarily disabled due to conflicts with React dynamic module loading
+// const CACHE_NAME = 'coderbot-v1';
 const STATIC_CACHE_URLS = [
   '/',
   '/manifest.json',
@@ -10,7 +10,8 @@ const STATIC_CACHE_URLS = [
   '/favicon.ico'
 ];
 
-// Install event - cache static assets
+// Temporarily disabled - causing conflicts with React dynamic modules
+/*
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -27,8 +28,10 @@ self.addEventListener('install', (event) => {
       })
   );
 });
+*/
 
-// Activate event - cleanup old caches
+// Temporarily disabled - causing conflicts with React dynamic modules
+/*
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
@@ -48,8 +51,10 @@ self.addEventListener('activate', (event) => {
       })
   );
 });
+*/
 
-// Fetch event - serve from cache when offline
+// Temporarily disabled - causing conflicts with React dynamic modules
+/*
 self.addEventListener('fetch', (event) => {
   // Only handle GET requests
   if (event.request.method !== 'GET') {
@@ -194,6 +199,8 @@ async function getOfflineData() {
   return [];
 }
 
+// Temporarily disabled - causing conflicts with React dynamic modules
+/*
 async function syncOfflineData(data) {
   // This would sync offline data with the server
   // For now, just log the data
@@ -241,3 +248,7 @@ self.addEventListener('notificationclick', (event) => {
     );
   }
 });
+*/
+
+// Service Worker temporarily disabled to fix React dynamic module loading issues
+// The PWA features can be re-enabled once the conflicts are resolved
