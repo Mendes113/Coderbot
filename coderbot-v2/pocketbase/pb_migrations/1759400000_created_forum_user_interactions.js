@@ -33,6 +33,7 @@ migrate((app) => {
       },
       {
         "cascadeDelete": false,
+        "collectionId": "classes",
         "hidden": false,
         "id": "rel_class",
         "maxSelect": 1,
