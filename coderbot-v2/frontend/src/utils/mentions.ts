@@ -52,6 +52,8 @@ export const resolveMentions = async (mentions: Mention[], classId?: string): Pr
           .map(member => member.user)
           .filter(id => id && typeof id === 'string' && id.trim().length > 0);
 
+        console.log('IDs de membros da turma encontrados:', classMemberIds);
+
         if (classMemberIds.length === 0) {
           console.warn('Nenhum membro válido encontrado na turma:', classId);
           return userMap;
@@ -64,21 +66,29 @@ export const resolveMentions = async (mentions: Mention[], classId?: string): Pr
     }
 
     for (const username of usernames) {
-      let filter = `name ~ "${username}"`;
+      try {
+        let filter = `name ~ "${username}"`;
 
-      // Se temos filtro de membros da turma, adicionar à consulta
-      if (classMemberIds.length > 0) {
-        const memberIdsString = classMemberIds.map(id => `"${id}"`).join(',');
-        filter += ` && id in (${memberIdsString})`;
-      }
+        // Se temos filtro de membros da turma, adicionar à consulta
+        if (classMemberIds.length > 0) {
+          const memberIdsString = classMemberIds.map(id => `"${id}"`).join(',');
+          filter += ` && id in (${memberIdsString})`;
+        }
 
-      const response = await pb.collection('users').getList(1, 1, {
-        filter,
-        fields: 'id,name'
-      });
+        console.log('Consulta de usuários:', { username, filter, classMemberIds: classMemberIds.length });
 
-      if (response.items.length > 0) {
-        userMap.set(username, response.items[0].id);
+        const response = await pb.collection('users').getList(1, 1, {
+          filter,
+          fields: 'id,name'
+        });
+
+        if (response.items.length > 0) {
+          userMap.set(username, response.items[0].id);
+        } else {
+          console.warn(`Usuário não encontrado: ${username} com filtro: ${filter}`);
+        }
+      } catch (error) {
+        console.error(`Erro ao buscar usuário ${username}:`, error);
       }
     }
   } catch (error) {
