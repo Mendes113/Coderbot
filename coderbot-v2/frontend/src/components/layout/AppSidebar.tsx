@@ -18,6 +18,7 @@ import { getCurrentUser, pb } from "@/integrations/pocketbase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTheme } from "@/context/ThemeContext";
 import { Button } from "@/components/ui/button";
+import api from "@/lib/axios";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -79,18 +80,17 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     const fetchNotifications = async () => {
       try {
         // Buscar contagem de notificações não lidas
-        const countResponse = await pb.send('/api/notifications/unread-count', {
-          method: 'GET',
+        const countResponse = await api.get('/notifications/unread-count', {
           headers: {
             'X-User-Id': userId,
           }
         });
 
         if (!isMounted) return;
-        setUnreadNotificationsCount(countResponse.count || 0);
+        setUnreadNotificationsCount(countResponse.data.count || 0);
 
         // Buscar notificações recentes (últimas 3 não lidas)
-        if (countResponse.count > 0) {
+        if (countResponse.data.count > 0) {
           try {
             const recentResponse = await pb.collection('notifications').getList(1, 3, {
               filter: `recipient = "${userId}" && read = false`,

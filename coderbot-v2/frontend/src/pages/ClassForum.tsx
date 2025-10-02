@@ -824,7 +824,7 @@ const ClassForumPage = () => {
 
                     {isExpanded && (
                       <div className="w-full space-y-4">
-                        <ScrollArea className="max-h-72 rounded-md border border-border/60">
+                        <ScrollArea className="max-h-96 w-full rounded-md border border-border/60">
                           <div className="space-y-3 p-4">
                             {commentsLoading[post.id] ? (
                               <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -1130,7 +1130,8 @@ const ClassForumPage = () => {
                       Seja o primeiro a comentar neste post.
                     </p>
                   ) : (
-                    <div className="space-y-4 max-h-96 overflow-y-auto">
+                    <ScrollArea className="max-h-[500px] w-full">
+                      <div className="space-y-4 p-1">
                       {viewingPost.comments.map((comment) => (
                         <div key={comment.id} className="rounded-lg border border-border/40 bg-background/80 p-4">
                           <div className="flex items-start gap-3">
@@ -1162,7 +1163,8 @@ const ClassForumPage = () => {
                           </div>
                         </div>
                       ))}
-                    </div>
+                      </div>
+                    </ScrollArea>
                   )}
 
                   {/* Formulário de novo comentário */}
