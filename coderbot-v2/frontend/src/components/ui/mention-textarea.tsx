@@ -193,6 +193,9 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
     const newValue = e.target.value;
     const cursorPosition = e.target.selectionStart;
 
+    // Atualiza o texto imediatamente para não bloquear a digitação enquanto carregamos usuários
+    onChange(newValue);
+
     // Verificar se o usuário está digitando uma menção
     const beforeCursor = newValue.substring(0, cursorPosition);
     const afterCursor = newValue.substring(cursorPosition);
@@ -238,8 +241,6 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
       setShowMentions(false);
       setMentionQuery('');
     }
-
-    onChange(newValue);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
