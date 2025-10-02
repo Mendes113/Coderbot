@@ -18,7 +18,7 @@ interface ProfileRecord {
 // 2) A interface que seu hook expõe:
 export interface UserProfile {
   id: string;
-  email: string;
+  email?: string;
   name: string | null;
   avatar_url: string | null;
   bio: string | null;

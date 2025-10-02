@@ -28,13 +28,13 @@ export const pb = new PocketBase(POCKETBASE_URL);
  * Estende o Record padrão do SDK, que já inclui id, created, updated, etc.
  */
 export interface UserRecord extends PBRecord {
-  email: string;
+  email?: string;
   name: string;          // Nome completo
-  emailVisibility: boolean;
+  emailVisibility?: boolean;
   role: string;
   bio?: string;
   avatar?: string;
-  
+
   // acrescente outros campos customizados se houver
 }
 

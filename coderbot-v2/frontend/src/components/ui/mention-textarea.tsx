@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 interface User {
   id: string;
   name: string;
-  email: string;
+  email?: string;
   avatar?: string;
 }
 
@@ -233,7 +233,7 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
                           {user.name}
                         </div>
                         <div className="text-xs text-muted-foreground truncate">
-                          {user.email}
+                          {user.email || ''}
                         </div>
                       </div>
                     </div>
