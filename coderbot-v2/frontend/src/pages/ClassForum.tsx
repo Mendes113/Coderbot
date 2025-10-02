@@ -10,6 +10,7 @@ import {
   MessageCircle,
   RefreshCw,
   Users,
+  X,
 } from 'lucide-react';
 import { CreateForumPostDialog } from '@/components/teacher/CreateForumPostDialog';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +25,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { MentionTextarea } from '@/components/ui/mention-textarea';
+import { SimpleEditor } from '@/components/tiptap-templates/simple/simple-editor';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { extractMentions, createMentionNotifications, highlightMentions } from '@/utils/mentions';
@@ -77,6 +79,11 @@ const forumTypeMeta: Record<ClassForumPostType, { label: string; badgeClass: str
     badgeClass: 'border-slate-200 bg-slate-100/80 text-slate-700 dark:bg-slate-950/40 dark:text-slate-200',
     description: 'Espaço aberto para dúvidas rápidas e interações gerais.',
   },
+  atividade: {
+    label: 'Atividade',
+    badgeClass: 'border-orange-200 bg-orange-100/80 text-orange-700 dark:bg-orange-950/40 dark:text-orange-200',
+    description: 'Tarefas, exercícios e atividades práticas para os alunos.',
+  },
 };
 
 type ForumFilterOption = 'all' | ClassForumPostType;
@@ -89,6 +96,11 @@ type EditingPostState = {
   title: string;
   content: string;
   type: ClassForumPostType;
+} | null;
+
+type ViewingPostState = {
+  post: ClassForumPostRecord;
+  comments: ClassForumCommentRecord[];
 } | null;
 
 type Params = {
@@ -237,6 +249,7 @@ const ClassForumPage = () => {
   const [commentSubmitting, setCommentSubmitting] = useState<LoadingState>({});
   const [editingPost, setEditingPost] = useState<EditingPostState>(null);
   const [updatingPost, setUpdatingPost] = useState(false);
+  const [viewingPost, setViewingPost] = useState<ViewingPostState>(null);
 
   const dateFormatter = useMemo(
     () =>
@@ -494,6 +507,17 @@ const ClassForumPage = () => {
     }
   }, [editingPost]);
 
+  const handleViewPost = useCallback((post: ClassForumPostRecord) => {
+    setViewingPost({
+      post,
+      comments: commentsMap[post.id] ?? []
+    });
+  }, [commentsMap]);
+
+  const handleClosePostView = useCallback(() => {
+    setViewingPost(null);
+  }, []);
+
   const trackForumInteraction = useCallback(async (
     interactionType: ForumInteractionType,
     postId?: string,
@@ -709,11 +733,14 @@ const ClassForumPage = () => {
                   <CardContent className="space-y-5">
                     {post.content ? (
                       <article
-                        className="prose prose-sm max-w-none prose-p:my-2 prose-a:text-primary hover:prose-a:underline dark:prose-invert"
+                        className="prose prose-base max-w-none prose-p:my-3 prose-headings:my-4 prose-a:text-primary hover:prose-a:underline dark:prose-invert cursor-pointer transition-opacity hover:opacity-90"
                         dangerouslySetInnerHTML={{ __html: post.content }}
+                        onClick={() => handleViewPost(post)}
                       />
                     ) : (
-                      <p className="text-sm text-muted-foreground">Sem conteúdo textual informado.</p>
+                      <p className="text-sm text-muted-foreground cursor-pointer" onClick={() => handleViewPost(post)}>
+                        Sem conteúdo textual informado. Clique para visualizar detalhes.
+                      </p>
                     )}
 
                     {(attachments.length > 0 || links.length > 0) && <Separator />}
@@ -927,12 +954,11 @@ const ClassForumPage = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="edit-content">Conteúdo</Label>
-                <Textarea
-                  id="edit-content"
+                <SimpleEditor
                   value={editingPost.content}
-                  onChange={(e) => setEditingPost(prev => prev ? { ...prev, content: e.target.value } : null)}
-                  placeholder="Digite o conteúdo do post..."
-                  rows={6}
+                  onChange={(html) => setEditingPost(prev => prev ? { ...prev, content: html } : null)}
+                  placeholder="Digite o conteúdo do post usando o editor..."
+                  className="min-h-[200px] border rounded-md"
                 />
               </div>
             </div>
@@ -956,6 +982,220 @@ const ClassForumPage = () => {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Visualização Completa do Post */}
+      <Dialog open={!!viewingPost} onOpenChange={(open) => !open && handleClosePostView()}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+          <DialogHeader className="border-b pb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Badge className={cn('border text-[0.65rem] uppercase tracking-wider', forumTypeMeta[viewingPost?.post.type || 'info'].badgeClass)}>
+                  {viewingPost ? forumTypeMeta[viewingPost.post.type].label : 'Post'}
+                </Badge>
+                <span className="text-sm text-muted-foreground">
+                  {viewingPost ? dateFormatter.format(new Date(viewingPost.post.created)) : ''}
+                </span>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => handleClosePostView()}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <DialogTitle className="text-2xl font-semibold">
+              {viewingPost?.post.title || 'Post sem título'}
+            </DialogTitle>
+            <DialogDescription className="flex items-center gap-3">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] ring-2 ring-[hsl(var(--education-primary-light))] ring-offset-1 shadow-sm">
+                  {viewingPost?.post.expand?.author?.avatar ? (
+                    <img
+                      src={`${pb.baseUrl}/api/files/${viewingPost.post.expand.author.collectionId}/${viewingPost.post.expand.author.id}/${viewingPost.post.expand.author.avatar}`}
+                      alt={viewingPost.post.expand.author.name || 'Usuário'}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs font-bold text-white">
+                      {(viewingPost?.post.expand?.author?.name || 'U').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {viewingPost?.post.expand?.author?.name || 'Usuário'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {viewingPost?.post.expand?.author?.email || ''}
+                  </p>
+                </div>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+
+          {viewingPost && (
+            <div className="flex-1 overflow-y-auto">
+              <div className="space-y-6 p-6">
+                {/* Conteúdo do post */}
+                <div className="prose prose-lg max-w-none dark:prose-invert">
+                  {viewingPost.post.content ? (
+                    <article dangerouslySetInnerHTML={{ __html: viewingPost.post.content }} />
+                  ) : (
+                    <p className="text-muted-foreground">Sem conteúdo textual informado.</p>
+                  )}
+                </div>
+
+                {/* Anexos e Links */}
+                {(viewingPost.post.attachments?.length > 0 || normalizeLinks(viewingPost.post.links).length > 0) && (
+                  <Separator />
+                )}
+
+                {viewingPost.post.attachments && viewingPost.post.attachments.length > 0 && (
+                  <div>
+                    <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold text-muted-foreground">
+                      <FileText className="h-5 w-5" /> Materiais anexados
+                    </h3>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {viewingPost.post.attachments.map((fileName) => {
+                        const url = pb.files.getUrl(viewingPost.post, fileName);
+                        return (
+                          <a
+                            key={fileName}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-3 rounded-lg border border-border/60 p-4 text-sm font-medium text-primary transition hover:border-primary hover:bg-primary/10"
+                          >
+                            <FileText className="h-5 w-5 flex-shrink-0" />
+                            <span className="truncate">{fileName}</span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {normalizeLinks(viewingPost.post.links).length > 0 && (
+                  <div>
+                    <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold text-muted-foreground">
+                      <Link2 className="h-5 w-5" /> Links de apoio
+                    </h3>
+                    <div className="space-y-3">
+                      {normalizeLinks(viewingPost.post.links).map((link) => (
+                        <a
+                          key={link.url}
+                          className="flex items-center gap-3 rounded-lg border border-border/60 p-4 text-sm font-medium text-primary transition hover:border-primary hover:bg-primary/10"
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => trackForumInteraction('external_link_clicked', viewingPost.post.id, {
+                            target_url: link.url,
+                            link_title: link.label || link.url
+                          })}
+                        >
+                          <Link2 className="h-5 w-5 flex-shrink-0" />
+                          <span className="truncate">{link.label || link.url}</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Seção de comentários */}
+                <Separator />
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">
+                      Comentários ({viewingPost.comments.length})
+                    </h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => loadComments(viewingPost.post.id, true)}
+                      disabled={commentsLoading[viewingPost.post.id]}
+                    >
+                      <RefreshCw className={cn("mr-2 h-4 w-4", commentsLoading[viewingPost.post.id] && "animate-spin")} />
+                      Atualizar
+                    </Button>
+                  </div>
+
+                  {commentsLoading[viewingPost.post.id] ? (
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Carregando comentários...
+                    </div>
+                  ) : viewingPost.comments.length === 0 ? (
+                    <p className="text-center text-sm text-muted-foreground py-8">
+                      Seja o primeiro a comentar neste post.
+                    </p>
+                  ) : (
+                    <div className="space-y-4 max-h-96 overflow-y-auto">
+                      {viewingPost.comments.map((comment) => (
+                        <div key={comment.id} className="rounded-lg border border-border/40 bg-background/80 p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] ring-2 ring-[hsl(var(--education-primary-light))] ring-offset-1 shadow-sm">
+                              {comment.expand?.author?.avatar ? (
+                                <img
+                                  src={`${pb.baseUrl}/api/files/${comment.expand.author.collectionId}/${comment.expand.author.id}/${comment.expand.author.avatar}`}
+                                  alt={comment.expand.author.name || 'Participante'}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-xs font-bold text-white">
+                                  {(comment.expand?.author?.name || 'P').charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                                <span className="font-semibold text-foreground">
+                                  {comment.expand?.author?.name || 'Participante'}
+                                </span>
+                                <span>{dateFormatter.format(new Date(comment.created))}</span>
+                              </div>
+                              <div
+                                className="mt-2 prose prose-sm max-w-none dark:prose-invert"
+                                dangerouslySetInnerHTML={{ __html: highlightMentions(comment.content) }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Formulário de novo comentário */}
+                  <div className="border-t pt-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                        Novo comentário
+                      </label>
+                      <MentionTextarea
+                        value={commentDrafts[viewingPost.post.id] ?? ''}
+                        onChange={(value) => handleDraftChange(viewingPost.post.id, value)}
+                        placeholder="Compartilhe suas dúvidas, percepções ou feedback..."
+                        disabled={commentSubmitting[viewingPost.post.id]}
+                        rows={3}
+                      />
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={() => handleSubmitComment(viewingPost.post)}
+                          disabled={commentSubmitting[viewingPost.post.id]}
+                        >
+                          {commentSubmitting[viewingPost.post.id] ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <MessageCircle className="mr-2 h-4 w-4" />
+                          )}
+                          Enviar comentário
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

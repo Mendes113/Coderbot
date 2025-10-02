@@ -88,6 +88,7 @@ const App = () => {
 
     posthog.capture('edu_debug_boot', { path: window.location.pathname });
 
+    // Move userId declaration outside of async context
     const userModel = pb.authStore.model as any;
     const userId = userModel?.id;
     if (userId) {
@@ -108,42 +109,40 @@ const App = () => {
       });
     };
 
-    (async () => {
-      try {
-        await loadWebVitalsScript();
-        const wv = (window as any).webVitals;
-        if (!wv) {
-          console.warn('[Analytics][web-vitals] Not available after load');
-          return;
-        }
-        console.info('[Analytics][web-vitals] Ready');
-        const nav = performance.getEntriesByType('navigation')[0] as any;
-        const send = (metric: any) => {
-          try {
-            console.debug('[Analytics][web-vitals][report]', metric?.name, metric?.value, metric);
-            posthog.capture('$web_vitals', {
-              metric_name: metric?.name,
-              value: metric?.value,
-              delta: metric?.delta,
-              id: metric?.id,
-              rating: metric?.rating,
-              path: window.location.pathname,
-              navigation_type: nav?.type,
-            });
-          } catch (e) {
-            console.warn('[Analytics][web-vitals] capture failed', e);
-          }
-        };
-        wv.onCLS?.(send, { reportAllChanges: true });
-        wv.onFID?.(send);
-        wv.onLCP?.(send);
-        wv.onTTFB?.(send);
-        wv.onINP?.(send, { reportAllChanges: true });
-        wv.onFCP?.(send);
-      } catch (e) {
-        console.warn('[Analytics] Web Vitals load failed', e);
+    // Initialize Web Vitals tracking
+    loadWebVitalsScript().then(() => {
+      const wv = (window as any).webVitals;
+      if (!wv) {
+        console.warn('[Analytics][web-vitals] Not available after load');
+        return;
       }
-    })();
+      console.info('[Analytics][web-vitals] Ready');
+      const nav = performance.getEntriesByType('navigation')[0] as any;
+      const send = (metric: any) => {
+        try {
+          console.debug('[Analytics][web-vitals][report]', metric?.name, metric?.value, metric);
+          posthog.capture('$web_vitals', {
+            metric_name: metric?.name,
+            value: metric?.value,
+            delta: metric?.delta,
+            id: metric?.id,
+            rating: metric?.rating,
+            path: window.location.pathname,
+            navigation_type: nav?.type,
+          });
+        } catch (e) {
+          console.warn('[Analytics][web-vitals] capture failed', e);
+        }
+      };
+      wv.onCLS?.(send, { reportAllChanges: true });
+      wv.onFID?.(send);
+      wv.onLCP?.(send);
+      wv.onTTFB?.(send);
+      wv.onINP?.(send, { reportAllChanges: true });
+      wv.onFCP?.(send);
+    }).catch((e) => {
+      console.warn('[Analytics] Web Vitals load failed', e);
+    });
   }, []);
 
   useEffect(() => {
