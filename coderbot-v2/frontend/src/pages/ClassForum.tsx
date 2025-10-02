@@ -699,10 +699,10 @@ const ClassForumPage = () => {
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] ring-2 ring-[hsl(var(--education-primary-light))] ring-offset-1 shadow-sm">
-                          {post.expand?.author?.avatar ? (
+                          {post.expand?.author?.avatar && post.expand?.author?.collectionId && post.expand?.author?.id ? (
                             <img
                               src={`${pb.baseUrl}/api/files/${post.expand.author.collectionId}/${post.expand.author.id}/${post.expand.author.avatar}`}
-                              alt={post.expand.author.name || 'Usuário'}
+                              alt={post.expand?.author?.name || 'Usuário'}
                               className="h-full w-full object-cover"
                             />
                           ) : (
@@ -713,7 +713,7 @@ const ClassForumPage = () => {
                         </div>
                         <p className="text-sm text-muted-foreground">
                           Publicado por <span className="font-semibold text-foreground">{post.expand?.author?.name || 'usuário'}</span>
-                          {post.expand?.author?.email ? ` · ${post.expand.author.email}` : ''}
+                          {post.expand?.author && 'email' in post.expand.author && post.expand.author.email ? ` · ${post.expand.author.email}` : ''}
                         </p>
                       </div>
 
@@ -840,10 +840,10 @@ const ClassForumPage = () => {
                                 <div key={comment.id} className="rounded-lg border border-border/40 bg-background/80 p-3">
                                   <div className="flex items-start gap-3">
                                     <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] ring-2 ring-[hsl(var(--education-primary-light))] ring-offset-1 shadow-sm">
-                                      {comment.expand?.author?.avatar ? (
+                                      {comment.expand?.author?.avatar && comment.expand?.author?.collectionId && comment.expand?.author?.id ? (
                                         <img
                                           src={`${pb.baseUrl}/api/files/${comment.expand.author.collectionId}/${comment.expand.author.id}/${comment.expand.author.avatar}`}
-                                          alt={comment.expand.author.name || 'Participante'}
+                                          alt={comment.expand?.author?.name || 'Participante'}
                                           className="h-full w-full object-cover"
                                         />
                                       ) : (
@@ -1008,10 +1008,10 @@ const ClassForumPage = () => {
             <DialogDescription className="flex items-center gap-3">
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] ring-2 ring-[hsl(var(--education-primary-light))] ring-offset-1 shadow-sm">
-                  {viewingPost?.post.expand?.author?.avatar ? (
+                  {viewingPost?.post.expand?.author?.avatar && viewingPost?.post.expand?.author?.collectionId && viewingPost?.post.expand?.author?.id ? (
                     <img
                       src={`${pb.baseUrl}/api/files/${viewingPost.post.expand.author.collectionId}/${viewingPost.post.expand.author.id}/${viewingPost.post.expand.author.avatar}`}
-                      alt={viewingPost.post.expand.author.name || 'Usuário'}
+                      alt={viewingPost?.post.expand?.author?.name || 'Usuário'}
                       className="h-full w-full object-cover"
                     />
                   ) : (
@@ -1025,7 +1025,7 @@ const ClassForumPage = () => {
                     {viewingPost?.post.expand?.author?.name || 'Usuário'}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {viewingPost?.post.expand?.author?.email || ''}
+                    {viewingPost?.post.expand?.author && 'email' in viewingPost.post.expand.author ? viewingPost.post.expand.author.email : ''}
                   </p>
                 </div>
               </div>
@@ -1134,10 +1134,10 @@ const ClassForumPage = () => {
                         <div key={comment.id} className="rounded-lg border border-border/40 bg-background/80 p-4">
                           <div className="flex items-start gap-3">
                             <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] ring-2 ring-[hsl(var(--education-primary-light))] ring-offset-1 shadow-sm">
-                              {comment.expand?.author?.avatar ? (
+                              {comment.expand?.author?.avatar && comment.expand?.author?.collectionId && comment.expand?.author?.id ? (
                                 <img
                                   src={`${pb.baseUrl}/api/files/${comment.expand.author.collectionId}/${comment.expand.author.id}/${comment.expand.author.avatar}`}
-                                  alt={comment.expand.author.name || 'Participante'}
+                                  alt={comment.expand?.author?.name || 'Participante'}
                                   className="h-full w-full object-cover"
                                 />
                               ) : (
