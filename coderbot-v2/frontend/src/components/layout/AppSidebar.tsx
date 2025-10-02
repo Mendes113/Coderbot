@@ -188,16 +188,6 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
             <div className="edu-spacing-xs">
               <div className="edu-text-heading text-lg">CoderBot</div>
               <div className="edu-text-muted">Ambiente Educacional</div>
-              {userId && (
-                <div className="mt-2">
-                  <NotificationCenter userId={userId} onNotificationClick={onNotificationClick} />
-                </div>
-              )}
-            </div>
-          )}
-          {state === "collapsed" && userId && (
-            <div className="mt-2">
-              <NotificationCenter userId={userId} onNotificationClick={onNotificationClick} />
             </div>
           )}
         </div>
@@ -308,6 +298,13 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
           </div>
         )}
 
+
+        {/* Notification Center no footer */}
+        {userId && state !== "collapsed" && (
+          <div className="px-3 pb-3">
+            <NotificationCenter userId={userId} onNotificationClick={onNotificationClick} />
+          </div>
+        )}
 
         <SidebarTrigger />
       </SidebarFooter>
