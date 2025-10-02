@@ -68,7 +68,7 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
 
         const memberIds = membersResponse
           .map(member => member.user)
-          .filter(id => id && typeof id === 'string' && id.trim().length > 0);
+          .filter(id => id && typeof id === 'string' && /^[a-z0-9]{15,}$/i.test(id.trim())) as string[];
 
         console.log('IDs de membros encontrados:', memberIds);
 
@@ -79,6 +79,7 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
         }
 
         const memberIdsString = memberIds.join(',');
+        const memberFilter = pb.filter('id ?= {:ids}', { ids: memberIds });
 
         console.log('Buscando usuários da turma:', { classId, memberIdsCount: memberIds.length, memberIdsString });
 
@@ -98,7 +99,7 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
 
         try {
           const response = await pb.collection('users').getList(1, 50, {
-            filter: `id in (${memberIdsString})`,
+            filter: memberFilter,
             sort: 'name',
             fields: 'id,name,email,avatar'
           });
