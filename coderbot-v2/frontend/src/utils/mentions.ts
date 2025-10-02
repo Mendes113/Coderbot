@@ -50,7 +50,7 @@ export const resolveMentions = async (mentions: Mention[], classId?: string): Pr
 
         classMemberIds = membersResponse
           .map(member => member.user)
-          .filter(id => id && typeof id === 'string' && id.trim().length > 0);
+          .filter(id => id && typeof id === 'string' && id.trim().length > 0 && id.length >= 15); // PocketBase IDs are typically 15+ characters
 
         console.log('IDs de membros da turma encontrados:', classMemberIds);
 
@@ -71,14 +71,16 @@ export const resolveMentions = async (mentions: Mention[], classId?: string): Pr
 
         // Se temos filtro de membros da turma, adicionar à consulta
         if (classMemberIds.length > 0) {
-          const memberIdsString = classMemberIds.join(',');
-          filter += ` && id in (${memberIdsString})`;
-        }
+          // Construir filtro de forma mais segura, verificando se temos IDs válidos
+          const validIds = classMemberIds.filter(id => /^[a-z0-9]{15,}$/.test(id));
+          if (validIds.length === 0) {
+            console.warn(`Pulando busca de ${username} - nenhum ID válido na turma`);
+            continue;
+          }
 
-        // Pular consulta se não há membros válidos na turma
-        if (classMemberIds.length === 0) {
-          console.warn(`Pulando busca de ${username} - nenhum membro válido na turma`);
-          continue;
+          // Usar array de IDs individuais com aspas para evitar problemas de sintaxe
+          const idFilter = validIds.map(id => `id = "${id}"`).join(' || ');
+          filter += ` && (${idFilter})`;
         }
 
         console.log('Consulta de usuários:', { username, filter, classMemberIds: classMemberIds.length });
