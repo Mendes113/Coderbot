@@ -303,7 +303,8 @@ export type ClassForumPostType =
   | 'conteudo'
   | 'arquivos'
   | 'links'
-  | 'mensagens';
+  | 'mensagens'
+  | 'atividade';
 
 export interface ClassForumLink {
   label?: string;
@@ -340,7 +341,91 @@ export const CLASS_FORUM_TYPES: ClassForumPostType[] = [
   'conteudo',
   'links',
   'mensagens',
+  'atividade',
 ];
+
+// ============================
+// Activities/Missions System
+// ============================
+
+export type MissionType =
+  | 'chat_interaction'
+  | 'code_execution'
+  | 'exercise_completion'
+  | 'notes_creation'
+  | 'custom';
+
+export type MissionStatus =
+  | 'active'
+  | 'completed'
+  | 'expired'
+  | 'paused';
+
+export interface ClassMissionRecord extends PBRecord {
+  class: string;
+  teacher: string;
+  title: string;
+  description?: string;
+  type: MissionType;
+  target_value: number; // e.g., 20 messages, 5 exercises, etc.
+  reward_points: number;
+  status: MissionStatus;
+  starts_at?: string;
+  ends_at?: string;
+  max_participants?: number;
+  current_progress?: number;
+  metadata?: any; // Flexible field for mission-specific data
+  expand?: {
+    class?: any;
+    teacher?: UserRecord;
+  };
+}
+
+export interface StudentMissionProgressRecord extends PBRecord {
+  mission: string;
+  student: string;
+  current_value: number;
+  status: 'in_progress' | 'completed' | 'failed';
+  started_at?: string;
+  completed_at?: string;
+  metadata?: any;
+  expand?: {
+    mission?: ClassMissionRecord;
+    student?: UserRecord;
+  };
+}
+
+export interface MissionBoardRecord extends PBRecord {
+  class: string;
+  teacher: string;
+  title: string;
+  description?: string;
+  missions: string[]; // Array of mission IDs
+  is_active: boolean;
+  created_at: string;
+  expand?: {
+    class?: any;
+    teacher?: UserRecord;
+  };
+}
+
+export interface MusicalNoteRecord extends PBRecord {
+  class: string;
+  student?: string;
+  teacher?: string;
+  title: string;
+  content: string;
+  note_type: 'melody' | 'harmony' | 'rhythm' | 'composition' | 'theory';
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  is_public: boolean;
+  notation_data?: any; // For storing musical notation
+  audio_url?: string;
+  expand?: {
+    class?: any;
+    student?: UserRecord;
+    teacher?: UserRecord;
+  };
+}
 
 /**
  * Lista posts do fórum de eventos da turma.
@@ -607,5 +692,255 @@ export const isCurrentUserMemberOfClass = async (classId: string): Promise<boole
   } catch (error) {
     console.warn('Usuário não parece fazer parte da turma ou não foi possível verificar:', error);
     return false;
+  }
+};
+
+// ============================
+// Mission/Activity Functions
+// ============================
+
+/**
+ * Cria uma nova missão/atividade para uma turma.
+ */
+export const createClassMission = async (data: {
+  classId: string;
+  title: string;
+  description?: string;
+  type: MissionType;
+  target_value: number;
+  reward_points: number;
+  starts_at?: string;
+  ends_at?: string;
+  max_participants?: number;
+  metadata?: any;
+}): Promise<ClassMissionRecord | null> => {
+  const user = getCurrentUser();
+  if (!user) {
+    throw new Error('Usuário não autenticado');
+  }
+
+  try {
+    const record = await pb.collection('class_missions').create({
+      class: data.classId,
+      teacher: user.id,
+      title: data.title,
+      description: data.description || '',
+      type: data.type,
+      target_value: data.target_value,
+      reward_points: data.reward_points,
+      status: 'active',
+      starts_at: data.starts_at,
+      ends_at: data.ends_at,
+      max_participants: data.max_participants,
+      metadata: data.metadata || {},
+    });
+    return record as ClassMissionRecord;
+  } catch (error) {
+    console.error('Erro ao criar missão:', error);
+    throw error;
+  }
+};
+
+/**
+ * Lista missões de uma turma.
+ */
+export const listClassMissions = async (
+  classId: string,
+  options?: { status?: MissionStatus; type?: MissionType }
+): Promise<ClassMissionRecord[]> => {
+  try {
+    const filters = [`class = "${classId}"`];
+    const requestedStatus = options?.status;
+    if (requestedStatus) {
+      filters.push(`status = "${requestedStatus}"`);
+    }
+    const requestedType = options?.type;
+    if (requestedType) {
+      filters.push(`type = "${requestedType}"`);
+    }
+
+    const filter = filters.join(' && ');
+
+    const records = await pb.collection('class_missions').getFullList({
+      filter,
+      sort: '-created',
+      expand: 'teacher',
+      requestKey: `class_missions_${classId}_${requestedStatus ?? 'all'}_${requestedType ?? 'all'}_${Date.now()}`,
+    } as any);
+
+    return records as ClassMissionRecord[];
+  } catch (error) {
+    console.error('Erro ao listar missões:', error);
+    return [];
+  }
+};
+
+/**
+ * Obtém progresso de um aluno em uma missão específica.
+ */
+export const getStudentMissionProgress = async (
+  missionId: string,
+  studentId: string
+): Promise<StudentMissionProgressRecord | null> => {
+  try {
+    const record = await pb.collection('student_mission_progress').getFirstListItem(
+      `mission = "${missionId}" && student = "${studentId}"`,
+      {
+        expand: 'mission,student',
+        requestKey: `mission_progress_${missionId}_${studentId}_${Date.now()}`,
+      } as any
+    );
+    return record as StudentMissionProgressRecord;
+  } catch (error) {
+    return null;
+  }
+};
+
+/**
+ * Atualiza progresso de um aluno em uma missão.
+ */
+export const updateStudentMissionProgress = async (
+  missionId: string,
+  studentId: string,
+  currentValue: number,
+  metadata?: any
+): Promise<StudentMissionProgressRecord> => {
+  const existing = await getStudentMissionProgress(missionId, studentId);
+
+  if (existing) {
+    return await pb.collection('student_mission_progress').update(existing.id, {
+      current_value: currentValue,
+      metadata: metadata || existing.metadata,
+    }) as StudentMissionProgressRecord;
+  } else {
+    return await pb.collection('student_mission_progress').create({
+      mission: missionId,
+      student: studentId,
+      current_value: currentValue,
+      status: 'in_progress',
+      started_at: new Date().toISOString(),
+      metadata: metadata || {},
+    }) as StudentMissionProgressRecord;
+  }
+};
+
+/**
+ * Cria ou atualiza um quadro de missões.
+ */
+export const createMissionBoard = async (data: {
+  classId: string;
+  title: string;
+  description?: string;
+  missionIds: string[];
+}): Promise<MissionBoardRecord | null> => {
+  const user = getCurrentUser();
+  if (!user) {
+    throw new Error('Usuário não autenticado');
+  }
+
+  try {
+    const record = await pb.collection('mission_boards').create({
+      class: data.classId,
+      teacher: user.id,
+      title: data.title,
+      description: data.description || '',
+      missions: data.missionIds,
+      is_active: true,
+    });
+    return record as MissionBoardRecord;
+  } catch (error) {
+    console.error('Erro ao criar quadro de missões:', error);
+    throw error;
+  }
+};
+
+/**
+ * Lista quadros de missões de uma turma.
+ */
+export const listClassMissionBoards = async (classId: string): Promise<MissionBoardRecord[]> => {
+  try {
+    const records = await pb.collection('mission_boards').getFullList({
+      filter: `class = "${classId}" && is_active = true`,
+      sort: '-created',
+      expand: 'teacher',
+      requestKey: `mission_boards_${classId}_${Date.now()}`,
+    } as any);
+
+    return records as MissionBoardRecord[];
+  } catch (error) {
+    console.error('Erro ao listar quadros de missões:', error);
+    return [];
+  }
+};
+
+/**
+ * Cria uma nota musical.
+ */
+export const createMusicalNote = async (data: {
+  classId: string;
+  title: string;
+  content: string;
+  note_type: 'melody' | 'harmony' | 'rhythm' | 'composition' | 'theory';
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  is_public?: boolean;
+  notation_data?: any;
+  audio_url?: string;
+}): Promise<MusicalNoteRecord | null> => {
+  const user = getCurrentUser();
+  if (!user) {
+    throw new Error('Usuário não autenticado');
+  }
+
+  try {
+    const record = await pb.collection('musical_notes').create({
+      class: data.classId,
+      student: user.id,
+      title: data.title,
+      content: data.content,
+      note_type: data.note_type,
+      difficulty: data.difficulty,
+      is_public: data.is_public ?? true,
+      notation_data: data.notation_data || {},
+      audio_url: data.audio_url,
+    });
+    return record as MusicalNoteRecord;
+  } catch (error) {
+    console.error('Erro ao criar nota musical:', error);
+    throw error;
+  }
+};
+
+/**
+ * Lista notas musicais de uma turma.
+ */
+export const listClassMusicalNotes = async (
+  classId: string,
+  options?: { type?: string; difficulty?: string; is_public?: boolean }
+): Promise<MusicalNoteRecord[]> => {
+  try {
+    const filters = [`class = "${classId}"`];
+    if (options?.type) {
+      filters.push(`note_type = "${options.type}"`);
+    }
+    if (options?.difficulty) {
+      filters.push(`difficulty = "${options.difficulty}"`);
+    }
+    if (options?.is_public !== undefined) {
+      filters.push(`is_public = ${options.is_public}`);
+    }
+
+    const filter = filters.join(' && ');
+
+    const records = await pb.collection('musical_notes').getFullList({
+      filter,
+      sort: '-created',
+      expand: 'student,teacher',
+      requestKey: `musical_notes_${classId}_${Date.now()}`,
+    } as any);
+
+    return records as MusicalNoteRecord[];
+  } catch (error) {
+    console.error('Erro ao listar notas musicais:', error);
+    return [];
   }
 };

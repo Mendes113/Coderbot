@@ -10,6 +10,10 @@ import posthog from "posthog-js";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AnalyticsConsentBanner } from "@/components/consent/AnalyticsConsentBanner";
 import { ConsentStatus, consentStorageKey, getAnalyticsConsent, setAnalyticsConsent } from "@/lib/analytics-consent";
+import { useMobileDetection } from "@/hooks/useMobileDetection";
+import MobileLayout from "@/components/layout/MobileLayout";
+import MobileHome from "@/components/mobile/MobileHome";
+import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
 // import { CodeEditorProvider } from "@/context/CodeEditorContext";
 
 // Lazy loading otimizado com preload para rotas críticas
@@ -187,6 +191,7 @@ const App = () => {
             />
             <BrowserRouter>
               <AnalyticsTracker enabled={consentStatus === 'granted'} />
+              <PWAInstallPrompt />
               <Suspense fallback={
                 <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
                   <div className="text-center">
@@ -199,7 +204,7 @@ const App = () => {
                 </div>
               }>
                 <Routes>
-                  <Route path="/" element={<Home />} />
+                  <Route path="/" element={<HomeWithMobileSupport />} />
                   <Route path="/about" element={<AboutProject />} />
                   <Route path="dashboard" element={<RequireAuth><Index /></RequireAuth>}>
                     <Route path="chat" element={<ChatInterface />} />
@@ -305,4 +310,15 @@ const RequireAuth = ({ children }: { children: JSX.Element }) => {
   if (loading) return null; // ou um spinner
 
   return children;
+};
+
+// Component that chooses between mobile and desktop home
+const HomeWithMobileSupport = () => {
+  const { isMobile, isTablet } = useMobileDetection();
+
+  if (isMobile || isTablet) {
+    return <MobileHome />;
+  }
+
+  return <Home />;
 };

@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { Send, Sparkles, Heart, Smile, Zap, Star, ThumbsUp, Mic, MicOff, Bot, Command, Code2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useMobileDetection } from "@/hooks/useMobileDetection";
+import { MobileChatInput } from "./MobileChatInput";
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
@@ -10,7 +12,21 @@ interface ChatInputProps {
   setAnalogiesEnabled?: (enabled: boolean) => void;
 }
 
+// Main ChatInput component that switches between mobile and desktop versions
 export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalogiesEnabled }: ChatInputProps) => {
+  const { isMobile, isTablet } = useMobileDetection();
+
+  // Use mobile version for mobile and tablet devices
+  if (isMobile || isTablet) {
+    return (
+      <MobileChatInput
+        onSendMessage={onSendMessage}
+        isLoading={isLoading}
+      />
+    );
+  }
+
+  // Desktop version continues below...
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [showEncouragement, setShowEncouragement] = useState(false);

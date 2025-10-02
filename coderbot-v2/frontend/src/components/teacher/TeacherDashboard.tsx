@@ -16,6 +16,9 @@ import {
   ClipboardCheck,
 } from "lucide-react";
 import { ClassManager } from "@/components/teacher/ClassManager";
+import { MissionCreator } from "@/components/teacher/MissionCreator";
+import { MissionBoards } from "@/components/teacher/MissionBoards";
+import { MusicalNotes } from "@/components/teacher/MusicalNotes";
 
 export const TeacherDashboard = () => {
   return (
@@ -26,6 +29,7 @@ export const TeacherDashboard = () => {
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+          <TabsTrigger value="activities">Atividades</TabsTrigger>
           <TabsTrigger value="students">Alunos</TabsTrigger>
           <TabsTrigger value="classes">Turmas</TabsTrigger>
         </TabsList>
@@ -158,6 +162,36 @@ export const TeacherDashboard = () => {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+        <TabsContent value="activities" className="space-y-4">
+          <Tabs defaultValue="missions" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="missions">Missões</TabsTrigger>
+              <TabsTrigger value="boards">Quadros</TabsTrigger>
+              <TabsTrigger value="notes">Notas Musicais</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="missions" className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">Gerenciar Missões</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Crie e gerencie missões para motivar os alunos
+                  </p>
+                </div>
+                <MissionCreator classId="current-class-id" />
+              </div>
+              {/* Aqui você adicionaria uma lista de missões existentes */}
+            </TabsContent>
+
+            <TabsContent value="boards" className="space-y-4">
+              <MissionBoards classId="current-class-id" />
+            </TabsContent>
+
+            <TabsContent value="notes" className="space-y-4">
+              <MusicalNotes classId="current-class-id" isTeacher={true} />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
         <TabsContent value="classes" className="space-y-4">
           <ClassManager />
