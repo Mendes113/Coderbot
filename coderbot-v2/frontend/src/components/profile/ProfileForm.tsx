@@ -72,6 +72,22 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
   const [userId, setUserId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Small mock notifications for local testing (visible when running profile)
+  const mockNotifications: Notification[] = [
+    {
+      id: 'mock-1',
+      title: 'Boas-vindas',
+      content: 'Bem-vindo ao CoderBot!',
+      type: 'info',
+      read: false,
+      created: new Date().toISOString(),
+      updated: new Date().toISOString(),
+      recipient: userId || '',
+      sender: 'system',
+      expand: { sender: { id: 'system', name: 'Sistema', collectionId: 'users' } }
+    }
+  ];
+
   const form = useForm<ProfileFormData>({
     defaultValues: {
       name: profile?.name || "",
@@ -439,23 +455,15 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
         </CardHeader>
 
         <CardContent className="p-6">
-          {/* Componente de notificações rápidas */}
-          {userId && (
-            <div className="mb-6">
-              <NotificationCenter userId={userId} onNotificationClick={() => {}} />
-            </div>
-          )}
-
           {loadingNotifications ? (
             <div className="animate-pulse space-y-4">
-              <div className="h-12 bg-muted rounded"></div>
-              <div className="h-12 bg-muted rounded"></div>
-              <div className="h-12 bg-muted rounded"></div>
+              <div className="h-20 bg-muted rounded-lg"></div>
+              <div className="h-20 bg-muted rounded-lg"></div>
+              <div className="h-20 bg-muted rounded-lg"></div>
             </div>
           ) : notifications.length > 0 ? (
-            <ScrollArea className="h-[400px]">
-              <div className="space-y-4 pr-4">
-                {notifications.map((notification) => (
+            <div className="space-y-4">
+              {notifications.map((notification) => (
                   <Card
                     key={notification.id}
                     className={`overflow-hidden transition-all duration-200 hover:shadow-lg ${
@@ -525,13 +533,14 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
                   </Card>
                 ))}
               </div>
-            </ScrollArea>
           ) : (
-            <div className="py-8 text-center">
-              <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-              <h3 className="font-medium text-lg">Nenhuma notificação</h3>
-              <p className="text-sm text-muted-foreground">
-                Você não tem notificações no momento.
+            <div className="py-12 text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
+                <Bell className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="font-medium text-lg mb-1">Nenhuma notificação</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                Você não tem notificações no momento. Quando houver novidades, elas aparecerão aqui!
               </p>
             </div>
           )}

@@ -35,6 +35,8 @@ const PrivacyPolicy = React.lazy(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = React.lazy(() => import("./pages/TermsOfService"));
 const ClassForum = React.lazy(() => import("./pages/ClassForum"));
 const PublicClasses = React.lazy(() => import("./pages/PublicClasses"));
+const NotificationsTest = React.lazy(() => import("./pages/NotificationsTest"));
+const UserInfo = React.lazy(() => import("./pages/UserInfo"));
 
 const queryClient = new QueryClient();
 
@@ -239,6 +241,8 @@ const App = () => {
                   <Route path="/terms" element={<TermsOfService />} />
                   <Route path="/class/:classId" element={<ClassForum />} />
                   <Route path="/classes" element={<PublicClasses />} />
+                  <Route path="/notifications-test" element={<NotificationsTest />} />
+                  <Route path="/user-info" element={<RequireAuth><UserInfo /></RequireAuth>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
