@@ -128,6 +128,7 @@ export const resolveMentions = async (mentions: Mention[], classId?: string): Pr
 
 /**
  * Cria notificações para usuários mencionados
+ * Atualizado para usar o novo sistema de rastreamento de origem
  */
 export const createMentionNotifications = async (
   mentions: Mention[],
@@ -146,12 +147,22 @@ export const createMentionNotifications = async (
     if (!userId || userId === senderId) continue; // Não notificar o próprio autor
 
     try {
+      // Construir a URL direta para o contexto
+      const sourceUrl = `/classes/${classId}/forum${commentId ? `#comment-${commentId}` : `#post-${postId}`}`;
+      
       const notificationData = {
-        recipient_id: userId,
-        sender_id: senderId,
+        recipient: userId,
+        sender: senderId,
         title: 'Você foi mencionado',
-        content: message || `Você foi mencionado em um comentário`,
+        content: message || `Você foi mencionado em um comentário no fórum`,
         type: 'mention',
+        
+        // Novos campos de rastreamento de origem
+        source_type: 'forum_comment',
+        source_id: commentId || postId,
+        source_url: sourceUrl,
+        
+        // Metadata legado (mantido para compatibilidade)
         metadata: {
           classId,
           postId,
@@ -161,14 +172,12 @@ export const createMentionNotifications = async (
         }
       };
 
-      // Usar o axios configurado com o baseURL correto
-      await api.post('/notifications/', notificationData, {
-        headers: {
-          'X-User-Id': senderId,
-        }
-      });
+      // Criar notificação diretamente via PocketBase
+      await pb.collection('notifications').create(notificationData);
+      
+      console.log(`Notificação de menção criada para @${mention.username} (${userId})`);
     } catch (error) {
-      console.error('Erro ao criar notificação de menção:', error);
+      console.error(`Erro ao criar notificação de menção para @${mention.username}:`, error);
     }
   }
 };
