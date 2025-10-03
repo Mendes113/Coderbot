@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Mail, User, Calendar, CheckCircle, XCircle, Briefcase, CalendarDays, School, Bell, Clock } from "lucide-react";
+import { Camera, Mail, User, Calendar, CheckCircle, XCircle, Briefcase, CalendarDays, School, Bell, Clock, Trash2, MessageCircle, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { pb, getCurrentUser } from "@/integrations/pocketbase/client";
 import { useUserData } from "@/hooks/useUserData";
@@ -44,12 +44,20 @@ interface Notification {
   updated: string;
   recipient: string;
   sender: string;
+  // Novos campos de rastreamento de origem
+  source_type?: 'chat_message' | 'forum_post' | 'forum_comment' | 'exercise' | 'exercise_comment' | 'class' | 'assignment' | 'whiteboard' | 'note' | 'system';
+  source_id?: string;
+  source_url?: string;
+  read_at?: string;
+  // Metadata legado (ainda suportado para compatibilidade)
   metadata?: {
     classId?: string;
     commentId?: string;
     context?: string;
     mentionedBy?: string;
     postId?: string;
+    exerciseId?: string;
+    messageId?: string;
   };
   expand?: {
     sender?: {
@@ -210,6 +218,80 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
     } catch (error) {
       console.error('Erro ao marcar todas como lidas:', error);
       toast.error('Erro ao marcar notificações como lidas');
+    }
+  };
+
+  const handleDeleteNotification = async (notificationId: string) => {
+    try {
+      await pb.collection('notifications').delete(notificationId);
+
+      // Remove do estado local
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+
+      toast.success('Notificação deletada com sucesso');
+    } catch (error) {
+      console.error('Erro ao deletar notificação:', error);
+      toast.error('Erro ao deletar notificação');
+    }
+  };
+
+  const handleDeleteAllRead = async () => {
+    try {
+      const readNotifications = notifications.filter(n => n.read);
+
+      await Promise.all(
+        readNotifications.map(notif =>
+          pb.collection('notifications').delete(notif.id)
+        )
+      );
+
+      // Remove do estado local
+      setNotifications(prev => prev.filter(n => !n.read));
+
+      toast.success(`${readNotifications.length} notificações deletadas`);
+    } catch (error) {
+      console.error('Erro ao deletar notificações:', error);
+      toast.error('Erro ao deletar notificações');
+    }
+  };
+
+  const handleNavigateToMessage = (notification: Notification) => {
+    // Prioridade 1: Usar source_url se disponível (novo sistema)
+    if (notification.source_url) {
+      window.location.href = notification.source_url;
+      return;
+    }
+
+    // Prioridade 2: Construir URL baseado em source_type e source_id
+    if (notification.source_type && notification.source_id) {
+      const urlMap: Record<string, string> = {
+        'chat_message': `/dashboard/chat?messageId=${notification.source_id}${notification.metadata?.classId ? `&classId=${notification.metadata.classId}` : ''}`,
+        'forum_post': `/forum/post/${notification.source_id}`,
+        'forum_comment': `/forum/post/${notification.metadata?.postId || ''}#${notification.source_id}`,
+        'exercise': `/exercises/${notification.source_id}`,
+        'exercise_comment': `/exercises/${notification.metadata?.exerciseId || ''}/comments#${notification.source_id}`,
+        'class': `/classes/${notification.source_id}`,
+        'assignment': `/assignments/${notification.source_id}`,
+        'whiteboard': `/dashboard/whiteboard?id=${notification.source_id}`,
+        'note': `/dashboard/notes?id=${notification.source_id}`,
+      };
+      
+      const url = urlMap[notification.source_type];
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+    }
+
+    // Fallback: Usar metadata (comportamento legado para compatibilidade)
+    if (notification.type === 'message' || notification.type === 'mention') {
+      if (notification.metadata?.classId) {
+        window.location.href = `/dashboard/chat?classId=${notification.metadata.classId}`;
+      } else {
+        window.location.href = '/dashboard/chat';
+      }
+    } else if (notification.type === 'comment' && notification.metadata?.postId) {
+      window.location.href = `/posts/${notification.metadata.postId}`;
     }
   };
 
@@ -441,16 +523,28 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
                 </p>
               </div>
             </div>
-            {notifications.filter(n => !n.read).length > 0 && (
-              <Button
-                onClick={handleMarkAllAsRead}
-                variant="outline"
-                className="gap-2"
-              >
-                <CheckCircle className="h-4 w-4" />
-                Marcar todas como lidas
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {notifications.filter(n => !n.read).length > 0 && (
+                <Button
+                  onClick={handleMarkAllAsRead}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  Marcar todas como lidas
+                </Button>
+              )}
+              {notifications.filter(n => n.read).length > 0 && (
+                <Button
+                  onClick={handleDeleteAllRead}
+                  variant="outline"
+                  className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Limpar lidas
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
 
@@ -499,7 +593,7 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
                               <p className="text-sm text-muted-foreground mb-2">
                                 {notification.content}
                               </p>
-                              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
                                 <span className="flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
                                   {new Date(notification.created).toLocaleDateString('pt-BR', {
@@ -513,19 +607,47 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
                                   {notification.read ? 'Lida' : 'Não lida'}
                                 </Badge>
                               </div>
+
+                              {/* Botões de ação rápida */}
+                              {(notification.type === 'message' || notification.type === 'mention' || notification.type === 'comment') && (
+                                <Button
+                                  onClick={() => handleNavigateToMessage(notification)}
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/20"
+                                >
+                                  <MessageCircle className="h-3.5 w-3.5" />
+                                  {notification.type === 'message' || notification.type === 'mention' 
+                                    ? 'Ver mensagem' 
+                                    : 'Ver comentário'}
+                                  <ArrowRight className="h-3 w-3" />
+                                </Button>
+                              )}
                             </div>
 
                             {/* Ações */}
-                            {!notification.read && (
+                            <div className="flex flex-col gap-1">
+                              {!notification.read && (
+                                <Button
+                                  onClick={() => handleMarkAsRead(notification.id)}
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950/20"
+                                  title="Marcar como lida"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </Button>
+                              )}
                               <Button
-                                onClick={() => handleMarkAsRead(notification.id)}
+                                onClick={() => handleDeleteNotification(notification.id)}
                                 size="sm"
                                 variant="ghost"
-                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                title="Deletar notificação"
                               >
-                                <CheckCircle className="h-4 w-4" />
+                                <Trash2 className="h-4 w-4" />
                               </Button>
-                            )}
+                            </div>
                           </div>
                         </div>
                       </div>
