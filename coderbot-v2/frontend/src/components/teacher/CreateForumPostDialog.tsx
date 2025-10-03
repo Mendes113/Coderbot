@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { Loader2, Plus, Link2, FileText, X, Target, MessageCircle, Code, BookOpen, Music, Sparkles } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Loader2, Plus, Link2, FileText, X, Target, MessageCircle, Code, BookOpen, Music, Sparkles, ClipboardList, Zap } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { SimpleEditor } from '@/components/tiptap-templates/simple/simple-editor';
 import {
@@ -30,7 +31,10 @@ import {
   createClassForumPost,
   MissionType,
   createClassMission,
+  ActivityType,
+  createClassActivity,
 } from '@/integrations/pocketbase/client';
+import { SurveyCreatorComponent, SurveyCreator } from 'survey-creator-react';
 
 interface CreateForumPostDialogProps {
   classId: string;
@@ -81,6 +85,20 @@ const missionTypeDescriptions: Record<MissionType, string> = {
   custom: 'Atividade personalizada definida pelo professor',
 };
 
+const activityTypeLabels: Record<ActivityType, string> = {
+  quiz: 'Quiz',
+  survey: 'Pesquisa',
+  form: 'Formulário',
+  poll: 'Enquete',
+};
+
+const activityTypeDescriptions: Record<ActivityType, string> = {
+  quiz: 'Questionário com pontuação automática',
+  survey: 'Pesquisa de opinião sem pontuação',
+  form: 'Formulário de coleta de dados',
+  poll: 'Votação rápida em opções',
+};
+
 export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPostDialogProps) => {
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -92,11 +110,50 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
   const [linkInput, setLinkInput] = useState({ url: '', label: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Estado específico para atividades/missões
+  // Estado para escolher entre Mission ou Quiz/Survey
+  const [activityMode, setActivityMode] = useState<'mission' | 'quiz'>('mission');
+
+  // Estado para missões
   const [missionType, setMissionType] = useState<MissionType>('chat_interaction');
   const [missionTarget, setMissionTarget] = useState(20);
   const [missionReward, setMissionReward] = useState(100);
   const [missionDescription, setMissionDescription] = useState('');
+
+  // Estado para quizzes/surveys
+  const [activityType, setActivityType] = useState<ActivityType>('quiz');
+  const [activityReward, setActivityReward] = useState(100);
+  const [maxAttempts, setMaxAttempts] = useState(3);
+  const [timeLimit, setTimeLimit] = useState(0); // 0 = sem limite
+  const [surveyCreator, setSurveyCreator] = useState<SurveyCreator | null>(null);
+
+  // Inicializar SurveyJS Creator
+  useEffect(() => {
+    if (type === 'atividade' && activityMode === 'quiz') {
+      const options = {
+        showLogicTab: true,
+        showTranslationTab: false,
+        isAutoSave: false,
+      };
+      const creator = new SurveyCreator(options);
+      creator.text = JSON.stringify({
+        title: 'Nova Atividade',
+        description: 'Descreva sua atividade aqui',
+        pages: [
+          {
+            name: 'page1',
+            elements: [
+              {
+                type: 'text',
+                name: 'question1',
+                title: 'Digite sua primeira pergunta',
+              },
+            ],
+          },
+        ],
+      });
+      setSurveyCreator(creator);
+    }
+  }, [type, activityMode]);
 
   const resetForm = () => {
     setTitle('');
@@ -105,10 +162,16 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
     setAttachments([]);
     setLinks([]);
     setLinkInput({ url: '', label: '' });
+    setActivityMode('mission');
     setMissionType('chat_interaction');
     setMissionTarget(20);
     setMissionReward(100);
     setMissionDescription('');
+    setActivityType('quiz');
+    setActivityReward(100);
+    setMaxAttempts(3);
+    setTimeLimit(0);
+    setSurveyCreator(null);
   };
 
   const handleAddLink = () => {
@@ -159,35 +222,69 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
 
     // Validação específica para atividades
     if (type === 'atividade') {
-      if (missionTarget <= 0) {
-        toast.error('A meta da missão deve ser maior que zero');
-        return;
-      }
-      if (missionReward < 0) {
-        toast.error('Os pontos de recompensa não podem ser negativos');
-        return;
-      }
-      if (!missionDescription.trim()) {
-        toast.error('Digite a descrição da missão');
-        return;
+      if (activityMode === 'mission') {
+        if (missionTarget <= 0) {
+          toast.error('A meta da missão deve ser maior que zero');
+          return;
+        }
+        if (missionReward < 0) {
+          toast.error('Os pontos de recompensa não podem ser negativos');
+          return;
+        }
+        if (!missionDescription.trim()) {
+          toast.error('Digite a descrição da missão');
+          return;
+        }
+      } else if (activityMode === 'quiz') {
+        if (!surveyCreator) {
+          toast.error('Erro ao inicializar o editor de quiz');
+          return;
+        }
+        if (activityReward < 0) {
+          toast.error('Os pontos de recompensa não podem ser negativos');
+          return;
+        }
+        if (maxAttempts < 1) {
+          toast.error('O número de tentativas deve ser pelo menos 1');
+          return;
+        }
       }
     }
 
     setSubmitting(true);
 
     try {
-      // Se for uma atividade, criar a missão primeiro
+      // Se for uma atividade
       if (type === 'atividade') {
-        await createClassMission({
-          classId,
-          title: title.trim(),
-          description: missionDescription.trim(),
-          type: missionType,
-          target_value: missionTarget,
-          reward_points: missionReward,
-        });
+        if (activityMode === 'mission') {
+          // Criar missão tradicional
+          await createClassMission({
+            classId,
+            title: title.trim(),
+            description: missionDescription.trim(),
+            type: missionType,
+            target_value: missionTarget,
+            reward_points: missionReward,
+          });
 
-        toast.success('Missão criada e publicada no fórum com sucesso!');
+          toast.success('Missão criada e publicada no fórum com sucesso!');
+        } else if (activityMode === 'quiz') {
+          // Criar quiz/survey com SurveyJS
+          const surveyJson = JSON.parse(surveyCreator!.text);
+          
+          await createClassActivity({
+            classId,
+            title: title.trim(),
+            description: content.trim() || 'Atividade interativa',
+            activityType: activityType,
+            surveyJson: surveyJson,
+            rewardPoints: activityReward,
+            maxAttempts: maxAttempts,
+            timeLimit: timeLimit > 0 ? timeLimit : undefined,
+          });
+
+          toast.success('Quiz/Survey criado com sucesso!');
+        }
       } else {
         // Para outros tipos, criar post normal
         await createClassForumPost({
@@ -288,140 +385,289 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
                   <Target className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <Label className="text-base font-semibold">Configurações da Missão</Label>
+                  <Label className="text-base font-semibold">Configurações da Atividade</Label>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Configure os detalhes da missão que será criada para os alunos
+                    Escolha entre Mission (rastreamento) ou Quiz/Survey (SurveyJS)
                   </p>
                 </div>
               </div>
 
-              {/* Tipo de Missão */}
+              {/* Seletor Mission vs Quiz */}
               <div className="space-y-2">
-                <Label htmlFor="mission-type" className="flex items-center gap-2">
-                  Tipo de missão *
+                <Label className="flex items-center gap-2">
+                  Tipo de atividade *
                 </Label>
-                <Select value={missionType} onValueChange={(value) => setMissionType(value as MissionType)}>
-                  <SelectTrigger id="mission-type" className="h-auto py-2.5">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(['chat_interaction', 'code_execution', 'exercise_completion', 'notes_creation', 'custom'] as MissionType[]).map((type) => (
-                      <SelectItem key={type} value={type} className="py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="p-1.5 rounded bg-primary/10">
-                            {missionTypeIcons[type]}
-                          </div>
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-medium">{missionTypeLabels[type]}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {missionTypeDescriptions[type]}
-                            </span>
-                          </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Card
+                    className={`cursor-pointer transition-all hover:shadow-lg ${
+                      activityMode === 'mission'
+                        ? 'border-primary shadow-lg shadow-primary/20 ring-2 ring-primary/20'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => setActivityMode('mission')}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <Target className="h-5 w-5 text-primary" />
                         </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold mb-1">Mission</h4>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            Rastreamento de ações (chats, código, exercícios)
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-              {/* Meta e Recompensa */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="mission-target" className="flex items-center gap-2">
-                    <Target className="h-3.5 w-3.5" />
-                    Meta da missão *
-                  </Label>
-                  <Input
-                    id="mission-target"
-                    type="number"
-                    placeholder="Ex: 20"
-                    value={missionTarget}
-                    onChange={(e) => setMissionTarget(parseInt(e.target.value) || 1)}
-                    min={1}
-                    disabled={submitting}
-                    className="h-11"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Quantidade de ações para completar
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="mission-reward" className="flex items-center gap-2">
-                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                    Pontos de recompensa *
-                  </Label>
-                  <Input
-                    id="mission-reward"
-                    type="number"
-                    placeholder="Ex: 100"
-                    value={missionReward}
-                    onChange={(e) => setMissionReward(parseInt(e.target.value) || 0)}
-                    min={0}
-                    disabled={submitting}
-                    className="h-11"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Pontos concedidos ao completar
-                  </p>
+                  <Card
+                    className={`cursor-pointer transition-all hover:shadow-lg ${
+                      activityMode === 'quiz'
+                        ? 'border-primary shadow-lg shadow-primary/20 ring-2 ring-primary/20'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => setActivityMode('quiz')}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-lg bg-purple-500/10">
+                          <ClipboardList className="h-5 w-5 text-purple-500" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold mb-1">Quiz/Survey</h4>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            Questionários com pontuação automática
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
 
-              {/* Descrição da Missão */}
-              <div className="space-y-2">
-                <Label htmlFor="mission-description">Descrição da missão *</Label>
-                <Textarea
-                  id="mission-description"
-                  placeholder="Descreva detalhadamente o que os alunos precisam fazer para completar esta missão..."
-                  value={missionDescription}
-                  onChange={(e) => setMissionDescription(e.target.value)}
-                  maxLength={500}
-                  disabled={submitting}
-                  rows={4}
-                  className="resize-none"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {missionDescription.length}/500 caracteres
-                </p>
-              </div>
+              {/* Configurações de Mission */}
+              {activityMode === 'mission' && (
+                <>
+                  {/* Tipo de Missão */}
+                  <div className="space-y-2">
+                    <Label htmlFor="mission-type" className="flex items-center gap-2">
+                      Tipo de missão *
+                    </Label>
+                    <Select value={missionType} onValueChange={(value) => setMissionType(value as MissionType)}>
+                      <SelectTrigger id="mission-type" className="h-auto py-2.5">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(['chat_interaction', 'code_execution', 'exercise_completion', 'notes_creation', 'custom'] as MissionType[]).map((type) => (
+                          <SelectItem key={type} value={type} className="py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="p-1.5 rounded bg-primary/10">
+                                {missionTypeIcons[type]}
+                              </div>
+                              <div className="flex flex-col gap-0.5">
+                                <span className="font-medium">{missionTypeLabels[type]}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {missionTypeDescriptions[type]}
+                                </span>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              {/* Preview da Missão */}
-              <div className="p-4 rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-purple-500/5 backdrop-blur-sm">
-                <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
-                  <span className="p-1.5 rounded-lg bg-primary/10">
-                    {missionTypeIcons[missionType]}
-                  </span>
-                  Preview da Missão
-                </h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Título:</span>
-                    <span className="font-medium">{title || 'Sem título'}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Tipo:</span>
-                    <span className="font-medium">{missionTypeLabels[missionType]}</span>
-                  </div>
-                  <div className="flex items-center gap-4 pt-2">
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/50 backdrop-blur-sm border">
-                      <Target className="h-3 w-3 text-primary" />
-                      <span className="font-medium">{missionTarget} ações</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/50 backdrop-blur-sm border">
-                      <Sparkles className="h-3 w-3 text-amber-500" />
-                      <span className="font-medium">{missionReward} pontos</span>
-                    </div>
-                  </div>
-                  {missionDescription && (
-                    <div className="pt-2 border-t border-border/50">
-                      <span className="text-muted-foreground block mb-1">Descrição:</span>
-                      <p className="text-foreground/90 text-xs leading-relaxed">
-                        {missionDescription}
+                  {/* Meta e Recompensa */}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="mission-target" className="flex items-center gap-2">
+                        <Target className="h-3.5 w-3.5" />
+                        Meta da missão *
+                      </Label>
+                      <Input
+                        id="mission-target"
+                        type="number"
+                        placeholder="Ex: 20"
+                        value={missionTarget}
+                        onChange={(e) => setMissionTarget(parseInt(e.target.value) || 1)}
+                        min={1}
+                        disabled={submitting}
+                        className="h-11"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Quantidade de ações para completar
                       </p>
                     </div>
-                  )}
-                </div>
-              </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="mission-reward" className="flex items-center gap-2">
+                        <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                        Pontos de recompensa *
+                      </Label>
+                      <Input
+                        id="mission-reward"
+                        type="number"
+                        placeholder="Ex: 100"
+                        value={missionReward}
+                        onChange={(e) => setMissionReward(parseInt(e.target.value) || 0)}
+                        min={0}
+                        disabled={submitting}
+                        className="h-11"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Pontos concedidos ao completar
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Descrição da Missão */}
+                  <div className="space-y-2">
+                    <Label htmlFor="mission-description">Descrição da missão *</Label>
+                    <Textarea
+                      id="mission-description"
+                      placeholder="Descreva detalhadamente o que os alunos precisam fazer para completar esta missão..."
+                      value={missionDescription}
+                      onChange={(e) => setMissionDescription(e.target.value)}
+                      maxLength={500}
+                      disabled={submitting}
+                      rows={4}
+                      className="resize-none"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {missionDescription.length}/500 caracteres
+                    </p>
+                  </div>
+
+                  {/* Preview da Missão */}
+                  <div className="p-4 rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-purple-500/5 backdrop-blur-sm">
+                    <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                      <span className="p-1.5 rounded-lg bg-primary/10">
+                        {missionTypeIcons[missionType]}
+                      </span>
+                      Preview da Missão
+                    </h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Título:</span>
+                        <span className="font-medium">{title || 'Sem título'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Tipo:</span>
+                        <span className="font-medium">{missionTypeLabels[missionType]}</span>
+                      </div>
+                      <div className="flex items-center gap-4 pt-2">
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/50 backdrop-blur-sm border">
+                          <Target className="h-3 w-3 text-primary" />
+                          <span className="font-medium">{missionTarget} ações</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/50 backdrop-blur-sm border">
+                          <Sparkles className="h-3 w-3 text-amber-500" />
+                          <span className="font-medium">{missionReward} pontos</span>
+                        </div>
+                      </div>
+                      {missionDescription && (
+                        <div className="pt-2 border-t border-border/50">
+                          <span className="text-muted-foreground block mb-1">Descrição:</span>
+                          <p className="text-foreground/90 text-xs leading-relaxed">
+                            {missionDescription}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Configurações de Quiz/Survey */}
+              {activityMode === 'quiz' && (
+                <>
+                  {/* Tipo de Quiz */}
+                  <div className="space-y-2">
+                    <Label htmlFor="activity-type" className="flex items-center gap-2">
+                      Tipo de quiz *
+                    </Label>
+                    <Select value={activityType} onValueChange={(value) => setActivityType(value as ActivityType)}>
+                      <SelectTrigger id="activity-type" className="h-auto py-2.5">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(['quiz', 'survey', 'form', 'poll'] as ActivityType[]).map((type) => (
+                          <SelectItem key={type} value={type} className="py-3">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-medium">{activityTypeLabels[type]}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {activityTypeDescriptions[type]}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Configurações de pontuação e tentativas */}
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="activity-reward" className="flex items-center gap-2">
+                        <Zap className="h-3.5 w-3.5 text-amber-500" />
+                        Pontos *
+                      </Label>
+                      <Input
+                        id="activity-reward"
+                        type="number"
+                        placeholder="Ex: 100"
+                        value={activityReward}
+                        onChange={(e) => setActivityReward(parseInt(e.target.value) || 0)}
+                        min={0}
+                        disabled={submitting}
+                        className="h-11"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="max-attempts">Tentativas</Label>
+                      <Input
+                        id="max-attempts"
+                        type="number"
+                        placeholder="Ex: 3"
+                        value={maxAttempts}
+                        onChange={(e) => setMaxAttempts(parseInt(e.target.value) || 1)}
+                        min={1}
+                        disabled={submitting}
+                        className="h-11"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="time-limit">Tempo (min)</Label>
+                      <Input
+                        id="time-limit"
+                        type="number"
+                        placeholder="0 = ilimitado"
+                        value={timeLimit}
+                        onChange={(e) => setTimeLimit(parseInt(e.target.value) || 0)}
+                        min={0}
+                        disabled={submitting}
+                        className="h-11"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Editor SurveyJS */}
+                  <div className="space-y-2">
+                    <Label>Editor de Quiz/Survey</Label>
+                    <div className="rounded-lg border border-border overflow-hidden bg-background">
+                      {surveyCreator && (
+                        <SurveyCreatorComponent creator={surveyCreator} />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Use o editor visual para criar perguntas, configurar tipos de resposta e adicionar lógica condicional.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
