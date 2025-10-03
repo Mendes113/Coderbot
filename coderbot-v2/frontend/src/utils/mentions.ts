@@ -128,6 +128,15 @@ export const resolveMentions = async (mentions: Mention[], classId?: string): Pr
 
 /**
  * Cria notificações para usuários mencionados
+ * 
+ * Sistema de rastreamento de origem integrado:
+ * - source_type: Define o tipo de origem (forum_comment, chat_message, etc)
+ * - source_id: ID do comentário ou mensagem
+ * - source_url: URL direta para o contexto
+ * - metadata: Dados adicionais para compatibilidade legada
+ * 
+ * Nota: O campo 'metadata' é mantido para compatibilidade com o sistema antigo.
+ * Os novos campos source_* são utilizados preferencialmente para navegação.
  */
 export const createMentionNotifications = async (
   mentions: Mention[],
@@ -146,12 +155,24 @@ export const createMentionNotifications = async (
     if (!userId || userId === senderId) continue; // Não notificar o próprio autor
 
     try {
+      // Construir a URL direta para o contexto
+      const sourceUrl = `/classes/${classId}/forum${commentId ? `#comment-${commentId}` : `#post-${postId}`}`;
+      
       const notificationData = {
-        recipient_id: userId,
-        sender_id: senderId,
+        recipient: userId,
+        sender: senderId,
         title: 'Você foi mencionado',
-        content: message || `Você foi mencionado em um comentário`,
+        content: message || `Você foi mencionado em um comentário no fórum`,
         type: 'mention',
+        
+        // ⭐ Campos de rastreamento de origem (sistema novo)
+        // Estes campos permitem navegação direta e melhor rastreabilidade
+        source_type: 'forum_comment',
+        source_id: commentId || postId,
+        source_url: sourceUrl,
+        
+        // 📦 Metadata legado (mantido para compatibilidade retroativa)
+        // Usado como fallback caso os campos source_* não estejam disponíveis
         metadata: {
           classId,
           postId,
@@ -161,14 +182,12 @@ export const createMentionNotifications = async (
         }
       };
 
-      // Usar o axios configurado com o baseURL correto
-      await api.post('/notifications/', notificationData, {
-        headers: {
-          'X-User-Id': senderId,
-        }
-      });
+      // Criar notificação diretamente via PocketBase
+      await pb.collection('notifications').create(notificationData);
+      
+      console.log(`Notificação de menção criada para @${mention.username} (${userId})`);
     } catch (error) {
-      console.error('Erro ao criar notificação de menção:', error);
+      console.error(`Erro ao criar notificação de menção para @${mention.username}:`, error);
     }
   }
 };

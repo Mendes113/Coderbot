@@ -3,9 +3,16 @@
  * 
  * Utilitário para criar notificações com rastreamento de origem.
  * Usa os novos campos source_type, source_id e source_url para melhor rastreabilidade.
+ * 
+ * NOTA: Para notificações de menções no fórum, use `createMentionNotifications` 
+ * do arquivo `mentions.ts` ao invés das funções deste arquivo.
  */
 
 import { pb } from '@/integrations/pocketbase/client';
+import { createMentionNotifications } from './mentions';
+
+// Re-exportar para conveniência
+export { createMentionNotifications } from './mentions';
 
 export type NotificationType =
   | 'message'
