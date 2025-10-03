@@ -132,6 +132,64 @@ export const registerUserAction = async (userId: string, actionName: string, con
   });
 };
 
+/**
+ * Adiciona pontos ao perfil do usuário
+ */
+export const addPointsToUser = async (userId: string, points: number): Promise<boolean> => {
+  try {
+    // Buscar ou criar registro de gamificação
+    let gamification = await getUserGamification(userId);
+    
+    if (!gamification) {
+      // Criar novo registro se não existir
+      gamification = await pb.collection('gamification').create({
+        user: userId,
+        points: points,
+        level: 1,
+        badges: [],
+      }) as GamificationRecord;
+    } else {
+      // Atualizar pontos existentes
+      await pb.collection('gamification').update(gamification.id, {
+        points: gamification.points + points,
+      });
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Erro ao adicionar pontos:', error);
+    return false;
+  }
+};
+
+/**
+ * Cria uma notificação para o usuário
+ */
+export const createNotification = async (data: {
+  recipientId: string;
+  senderId: string;
+  title: string;
+  content: string;
+  type: 'mention' | 'forum_reply' | 'class_invite' | 'system' | 'achievement';
+  metadata?: any;
+}): Promise<boolean> => {
+  try {
+    await pb.collection('notifications').create({
+      recipient: data.recipientId,
+      sender: data.senderId,
+      title: data.title,
+      content: data.content,
+      type: data.type,
+      read: false,
+      metadata: data.metadata || {},
+    });
+    return true;
+  } catch (error) {
+    console.error('Erro ao criar notificação:', error);
+    return false;
+  }
+};
+
 // --- GitHub OAuth com PocketBase ---
 export function startGithubOAuth() {
   pb.collection('users').authWithOAuth2({ provider: 'github' });
@@ -409,6 +467,257 @@ export interface MissionBoardRecord extends PBRecord {
     teacher?: UserRecord;
   };
 }
+
+// ============================
+// Activities/Quizzes System (SurveyJS)
+// ============================
+
+export type ActivityType = 'quiz' | 'survey' | 'form' | 'poll';
+export type ActivityStatus = 'active' | 'archived' | 'draft';
+export type ActivityVisibility = 'public' | 'private' | 'draft';
+export type AttemptStatus = 'in_progress' | 'completed' | 'abandoned';
+
+export interface ClassActivityRecord extends PBRecord {
+  class: string;
+  teacher: string;
+  title: string;
+  description?: string;
+  activity_type: ActivityType;
+  survey_json: any; // SurveyJS JSON schema
+  reward_points?: number;
+  max_attempts?: number;
+  time_limit?: number; // in seconds
+  visibility: ActivityVisibility;
+  status: ActivityStatus;
+  starts_at?: string;
+  ends_at?: string;
+  metadata?: any;
+  expand?: {
+    class?: any;
+    teacher?: UserRecord;
+  };
+}
+
+export interface ActivityAttemptRecord extends PBRecord {
+  activity: string;
+  student: string;
+  answers?: any; // SurveyJS answers JSON
+  score?: number;
+  max_score?: number;
+  time_spent?: number; // in seconds
+  status: AttemptStatus;
+  started_at?: string;
+  completed_at?: string;
+  metadata?: any;
+  expand?: {
+    activity?: ClassActivityRecord;
+    student?: UserRecord;
+  };
+}
+
+/**
+ * Cria uma nova atividade (quiz/survey) na turma.
+ */
+export const createClassActivity = async (data: {
+  classId: string;
+  title: string;
+  description?: string;
+  activityType: ActivityType;
+  surveyJson: any;
+  rewardPoints?: number;
+  maxAttempts?: number;
+  timeLimit?: number;
+  visibility?: ActivityVisibility;
+  status?: ActivityStatus;
+  startsAt?: string;
+  endsAt?: string;
+}): Promise<ClassActivityRecord | null> => {
+  try {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      throw new Error('Usuário não autenticado');
+    }
+
+    const record = await pb.collection('class_activities').create({
+      class: data.classId,
+      teacher: currentUser.id,
+      title: data.title,
+      description: data.description,
+      activity_type: data.activityType,
+      survey_json: data.surveyJson,
+      reward_points: data.rewardPoints || 0,
+      max_attempts: data.maxAttempts,
+      time_limit: data.timeLimit,
+      visibility: data.visibility || 'public',
+      status: data.status || 'active',
+      starts_at: data.startsAt,
+      ends_at: data.endsAt,
+    });
+
+    return record as ClassActivityRecord;
+  } catch (error) {
+    console.error('Erro ao criar atividade:', error);
+    throw error;
+  }
+};
+
+/**
+ * Lista atividades de uma turma.
+ */
+export const listClassActivities = async (
+  classId: string,
+  options?: { status?: ActivityStatus; type?: ActivityType }
+): Promise<ClassActivityRecord[]> => {
+  try {
+    const filters = [`class = "${classId}"`];
+
+    const requestedStatus = options?.status;
+    if (requestedStatus) {
+      filters.push(`status = "${requestedStatus}"`);
+    }
+
+    const requestedType = options?.type;
+    if (requestedType) {
+      filters.push(`activity_type = "${requestedType}"`);
+    }
+
+    const filter = filters.join(' && ');
+
+    const records = await pb.collection('class_activities').getFullList({
+      filter,
+      sort: '-created',
+      expand: 'teacher',
+      requestKey: `class_activities_${classId}_${requestedStatus ?? 'all'}_${requestedType ?? 'all'}_${Date.now()}`,
+    } as any);
+
+    return records as ClassActivityRecord[];
+  } catch (error) {
+    console.error('Erro ao listar atividades:', error);
+    return [];
+  }
+};
+
+/**
+ * Obtém uma atividade por ID.
+ */
+export const getClassActivity = async (activityId: string): Promise<ClassActivityRecord | null> => {
+  try {
+    const record = await pb.collection('class_activities').getOne(activityId, {
+      expand: 'teacher,class',
+    } as any);
+    return record as ClassActivityRecord;
+  } catch (error) {
+    console.error('Erro ao buscar atividade:', error);
+    return null;
+  }
+};
+
+/**
+ * Cria uma tentativa de atividade para um aluno.
+ */
+export const createActivityAttempt = async (
+  activityId: string,
+  studentId: string
+): Promise<ActivityAttemptRecord | null> => {
+  try {
+    const record = await pb.collection('activity_attempts').create({
+      activity: activityId,
+      student: studentId,
+      status: 'in_progress',
+      started_at: new Date().toISOString(),
+    });
+
+    return record as ActivityAttemptRecord;
+  } catch (error) {
+    console.error('Erro ao criar tentativa:', error);
+    throw error;
+  }
+};
+
+/**
+ * Atualiza uma tentativa de atividade (salvar progresso ou completar).
+ */
+export const updateActivityAttempt = async (
+  attemptId: string,
+  data: {
+    answers?: any;
+    score?: number;
+    maxScore?: number;
+    timeSpent?: number;
+    status?: AttemptStatus;
+  }
+): Promise<ActivityAttemptRecord | null> => {
+  try {
+    const updateData: any = {};
+
+    if (data.answers !== undefined) updateData.answers = data.answers;
+    if (data.score !== undefined) updateData.score = data.score;
+    if (data.maxScore !== undefined) updateData.max_score = data.maxScore;
+    if (data.timeSpent !== undefined) updateData.time_spent = data.timeSpent;
+    if (data.status !== undefined) updateData.status = data.status;
+
+    if (data.status === 'completed') {
+      updateData.completed_at = new Date().toISOString();
+    }
+
+    const record = await pb.collection('activity_attempts').update(attemptId, updateData);
+    return record as ActivityAttemptRecord;
+  } catch (error) {
+    console.error('Erro ao atualizar tentativa:', error);
+    throw error;
+  }
+};
+
+/**
+ * Lista tentativas de um aluno em uma atividade.
+ */
+export const getStudentActivityAttempts = async (
+  activityId: string,
+  studentId: string
+): Promise<ActivityAttemptRecord[]> => {
+  try {
+    const records = await pb.collection('activity_attempts').getFullList({
+      filter: `activity = "${activityId}" && student = "${studentId}"`,
+      sort: '-created',
+      expand: 'activity',
+      requestKey: `activity_attempts_${activityId}_${studentId}_${Date.now()}`,
+    } as any);
+
+    return records as ActivityAttemptRecord[];
+  } catch (error) {
+    console.error('Erro ao listar tentativas:', error);
+    return [];
+  }
+};
+
+/**
+ * Obtém a última tentativa de um aluno em uma atividade.
+ */
+export const getLatestActivityAttempt = async (
+  activityId: string,
+  studentId: string
+): Promise<ActivityAttemptRecord | null> => {
+  try {
+    const record = await pb.collection('activity_attempts').getFirstListItem(
+      `activity = "${activityId}" && student = "${studentId}"`,
+      {
+        sort: '-created',
+        expand: 'activity',
+        requestKey: `activity_attempt_latest_${activityId}_${studentId}_${Date.now()}`,
+      } as any
+    );
+    return record as ActivityAttemptRecord;
+  } catch (error) {
+    return null;
+  }
+};
+
+// ============================
+// Musical Notes System
+// ============================
+
+export type NoteType = 'composition' | 'arrangement' | 'transcription' | 'exercise';
+export type NoteDifficulty = 'easy' | 'medium' | 'hard';
 
 export interface MusicalNoteRecord extends PBRecord {
   class: string;

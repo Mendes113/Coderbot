@@ -16,6 +16,7 @@ import {
   CheckCircle,
   MessageSquare,
   ArrowRight,
+  SortDesc,
 } from "lucide-react";
 import { joinClassByCode, listClassEvents, listMyClasses } from "@/integrations/pocketbase/client";
 import type { ClassEvent } from "@/integrations/pocketbase/client";
@@ -41,6 +42,7 @@ type ClassMetrics = {
   overdue: number;
   upcoming?: UpcomingEvent;
   typeCounts: Record<string, number>;
+  lastInteractionAt?: string;
 };
 
 type ClassSummaryState =
@@ -109,6 +111,7 @@ function computeClassMetrics(events: ClassEvent[]): ClassMetrics {
   let overdue = 0;
   const typeCounts: Record<string, number> = {};
   const futureEvents: { event: ClassEvent; timestamp: number }[] = [];
+  let lastInteractionAt: string | undefined;
 
   for (const event of events) {
     const typeKey = event?.type ?? "outros";
@@ -128,6 +131,12 @@ function computeClassMetrics(events: ClassEvent[]): ClassMetrics {
     } else {
       overdue += 1;
     }
+
+    // Tracking the most recent interaction (using created date as proxy for interaction)
+    const createdAt = event?.created;
+    if (createdAt && (!lastInteractionAt || createdAt > lastInteractionAt)) {
+      lastInteractionAt = createdAt;
+    }
   }
 
   futureEvents.sort((a, b) => a.timestamp - b.timestamp);
@@ -146,6 +155,7 @@ function computeClassMetrics(events: ClassEvent[]): ClassMetrics {
         }
       : undefined,
     typeCounts,
+    lastInteractionAt,
   };
 }
 
@@ -156,6 +166,7 @@ export const StudentDashboard = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [filterQuery, setFilterQuery] = useState<string>("");
+  const [sortByInteraction, setSortByInteraction] = useState<boolean>(false);
   const [joinCode, setJoinCode] = useState<string>("");
   const [joining, setJoining] = useState<boolean>(false);
   const [joinFeedback, setJoinFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -304,12 +315,34 @@ export const StudentDashboard = () => {
 
   const filtered = useMemo(() => {
     const query = filterQuery.trim().toLowerCase();
-    if (!query) return classes;
-    return classes.filter((cls) => {
-      const haystack = [cls.title, cls.description, cls.teacherName].filter(Boolean) as string[];
-      return haystack.some((field) => field.toLowerCase().includes(query));
-    });
-  }, [classes, filterQuery]);
+    let result = query 
+      ? classes.filter((cls) => {
+          const haystack = [cls.title, cls.description, cls.teacherName].filter(Boolean) as string[];
+          return haystack.some((field) => field.toLowerCase().includes(query));
+        })
+      : [...classes];
+
+    // Apply sorting by interaction if enabled
+    if (sortByInteraction) {
+      result.sort((a, b) => {
+        const aMetrics = classSummaries[a.classId];
+        const bMetrics = classSummaries[b.classId];
+        
+        const aLastInteraction = aMetrics?.status === 'ready' ? aMetrics.metrics.lastInteractionAt : null;
+        const bLastInteraction = bMetrics?.status === 'ready' ? bMetrics.metrics.lastInteractionAt : null;
+
+        // Classes with no interaction go to the end
+        if (!aLastInteraction && !bLastInteraction) return 0;
+        if (!aLastInteraction) return 1;
+        if (!bLastInteraction) return -1;
+
+        // Sort by most recent interaction first
+        return new Date(bLastInteraction).getTime() - new Date(aLastInteraction).getTime();
+      });
+    }
+
+    return result;
+  }, [classes, filterQuery, sortByInteraction, classSummaries]);
 
   const renderSummary = (state: ClassSummaryState | undefined) => {
     if (!state || state.status === "loading") {
@@ -417,6 +450,14 @@ export const StudentDashboard = () => {
             onChange={(e) => setFilterQuery(e.target.value)}
             className="w-72"
           />
+          <Button 
+            variant={sortByInteraction ? "default" : "outline"} 
+            onClick={() => setSortByInteraction(!sortByInteraction)} 
+            className="gap-2"
+          >
+            <SortDesc className="h-4 w-4" />
+            {sortByInteraction ? "Ordenado por interação" : "Ordenar por interação"}
+          </Button>
           <Button variant="outline" onClick={() => loadMyClasses()} disabled={loading} className="gap-2">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Atualizar
