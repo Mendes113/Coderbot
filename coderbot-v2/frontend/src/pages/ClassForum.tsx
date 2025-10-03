@@ -820,18 +820,27 @@ const ClassForumPage = () => {
 
           {/* Ferramentas para Professores */}
           {(isOwner || isTeacher) && (
-            <div className="mt-4 p-4 bg-muted/30 rounded-lg border">
-              <h4 className="font-semibold mb-3 flex items-center gap-2">
-                <Target className="h-4 w-4" />
-                Ferramentas do Professor
-              </h4>
-              <div className="grid gap-4 md:grid-cols-2">
+            <Card className="mt-6 border-primary/20 bg-gradient-to-br from-primary/5 via-background to-purple-500/5 backdrop-blur-xl">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10 backdrop-blur-sm">
+                    <Target className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-lg">Ferramentas do Professor</h4>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Crie missões e gerencie atividades da turma
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
                 <QuickMissionCreator
                   classId={classInfo.id}
                   onMissionCreated={handleRefresh}
                 />
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           )}
         </div>
 

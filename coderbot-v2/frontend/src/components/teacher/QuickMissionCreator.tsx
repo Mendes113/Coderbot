@@ -86,60 +86,81 @@ export const QuickMissionCreator = ({ classId, onMissionCreated }: QuickMissionC
     }
   };
 
+  const selectedMission = predefinedMissions[selectedMissionIndex];
+
   return (
-    <div className="flex flex-col gap-4 p-4 border rounded-lg bg-muted/30">
-      <div className="flex items-center gap-2">
-        <Target className="h-5 w-5 text-primary" />
-        <h3 className="font-semibold">Criar Missão Rápida</h3>
+    <div className="space-y-4">
+      {/* Mission Preview Card */}
+      <div className="p-4 rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-purple-500/5 backdrop-blur-sm">
+        <div className="flex items-start gap-3 mb-3">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Target className="h-4 w-4 text-primary" />
+          </div>
+          <div className="flex-1">
+            <h4 className="font-semibold text-sm">{selectedMission.title}</h4>
+            <p className="text-xs text-muted-foreground mt-1">
+              {selectedMission.description}
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4 text-xs">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/50 backdrop-blur-sm border">
+            <Target className="h-3 w-3 text-primary" />
+            <span className="font-medium">{selectedMission.target_value} ações</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/50 backdrop-blur-sm border">
+            <Zap className="h-3 w-3 text-amber-500" />
+            <span className="font-medium">{selectedMission.reward_points} pontos</span>
+          </div>
+        </div>
       </div>
 
-      <div className="space-y-3">
-        <div>
-          <label className="text-sm font-medium mb-2 block">Escolha uma missão pré-definida:</label>
-          <Select
-            value={selectedMissionIndex.toString()}
-            onValueChange={(value) => setSelectedMissionIndex(parseInt(value))}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {predefinedMissions.map((mission, index) => (
-                <SelectItem key={index} value={index.toString()}>
-                  <div className="flex flex-col">
-                    <span className="font-medium">{mission.title}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {mission.target_value} ações • {mission.reward_points} pontos
-                    </span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="text-xs text-muted-foreground">
-          {predefinedMissions[selectedMissionIndex].description}
-        </div>
-
-        <Button
-          onClick={handleCreateMission}
-          disabled={creating}
-          className="w-full"
+      {/* Mission Selector */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium flex items-center gap-2">
+          <span>Escolha uma missão pré-definida:</span>
+        </label>
+        <Select
+          value={selectedMissionIndex.toString()}
+          onValueChange={(value) => setSelectedMissionIndex(parseInt(value))}
         >
-          {creating ? (
-            <>
-              <Zap className="mr-2 h-4 w-4 animate-spin" />
-              Criando...
-            </>
-          ) : (
-            <>
-              <Plus className="mr-2 h-4 w-4" />
-              Criar Missão
-            </>
-          )}
-        </Button>
+          <SelectTrigger className="h-auto py-2.5">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {predefinedMissions.map((mission, index) => (
+              <SelectItem key={index} value={index.toString()} className="py-3">
+                <div className="flex flex-col gap-1">
+                  <span className="font-medium">{mission.title}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {mission.target_value} ações • {mission.reward_points} pontos
+                  </span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
+
+      {/* Create Button */}
+      <Button
+        onClick={handleCreateMission}
+        disabled={creating}
+        className="w-full h-11 font-medium shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all"
+      >
+        {creating ? (
+          <>
+            <Zap className="mr-2 h-4 w-4 animate-spin" />
+            Criando missão...
+          </>
+        ) : (
+          <>
+            <Plus className="mr-2 h-4 w-4" />
+            Criar Missão
+          </>
+        )}
+      </Button>
     </div>
   );
 };

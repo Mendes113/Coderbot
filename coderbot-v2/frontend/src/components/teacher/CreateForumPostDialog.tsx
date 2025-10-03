@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Loader2, Plus, Link2, FileText, X, Target } from 'lucide-react';
+import { Loader2, Plus, Link2, FileText, X, Target, MessageCircle, Code, BookOpen, Music, Sparkles } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -27,6 +28,8 @@ import {
   CLASS_FORUM_TYPES,
   ClassForumLink,
   createClassForumPost,
+  MissionType,
+  createClassMission,
 } from '@/integrations/pocketbase/client';
 
 interface CreateForumPostDialogProps {
@@ -38,17 +41,44 @@ const forumTypeLabels: Record<ClassForumPostType, string> = {
   aviso: 'Aviso',
   info: 'Info',
   conteudo: 'Conteúdo',
+  arquivos: 'Arquivos',
   links: 'Links',
   mensagens: 'Mensagens',
+  atividade: 'Atividade',
 };
 
 const forumTypeDescriptions: Record<ClassForumPostType, string> = {
   aviso: 'Comunicados importantes e urgentes',
   info: 'Informações gerais da turma',
   conteudo: 'Materiais didáticos e recursos',
+  arquivos: 'Uploads de documentos e materiais',
   links: 'Referências e recursos externos',
   mensagens: 'Mensagens gerais e discussões',
   atividade: 'Lançar atividades e missões para os alunos',
+};
+
+const missionTypeIcons: Record<MissionType, React.ReactNode> = {
+  chat_interaction: <MessageCircle className="h-4 w-4" />,
+  code_execution: <Code className="h-4 w-4" />,
+  exercise_completion: <BookOpen className="h-4 w-4" />,
+  notes_creation: <Music className="h-4 w-4" />,
+  custom: <Sparkles className="h-4 w-4" />,
+};
+
+const missionTypeLabels: Record<MissionType, string> = {
+  chat_interaction: 'Conversa com IA',
+  code_execution: 'Execução de Código',
+  exercise_completion: 'Exercícios',
+  notes_creation: 'Notas Musicais',
+  custom: 'Personalizada',
+};
+
+const missionTypeDescriptions: Record<MissionType, string> = {
+  chat_interaction: 'Enviar mensagens para a IA e receber respostas',
+  code_execution: 'Executar código no ambiente de desenvolvimento',
+  exercise_completion: 'Completar exercícios práticos',
+  notes_creation: 'Criar composições musicais',
+  custom: 'Atividade personalizada definida pelo professor',
 };
 
 export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPostDialogProps) => {
@@ -62,11 +92,11 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
   const [linkInput, setLinkInput] = useState({ url: '', label: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Estado específico para atividades
-  const [activityType, setActivityType] = useState<'mission' | 'quick_task' | 'project'>('mission');
-  const [activityTarget, setActivityTarget] = useState(20);
-  const [activityReward, setActivityReward] = useState(100);
-  const [activityInstructions, setActivityInstructions] = useState('');
+  // Estado específico para atividades/missões
+  const [missionType, setMissionType] = useState<MissionType>('chat_interaction');
+  const [missionTarget, setMissionTarget] = useState(20);
+  const [missionReward, setMissionReward] = useState(100);
+  const [missionDescription, setMissionDescription] = useState('');
 
   const resetForm = () => {
     setTitle('');
@@ -75,10 +105,10 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
     setAttachments([]);
     setLinks([]);
     setLinkInput({ url: '', label: '' });
-    setActivityType('mission');
-    setActivityTarget(20);
-    setActivityReward(100);
-    setActivityInstructions('');
+    setMissionType('chat_interaction');
+    setMissionTarget(20);
+    setMissionReward(100);
+    setMissionDescription('');
   };
 
   const handleAddLink = () => {
@@ -129,16 +159,16 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
 
     // Validação específica para atividades
     if (type === 'atividade') {
-      if (activityTarget <= 0) {
-        toast.error('A meta da atividade deve ser maior que zero');
+      if (missionTarget <= 0) {
+        toast.error('A meta da missão deve ser maior que zero');
         return;
       }
-      if (activityReward < 0) {
+      if (missionReward < 0) {
         toast.error('Os pontos de recompensa não podem ser negativos');
         return;
       }
-      if (!activityInstructions.trim()) {
-        toast.error('Digite as instruções da atividade');
+      if (!missionDescription.trim()) {
+        toast.error('Digite a descrição da missão');
         return;
       }
     }
@@ -146,16 +176,32 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
     setSubmitting(true);
 
     try {
-      await createClassForumPost({
-        classId,
-        title: title.trim(),
-        content: content.trim() || undefined,
-        type,
-        attachments: attachments.length > 0 ? attachments : undefined,
-        links: links.length > 0 ? links : undefined,
-      });
+      // Se for uma atividade, criar a missão primeiro
+      if (type === 'atividade') {
+        await createClassMission({
+          classId,
+          title: title.trim(),
+          description: missionDescription.trim(),
+          type: missionType,
+          target_value: missionTarget,
+          reward_points: missionReward,
+        });
 
-      toast.success('Post criado com sucesso!');
+        toast.success('Missão criada e publicada no fórum com sucesso!');
+      } else {
+        // Para outros tipos, criar post normal
+        await createClassForumPost({
+          classId,
+          title: title.trim(),
+          content: content.trim() || undefined,
+          type,
+          attachments: attachments.length > 0 ? attachments : undefined,
+          links: links.length > 0 ? links : undefined,
+        });
+
+        toast.success('Post criado com sucesso!');
+      }
+
       resetForm();
       setOpen(false);
       onPostCreated?.();
@@ -234,87 +280,145 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
             </p>
           </div>
 
-          {/* Configurações específicas para atividades */}
+          {/* Configurações específicas para atividades/missões */}
           {type === 'atividade' && (
-            <div className="space-y-4 p-4 border border-primary/20 rounded-lg bg-primary/5">
-              <div className="flex items-center gap-2">
-                <Target className="h-5 w-5 text-primary" />
-                <Label className="text-base font-semibold">Configurações da Atividade</Label>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="activity-type">Tipo de atividade</Label>
-                  <Select value={activityType} onValueChange={(value) => setActivityType(value as any)}>
-                    <SelectTrigger id="activity-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mission">Missão</SelectItem>
-                      <SelectItem value="quick_task">Tarefa Rápida</SelectItem>
-                      <SelectItem value="project">Projeto</SelectItem>
-                    </SelectContent>
-                  </Select>
+            <div className="space-y-4 p-5 border-2 border-primary/20 rounded-xl bg-gradient-to-br from-primary/5 via-background to-purple-500/5 backdrop-blur-sm">
+              <div className="flex items-center gap-3 pb-2 border-b border-primary/10">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Target className="h-5 w-5 text-primary" />
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="activity-target">Meta</Label>
-                  <Input
-                    id="activity-target"
-                    type="number"
-                    placeholder="Ex: 20 mensagens"
-                    value={activityTarget}
-                    onChange={(e) => setActivityTarget(parseInt(e.target.value) || 1)}
-                    min={1}
-                    disabled={submitting}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Quantidade de ações necessárias
+                <div>
+                  <Label className="text-base font-semibold">Configurações da Missão</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Configure os detalhes da missão que será criada para os alunos
                   </p>
                 </div>
               </div>
 
+              {/* Tipo de Missão */}
               <div className="space-y-2">
-                <Label htmlFor="activity-reward">Pontos de recompensa</Label>
-                <Input
-                  id="activity-reward"
-                  type="number"
-                  placeholder="Ex: 100 pontos"
-                  value={activityReward}
-                  onChange={(e) => setActivityReward(parseInt(e.target.value) || 0)}
-                  min={0}
-                  disabled={submitting}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Pontos concedidos ao completar a atividade
-                </p>
+                <Label htmlFor="mission-type" className="flex items-center gap-2">
+                  Tipo de missão *
+                </Label>
+                <Select value={missionType} onValueChange={(value) => setMissionType(value as MissionType)}>
+                  <SelectTrigger id="mission-type" className="h-auto py-2.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(['chat_interaction', 'code_execution', 'exercise_completion', 'notes_creation', 'custom'] as MissionType[]).map((type) => (
+                      <SelectItem key={type} value={type} className="py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="p-1.5 rounded bg-primary/10">
+                            {missionTypeIcons[type]}
+                          </div>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-medium">{missionTypeLabels[type]}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {missionTypeDescriptions[type]}
+                            </span>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
+              {/* Meta e Recompensa */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="mission-target" className="flex items-center gap-2">
+                    <Target className="h-3.5 w-3.5" />
+                    Meta da missão *
+                  </Label>
+                  <Input
+                    id="mission-target"
+                    type="number"
+                    placeholder="Ex: 20"
+                    value={missionTarget}
+                    onChange={(e) => setMissionTarget(parseInt(e.target.value) || 1)}
+                    min={1}
+                    disabled={submitting}
+                    className="h-11"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Quantidade de ações para completar
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="mission-reward" className="flex items-center gap-2">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                    Pontos de recompensa *
+                  </Label>
+                  <Input
+                    id="mission-reward"
+                    type="number"
+                    placeholder="Ex: 100"
+                    value={missionReward}
+                    onChange={(e) => setMissionReward(parseInt(e.target.value) || 0)}
+                    min={0}
+                    disabled={submitting}
+                    className="h-11"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Pontos concedidos ao completar
+                  </p>
+                </div>
+              </div>
+
+              {/* Descrição da Missão */}
               <div className="space-y-2">
-                <Label htmlFor="activity-instructions">Instruções da atividade</Label>
+                <Label htmlFor="mission-description">Descrição da missão *</Label>
                 <Textarea
-                  id="activity-instructions"
-                  placeholder="Descreva detalhadamente como os alunos devem realizar esta atividade..."
-                  value={activityInstructions}
-                  onChange={(e) => setActivityInstructions(e.target.value)}
+                  id="mission-description"
+                  placeholder="Descreva detalhadamente o que os alunos precisam fazer para completar esta missão..."
+                  value={missionDescription}
+                  onChange={(e) => setMissionDescription(e.target.value)}
                   maxLength={500}
                   disabled={submitting}
-                  rows={3}
+                  rows={4}
+                  className="resize-none"
                 />
                 <p className="text-xs text-muted-foreground">
-                  {activityInstructions.length}/500 caracteres
+                  {missionDescription.length}/500 caracteres
                 </p>
               </div>
 
-              {/* Preview da atividade */}
-              <div className="p-3 bg-background border rounded-md">
-                <h4 className="font-medium text-sm mb-2">Preview da atividade:</h4>
-                <div className="text-sm space-y-1">
-                  <p><strong>Tipo:</strong> {activityType === 'mission' ? 'Missão' : activityType === 'quick_task' ? 'Tarefa Rápida' : 'Projeto'}</p>
-                  <p><strong>Meta:</strong> {activityTarget} ações</p>
-                  <p><strong>Recompensa:</strong> {activityReward} pontos</p>
-                  {activityInstructions && (
-                    <p><strong>Instruções:</strong> {activityInstructions}</p>
+              {/* Preview da Missão */}
+              <div className="p-4 rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-purple-500/5 backdrop-blur-sm">
+                <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-primary/10">
+                    {missionTypeIcons[missionType]}
+                  </span>
+                  Preview da Missão
+                </h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Título:</span>
+                    <span className="font-medium">{title || 'Sem título'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Tipo:</span>
+                    <span className="font-medium">{missionTypeLabels[missionType]}</span>
+                  </div>
+                  <div className="flex items-center gap-4 pt-2">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/50 backdrop-blur-sm border">
+                      <Target className="h-3 w-3 text-primary" />
+                      <span className="font-medium">{missionTarget} ações</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/50 backdrop-blur-sm border">
+                      <Sparkles className="h-3 w-3 text-amber-500" />
+                      <span className="font-medium">{missionReward} pontos</span>
+                    </div>
+                  </div>
+                  {missionDescription && (
+                    <div className="pt-2 border-t border-border/50">
+                      <span className="text-muted-foreground block mb-1">Descrição:</span>
+                      <p className="text-foreground/90 text-xs leading-relaxed">
+                        {missionDescription}
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
