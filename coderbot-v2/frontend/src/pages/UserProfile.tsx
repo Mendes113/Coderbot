@@ -69,7 +69,7 @@ const UserProfile = () => {
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
-              <h1 className="text-xl font-semibold">Perfil & Convites</h1>
+              <h1 className="text-xl font-semibold">Perfil  </h1>
             </div>
             <div className="text-xs text-muted-foreground">Gerencie seu perfil e convites</div>
           </div>
@@ -101,11 +101,11 @@ const UserProfile = () => {
       <div className="flex-1 overflow-auto">
         <div className="container mx-auto py-6 space-y-6 max-w-6xl">
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="">
+        <TabsList className="">
           <TabsTrigger value="profile">Perfil</TabsTrigger>
-          <TabsTrigger value="notifications">Notificações</TabsTrigger>
-          <TabsTrigger value="invites">Convites</TabsTrigger>
+          {/* <TabsTrigger value="notifications">Notificações</TabsTrigger>
+          <TabsTrigger value="invites">Convites</TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Bell, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { pb } from "@/integrations/pocketbase/client";
 import api from "@/lib/axios";
 import { useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
 
 interface Notification {
   id: string;
@@ -35,19 +36,37 @@ interface Notification {
 }
 
 interface NotificationCenterProps {
-  userId: string;
+  userId?: string;
   onNotificationClick?: () => void;
+  // When true, use mockNotifications instead of calling PocketBase (useful for dev testing)
+  mockMode?: boolean;
+  mockNotifications?: Notification[];
 }
 
-export const NotificationCenter = ({ userId, onNotificationClick }: NotificationCenterProps) => {
+export const NotificationCenter = ({ userId, onNotificationClick, mockMode = false, mockNotifications }: NotificationCenterProps) => {
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [recentNotifications, setRecentNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showNotificationCard, setShowNotificationCard] = useState(false);
   const navigate = useNavigate();
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   const fetchNotifications = useCallback(async () => {
-    if (!userId) return;
+    // If in mock mode, use provided mock notifications
+    if (mockMode) {
+      const items = mockNotifications || [];
+      setUnreadCount(items.filter(n => !n.read).length);
+      setRecentNotifications(items.slice(0, 3));
+      setIsLoading(false);
+      return;
+    }
+
+    if (!userId) {
+      setIsLoading(false);
+      setUnreadCount(0);
+      setRecentNotifications([]);
+      return;
+    }
 
     setIsLoading(true);
     let isMounted = true;
@@ -80,16 +99,35 @@ export const NotificationCenter = ({ userId, onNotificationClick }: Notification
     return () => {
       isMounted = false;
     };
-  }, [userId]);
+  }, [userId, mockMode, mockNotifications]);
 
   useEffect(() => {
     fetchNotifications();
 
-    // Atualizar notificações a cada 30 segundos
+    // Skip real-time subscriptions in mock mode
+    if (mockMode || !userId) {
+      return;
+    }
+
+    // Subscribe to real-time notifications updates
+    const unsubscribe = pb.collection('notifications').subscribe('*', (e) => {
+      // Check if the notification is for this user
+      if (e.record?.recipient === userId) {
+        console.log('Real-time notification received:', e.action, e.record);
+        
+        // Re-fetch notifications to get the latest data
+        fetchNotifications();
+      }
+    });
+
+    // Atualizar notificações a cada 30 segundos como fallback
     const interval = setInterval(fetchNotifications, 30000);
 
-    return () => clearInterval(interval);
-  }, [fetchNotifications]);
+    return () => {
+      clearInterval(interval);
+      unsubscribe.then(unsub => unsub()).catch(err => console.error('Error unsubscribing:', err));
+    };
+  }, [fetchNotifications, userId, mockMode]);
 
   const handleNotificationClick = useCallback(() => {
     if (onNotificationClick) {
@@ -97,10 +135,27 @@ export const NotificationCenter = ({ userId, onNotificationClick }: Notification
     } else {
       navigate('/profile');
     }
+    setShowNotificationCard(false);
   }, [onNotificationClick, navigate]);
 
   const toggleNotificationCard = useCallback(() => {
-    setShowNotificationCard(!showNotificationCard);
+    setShowNotificationCard(prev => !prev);
+  }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (!rootRef.current) return;
+      if (e.target instanceof Node && !rootRef.current.contains(e.target)) {
+        setShowNotificationCard(false);
+      }
+    }
+
+    if (showNotificationCard) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showNotificationCard]);
 
   if (isLoading) {
@@ -111,93 +166,102 @@ export const NotificationCenter = ({ userId, onNotificationClick }: Notification
     );
   }
 
-  return (
-    <div className="relative">
-      {/* Ícone de notificação com badge */}
-      <button
-        onClick={handleNotificationClick}
-        className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-        aria-label="Notificações"
-      >
-        <Bell className="h-5 w-5" />
-        {unreadCount > 0 && (
-          <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-            <span className="text-white text-xs font-bold">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
-          </div>
-        )}
-      </button>
+  const bellButton = (
+    <button
+      onClick={toggleNotificationCard}
+      className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+      aria-label="Notificações"
+    >
+      <Bell className="h-5 w-5" />
+      {unreadCount > 0 && (
+        <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+          <span className="text-white text-xs font-bold">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        </div>
+      )}
+    </button>
+  );
 
-      {/* Card de notificações recentes */}
-      <AnimatePresence>
-        {recentNotifications.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className="absolute right-0 mt-2 w-80 z-50"
-          >
-            <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 shadow-lg">
-              <CardContent className="p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Bell className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                      Notificações
-                    </span>
+  const dropdown = (
+    <AnimatePresence>
+      {showNotificationCard && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.3 }}
+          className="absolute right-0 mt-2 w-80 z-50"
+          style={{ right: 12 }}
+        >
+          <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 shadow-lg">
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                    Notificações
+                  </span>
+                  {unreadCount > 0 && (
                     <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
                       {unreadCount}
                     </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={toggleNotificationCard}
-                    className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700"
-                  >
-                    {showNotificationCard ? <X className="h-3 w-3" /> : <Bell className="h-3 w-3" />}
-                  </Button>
-                </div>
-
-                <AnimatePresence>
-                  {showNotificationCard && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="space-y-2 mt-2"
-                    >
-                      {recentNotifications.map((notification) => (
-                        <NotificationItem
-                          key={notification.id}
-                          notification={notification}
-                          onClick={() => handleNotificationClick()}
-                        />
-                      ))}
-
-                      {unreadCount > 3 && (
-                        <div className="text-center pt-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleNotificationClick()}
-                            className="text-xs h-7 border-blue-200 text-blue-600 hover:bg-blue-50"
-                          >
-                            Ver todas ({unreadCount})
-                          </Button>
-                        </div>
-                      )}
-                    </motion.div>
                   )}
-                </AnimatePresence>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowNotificationCard(false)}
+                  className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+
+              <div className="space-y-2 mt-2">
+                {recentNotifications.length > 0 ? (
+                  <>
+                    {recentNotifications.map((notification) => (
+                      <NotificationItem
+                        key={notification.id}
+                        notification={notification}
+                        onClick={() => handleNotificationClick()}
+                      />
+                    ))}
+
+                    {unreadCount > 3 && (
+                      <div className="text-center pt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleNotificationClick()}
+                          className="text-xs h-7 border-blue-200 text-blue-600 hover:bg-blue-50"
+                        >
+                          Ver todas ({unreadCount})
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="py-6 text-center">
+                    <Bell className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Nenhuma notificação
+                    </p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  return (
+    <div className="relative" ref={rootRef}>
+      {bellButton}
+      {typeof document !== 'undefined' ? createPortal(dropdown, document.body) : dropdown}
     </div>
   );
 };

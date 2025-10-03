@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "cy:open": "cypress open",
+    "cy:run": "cypress run",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -66,6 +68,7 @@
     "@tiptap/react": "^3.6.2",
     "@tiptap/starter-kit": "^3.6.2",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "@xyflow/react": "^12.3.2",
     "axios": "^1.8.4",
     "canvas-confetti": "^1.9.3",
     "class-variance-authority": "^0.7.1",
@@ -96,7 +99,6 @@
     "react-arborist": "^3.4.3",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
-    "@xyflow/react": "^12.3.2",
     "react-hook-form": "^7.53.0",
     "react-hot-toast": "^2.5.2",
     "react-hotkeys-hook": "^5.1.0",
@@ -131,6 +133,7 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react-swc": "^3.5.0",
     "autoprefixer": "^10.4.20",
+    "cypress": "^15.3.0",
     "eslint": "^9.9.0",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.9",

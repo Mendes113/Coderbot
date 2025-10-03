@@ -11,7 +11,8 @@ export default defineConfig(({ mode }) => ({
     allowedHosts: true,
     // Otimizações de desenvolvimento
     hmr: {
-      overlay: true
+      overlay: true,
+      port: 5173,
     },
     // Cache de dependências
     fs: {
@@ -33,6 +34,7 @@ export default defineConfig(({ mode }) => ({
       "magicui": path.resolve(__dirname, "./src/Components/magicui"),
       "magicui/*": path.resolve(__dirname, "./src/Components/magicui/*"),
     },
+    dedupe: ["react", "react-dom"],
   },
   // Otimizações de build
   build: {

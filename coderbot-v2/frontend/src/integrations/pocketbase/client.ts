@@ -17,7 +17,8 @@ function getAuthHeaders() {
 }
 
 // URL do seu servidor PocketBase, de preferência em variável de ambiente
-const POCKETBASE_URL = import.meta.env.VITE_POCKETBASE_URL || 'http://pocketbase:8090';
+// Fallback para localhost:8090 em desenvolvimento local
+const POCKETBASE_URL = import.meta.env.VITE_POCKETBASE_URL || 'http://localhost:8090';
 
 export const pb = new PocketBase(POCKETBASE_URL);
 
