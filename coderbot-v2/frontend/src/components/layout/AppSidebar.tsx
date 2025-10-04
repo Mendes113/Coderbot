@@ -20,6 +20,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { useGamification } from "@/hooks/useGamification";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,6 +70,20 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
   const [themeClickTimer, setThemeClickTimer] = useState<NodeJS.Timeout | null>(null);
   const { state } = useSidebar();
   const { theme } = useTheme();
+  
+  // Hook de gamificação para rastrear easter eggs
+  const { trackAction, getTotalPoints, stats } = useGamification();
+  
+  // Calcular nível do usuário baseado nos pontos
+  const getUserLevel = useCallback(() => {
+    const points = stats.totalPoints;
+    if (points < 50) return 1;
+    if (points < 150) return 2;
+    if (points < 300) return 3;
+    if (points < 500) return 4;
+    if (points < 750) return 5;
+    return Math.floor(points / 200) + 3; // Níveis avançados
+  }, [stats.totalPoints]);
 
   // Memoizar busca do usuário para evitar recálculos
   useEffect(() => {
@@ -171,6 +186,12 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
       setIsShaking(true);
       setClickCount(0);
       
+      // 🎮 Rastrear easter egg de cliques no sino
+      trackAction('notification_clicks', {
+        totalClicks: 3,
+        timestamp: new Date().toISOString()
+      });
+      
       // Parar a animação após 500ms
       setTimeout(() => {
         setIsShaking(false);
@@ -183,7 +204,7 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     }, 1000);
     
     setClickTimer(timer);
-  }, [showNotifications, clickCount, clickTimer]);
+  }, [showNotifications, clickCount, clickTimer, trackAction]);
 
   // Detectar cliques rápidos no avatar para animação de shake
   const handleAvatarClick = useCallback((callback?: () => void) => {
@@ -199,9 +220,15 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     }
     
     // Verificar se chegou a 3 cliques
-    if (avatarClickCount + 1 >= 1) {
+    if (avatarClickCount + 1 >= 3) {
       setIsAvatarShaking(true);
       setAvatarClickCount(0);
+      
+      // 🎮 Rastrear easter egg de cliques no avatar
+      trackAction('avatar_explorer', {
+        totalClicks: 3,
+        timestamp: new Date().toISOString()
+      });
       
       // Parar a animação após 500ms
       setTimeout(() => {
@@ -215,7 +242,7 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     }, 1000);
     
     setAvatarClickTimer(timer);
-  }, [avatarClickCount, avatarClickTimer]);
+  }, [avatarClickCount, avatarClickTimer, trackAction]);
 
   // Detectar cliques rápidos no theme toggle para animação de shake
   const handleThemeClick = useCallback(() => {
@@ -232,6 +259,13 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
       setIsThemeShaking(true);
       setThemeClickCount(0);
       
+      // 🎮 Rastrear easter egg de cliques no theme toggle
+      trackAction('theme_master', {
+        totalClicks: 3,
+        currentTheme: theme,
+        timestamp: new Date().toISOString()
+      });
+      
       // Parar a animação após 800ms (mais tempo para apreciar o glow)
       setTimeout(() => {
         setIsThemeShaking(false);
@@ -244,7 +278,7 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     }, 1000);
     
     setThemeClickTimer(timer);
-  }, [themeClickCount, themeClickTimer]);
+  }, [themeClickCount, themeClickTimer, theme, trackAction]);
 
   // Subscribe to real-time notifications
   useEffect(() => {
@@ -483,6 +517,17 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                       </div>
                     )}
                     </div>
+                    {/* Badge de nível - canto inferior direito */}
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.3, type: "spring", stiffness: 300 }}
+                      className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 border-2 border-white dark:border-gray-900 shadow-lg flex items-center justify-center"
+                    >
+                      <span className="text-[9px] font-bold text-white">
+                        {getUserLevel()}
+                      </span>
+                    </motion.div>
                   </motion.div>
                 </motion.div>
               </DropdownMenuTrigger>
@@ -655,6 +700,17 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                             </div>
                           )}
                         </div>
+                        {/* Badge de nível - canto inferior direito */}
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: 0.3, type: "spring", stiffness: 300 }}
+                          className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 border-2 border-white dark:border-gray-800 shadow-lg flex items-center justify-center"
+                        >
+                          <span className="text-[9px] font-bold text-white">
+                            {getUserLevel()}
+                          </span>
+                        </motion.div>
                       </motion.div>
                     </motion.div>
                   </DropdownMenuTrigger>
@@ -968,6 +1024,55 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                   </motion.div>
                 )}
               </AnimatePresence>
+            </motion.div>
+            
+            {/* Badge de Pontos de Gamificação */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.3 }}
+              className="w-full px-2"
+            >
+              <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-purple-500/10 dark:from-purple-500/20 dark:via-blue-500/20 dark:to-purple-500/20 border border-purple-300/30 dark:border-purple-500/30 p-3">
+                {/* Background decoration */}
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-400/5 via-transparent to-blue-400/5" />
+                
+                <div className="relative flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <motion.div
+                      animate={{ rotate: [0, 5, -5, 0] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                      className="text-xl"
+                    >
+                      🎮
+                    </motion.div>
+                    <div>
+                      <p className="text-[10px] font-medium text-gray-600 dark:text-gray-400">
+                        Pontos de Descoberta
+                      </p>
+                      <p className="text-sm font-bold text-purple-700 dark:text-purple-300">
+                        {stats.totalPoints} pts
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Sparkle animation */}
+                  <motion.div
+                    animate={{ 
+                      scale: [1, 1.2, 1],
+                      rotate: [0, 180, 360]
+                    }}
+                    transition={{ 
+                      duration: 3, 
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                    className="text-lg opacity-60"
+                  >
+                    ✨
+                  </motion.div>
+                </div>
+              </div>
             </motion.div>
           </div>
         )}
