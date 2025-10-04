@@ -10,16 +10,24 @@ export interface EasterEggDefinition extends PBRecord {
   description: string;
   trigger_type: 'clicks' | 'sequence' | 'time_based' | 'combo';
   trigger_config: {
+    target?: string;
     requiredClicks?: number;
     timeWindow?: number; // ms
     sequence?: string[];
+    text_sequence?: string[];
     resetOnDelay?: boolean;
+    consecutive_days?: number;
+    hour_range?: [number, number];
+    action?: string;
+    required_pages?: string[];
+    in_order?: boolean;
+      [key: string]: any;
   };
   achievement_message: string;
   points: number;
   icon: string;
   is_active: boolean;
-  category: 'ui_interaction' | 'exploration' | 'achievement' | 'secret';
+    category: 'ui_interaction' | 'exploration' | 'achievement' | 'secret';
   difficulty: 'easy' | 'medium' | 'hard' | 'legendary';
 }
 
@@ -28,22 +36,22 @@ export interface EasterEggDefinition extends PBRecord {
  */
 export interface UserAchievement extends PBRecord {
   user: string;
-  achievement_id: string;
-  achievement_name: string;
-  display_name: string;
+  easter_egg: string; // ID da definição do easter egg
+  title: string;
   description: string;
-  achievement_message: string;
+  icon: string;
+  points: number;
   unlocked_at: string; // ISO date
   is_new: boolean;
-  points: number;
+  difficulty: 'easy' | 'medium' | 'hard' | 'legendary';
   metadata?: {
     trigger_count?: number;
     trigger_type?: string;
     component?: string;
-    icon?: string;
-    category?: string;
-    difficulty?: string;
     [key: string]: any;
+  };
+  expand?: {
+    easter_egg?: EasterEggDefinition;
   };
 }
 

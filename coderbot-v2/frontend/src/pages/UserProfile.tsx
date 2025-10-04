@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StudentInvitations } from "@/components/student/StudentInvitations";
 import { NotificationsList } from "@/components/profile/NotificationsList";
+import { AchievementsGrid } from "@/components/profile/AchievementsGrid";
 
 const UserProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
@@ -104,6 +105,7 @@ const UserProfile = () => {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="">
         <TabsList className="">
           <TabsTrigger value="profile">Perfil</TabsTrigger>
+          <TabsTrigger value="achievements">Conquistas</TabsTrigger>
           {/* <TabsTrigger value="notifications">Notificações</TabsTrigger>
           <TabsTrigger value="invites">Convites</TabsTrigger> */}
         </TabsList>
@@ -117,6 +119,10 @@ const UserProfile = () => {
             isEditing={isEditing}
             onSaved={() => setIsEditing(false)}
           />
+        </TabsContent>
+
+        <TabsContent value="achievements" className="space-y-6">
+          <AchievementsGrid />
         </TabsContent>
 
         <TabsContent value="notifications" className="space-y-6">
