@@ -13915,6 +13915,7 @@ snapshots:
       '@tiptap/pm': 3.6.2
       '@tiptap/react': 3.6.2(@floating-ui/dom@1.7.4)(@tiptap/core@3.6.2(@tiptap/pm@3.6.2))(@tiptap/pm@3.6.2)(@types/react-dom@18.3.7(@types/react@18.3.20))(@types/react@18.3.20)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tiptap/starter-kit': 3.6.2
+      '@types/canvas-confetti': 1.9.0
       '@types/react-syntax-highlighter': 15.5.13
       '@xyflow/react': 12.8.6(@types/react@18.3.20)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       axios: 1.9.0
