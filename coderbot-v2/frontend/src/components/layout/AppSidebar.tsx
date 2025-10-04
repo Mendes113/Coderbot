@@ -1033,46 +1033,7 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
               transition={{ delay: 0.2, duration: 0.3 }}
               className="w-full px-2"
             >
-              <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-purple-500/10 dark:from-purple-500/20 dark:via-blue-500/20 dark:to-purple-500/20 border border-purple-300/30 dark:border-purple-500/30 p-3">
-                {/* Background decoration */}
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-400/5 via-transparent to-blue-400/5" />
-                
-                <div className="relative flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <motion.div
-                      animate={{ rotate: [0, 5, -5, 0] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                      className="text-xl"
-                    >
-                      🎮
-                    </motion.div>
-                    <div>
-                      <p className="text-[10px] font-medium text-gray-600 dark:text-gray-400">
-                        Pontos de Descoberta
-                      </p>
-                      <p className="text-sm font-bold text-purple-700 dark:text-purple-300">
-                        {stats.totalPoints} pts
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Sparkle animation */}
-                  <motion.div
-                    animate={{ 
-                      scale: [1, 1.2, 1],
-                      rotate: [0, 180, 360]
-                    }}
-                    transition={{ 
-                      duration: 3, 
-                      repeat: Infinity,
-                      ease: "easeInOut"
-                    }}
-                    className="text-lg opacity-60"
-                  >
-                    ✨
-                  </motion.div>
-                </div>
-              </div>
+             
             </motion.div>
           </div>
         )}
