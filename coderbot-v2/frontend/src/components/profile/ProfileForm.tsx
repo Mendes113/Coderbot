@@ -17,7 +17,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Camera, Mail, User, Calendar, CheckCircle, XCircle, Briefcase, CalendarDays, School, Bell, Clock, Trash2, MessageCircle, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
-import { pb, getCurrentUser } from "@/integrations/pocketbase/client";
+import { pb } from "@/integrations/pocketbase/client";
+import { useAuthState } from "@/hooks/useAuthState";
 import { useUserData } from "@/hooks/useUserData";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -75,6 +76,10 @@ interface Notification {
 export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
   const { profile, loading } = useUserData();
   const { trackAction } = useGamification();
+  
+  // 🔥 FIX: Usar hook reativo ao invés de getCurrentUser()
+  const { currentUser } = useAuthState();
+  
   const [updating, setUpdating] = useState(false);
   const [avatar, setAvatar] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -90,7 +95,6 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
     achievementName: string,
     actionData: Record<string, any>
   ) => {
-    const currentUser = getCurrentUser();
     const result = await trackAction(achievementName, actionData, { showToast: true });
     
     if (result.completed && result.achievement?.is_new && currentUser) {
@@ -147,14 +151,13 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
   useEffect(() => {
     const fetchUserAndNotifications = async () => {
       try {
-        const user = getCurrentUser();
-        if (!user) return;
+        if (!currentUser) return;
 
-        setUserId(user.id);
+        setUserId(currentUser.id);
 
         // Buscar notificações do usuário
         const response = await pb.collection('notifications').getList(1, 50, {
-          filter: `recipient = "${user.id}"`,
+          filter: `recipient = "${currentUser.id}"`,
           sort: '-created',
           expand: 'sender'
         });
@@ -168,7 +171,7 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
     };
 
     fetchUserAndNotifications();
-  }, []);
+  }, [currentUser?.id]); // Re-executar quando usuário mudar
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -560,7 +563,7 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Tipo de Conta</p>
                       <p className="font-medium capitalize">
-                        {getCurrentUser()?.role === 'teacher' ? 'Professor' : 'Aluno'}
+                        {currentUser?.role === 'teacher' ? 'Professor' : 'Aluno'}
                       </p>
                     </div>
                   </div>

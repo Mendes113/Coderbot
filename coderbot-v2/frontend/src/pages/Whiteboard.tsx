@@ -7,10 +7,10 @@ import toast, { Toaster } from "react-hot-toast";
 
 import {
   pb,
-  getCurrentUser,
   type DrawingRecord,
   registerUserAction,
 } from "@/integrations/pocketbase/client";
+import { useAuthState } from "@/hooks/useAuthState";
 import { useDrawings } from "@/hooks/useDrawings";
 import { DrawingList } from "@/components/whiteboard/DrawingList";
 import { ChatInterface } from "@/components/chat/ChatInterface";
@@ -109,8 +109,9 @@ const Whiteboard: React.FC = () => {
   const { getCached, setCached, clearCache } = useDrawingCache();
 
   // ---------- Sessão do usuário ----------
-  const user = getCurrentUser();
-  const { drawings, loading, refresh } = useDrawings(user?.id);
+  // 🔥 FIX: Usar hook reativo ao invés de getCurrentUser()
+  const { currentUser } = useAuthState();
+  const { drawings, loading, refresh } = useDrawings(currentUser?.id);
 
   // ---------- Estado local otimizado ----------
   const [editorVisible, setEditorVisible] = useState(false);
@@ -138,7 +139,7 @@ const Whiteboard: React.FC = () => {
   /* ===================== FUNÇÃO DE SALVAR OTIMIZADA ===================== */
   const saveScene = useCallback(async (isAutoSave: boolean = false) => {
     const api = apiRef.current;
-    if (!api || !user) return;
+    if (!api || !currentUser) return;
     if (inflightRef.current) return; // já tem save rodando
 
     inflightRef.current = true;
@@ -161,7 +162,7 @@ const Whiteboard: React.FC = () => {
         const record = await pb.collection("drawings").create({
           title: "Quadro sem nome",
           data: compressedData,
-          user: user.id,
+          user: currentUser.id,
         });
         setActiveId(record.id);
       }
@@ -184,7 +185,7 @@ const Whiteboard: React.FC = () => {
     } finally {
       inflightRef.current = false;
     }
-  }, [activeId, user, refresh]);
+  }, [activeId, currentUser, refresh]);
 
   // Auto-save inteligente com debounce
   const debouncedAutoSave = useDebouncedSave(() => saveScene(true), isSlowConnection ? 5000 : 3000);
@@ -267,14 +268,14 @@ const Whiteboard: React.FC = () => {
       setScene(jsonObj);
       setActiveId(null);
       handleOpenEditor();
-      if (user) registerUserAction(user.id, 'whiteboard_upload_file');
+      if (currentUser) registerUserAction(currentUser.id, 'whiteboard_upload_file');
 
       // Feedback visual de carregamento
       toast.success("Arquivo carregado com sucesso!");
     } catch {
       toast.error("Arquivo inválido ou corrompido");
     }
-  }, []);
+  }, [currentUser]);
 
   const openFromDB = useCallback((d: DrawingRecord) => {
     try {
@@ -292,7 +293,7 @@ const Whiteboard: React.FC = () => {
       setScene(jsonObj);
       setActiveId(d.id);
       handleOpenEditor();
-      if (user) registerUserAction(user.id, 'whiteboard_open_board');
+      if (currentUser) registerUserAction(currentUser.id, 'whiteboard_open_board');
 
       // Feedback de performance inteligente
       const wasCached = getCached(d.id) !== null;
@@ -307,7 +308,7 @@ const Whiteboard: React.FC = () => {
       console.error('Erro ao abrir quadro:', error);
       toast.error("Não foi possível abrir o quadro");
     }
-  }, [user]); // Simplified dependencies to prevent re-renders
+  }, [currentUser, getCached, handleOpenEditor, setCached]); // Re-executar quando currentUser mudar
 
   const newBoard = useCallback(() => {
     // Limpa todos os estados relacionados
@@ -405,7 +406,7 @@ const Whiteboard: React.FC = () => {
 
           {/* Card de progresso do usuário */}
           {/*
-          {user && (
+          {currentUser && (
             <div className="w-full">
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-1">
@@ -437,7 +438,7 @@ const Whiteboard: React.FC = () => {
 
           {/* Seção de desafios/missões */}
           {/*
-          {user && (
+          {currentUser && (
             <div className="w-full mb-4">
               <div className="font-semibold mb-1">Desafios</div>
               <ul className="list-disc pl-5 space-y-1 text-sm">
@@ -494,7 +495,7 @@ const Whiteboard: React.FC = () => {
           </button>
 
               {/* Lista de quadros com design emocional */}
-              {user && (
+              {currentUser && (
                 <div className="w-full animate-in slide-in-from-bottom-2 duration-700 delay-900">
               <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-indigo-950/50 dark:via-purple-950/50 dark:to-pink-950/50 rounded-2xl p-6 border border-indigo-200/50 dark:border-indigo-800/50 shadow-lg">
                 <div className="flex items-center gap-2 mb-4">
