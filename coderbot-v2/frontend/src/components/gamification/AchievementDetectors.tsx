@@ -21,32 +21,23 @@ import { useAuthState } from '@/hooks/useAuthState';
  * - Antes: getCurrentUser() retornava snapshot não-reativo (logout não desabilitava hooks)
  * - Agora: useAuthState() reage a mudanças no pb.authStore.onChange()
  * - Prevenção de duplicatas: debounce de 2s entre notificações do mesmo achievement
+ * 
+ * @example
+ * ```tsx
+ * // Em App.tsx
+ * <AchievementDetectors />
+ * ```
  */
 export const AchievementDetectors = () => {
   const { trackAction } = useGamification();
   const [showMatrix, setShowMatrix] = useState(false);
   const [achievements, setAchievements] = useState<AchievementConfig[]>([]);
   
-  // 🔥 FIX: Usar hook reativo ao invés de snapshot
+  // Hook reativo para autenticação
   const { currentUser, isAuthenticated } = useAuthState();
   
-  // 🔥 FIX: Debounce para prevenir notificações duplicadas
+  // Debounce para prevenir notificações duplicadas
   const notificationTimestamps = useRef<Record<string, number>>({});
-
-  // 🐛 DEBUG: Log de montagem/desmontagem do componente
-  useEffect(() => {
-    const instanceId = Math.random().toString(36).substr(2, 9);
-    console.log(`🔧 [AchievementDetectors-${instanceId}] MOUNTED`);
-    
-    return () => {
-      console.log(`🔧 [AchievementDetectors-${instanceId}] UNMOUNTED`);
-    };
-  }, []);
-
-  console.log('🎮 [AchievementDetectors] Rendering with auth:', { 
-    userId: currentUser?.id || 'none',
-    isAuthenticated 
-  });
 
   // Carregar achievements dinamicamente (apenas uma vez por auth change)
   useEffect(() => {
@@ -54,7 +45,10 @@ export const AchievementDetectors = () => {
       try {
         const configs = await achievementConfigService.loadAchievements();
         setAchievements(configs);
-        console.log('🎮 [AchievementDetectors] Loaded', configs.length, 'achievements');
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[AchievementDetectors] Loaded', configs.length, 'achievements');
+        }
       } catch (error) {
         console.error('[AchievementDetectors] Failed to load achievements:', error);
       }
@@ -66,18 +60,8 @@ export const AchievementDetectors = () => {
     } else {
       // Limpar achievements quando logout
       setAchievements([]);
-      console.log('🎮 [AchievementDetectors] Cleared achievements - user logged out');
     }
-  }, [currentUser?.id]); // Apenas quando o ID do usuário mudar
-
-  // Log dos achievements carregados (debug) - remover depois
-  useEffect(() => {
-    if (achievements.length > 0) {
-      console.log('📋 [AchievementDetectors] Available achievements:', 
-        achievements.map(a => a.name).join(', ')
-      );
-    }
-  }, [achievements]);
+  }, [currentUser?.id]);
 
   // Helper para rastrear achievement com notificação + debounce anti-duplicata
   const trackAchievementWithNotification = async (

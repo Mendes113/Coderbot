@@ -2,6 +2,23 @@ import { useState, useEffect } from 'react';
 import { pb, UserRecord, getCurrentUser } from '@/integrations/pocketbase/client';
 
 /**
+ * Type guard para validar se um modelo do PocketBase é um UserRecord válido.
+ * Verifica a presença de campos obrigatórios antes de fazer type assertion.
+ * 
+ * @param model - Modelo retornado pelo pb.authStore
+ * @returns true se o modelo tem a estrutura esperada de UserRecord
+ */
+const isValidUserRecord = (model: any): model is UserRecord => {
+  return (
+    model &&
+    typeof model === 'object' &&
+    typeof model.id === 'string' &&
+    typeof model.collectionId === 'string' &&
+    typeof model.email === 'string'
+  );
+};
+
+/**
  * Hook reativo que monitora mudanças no estado de autenticação do PocketBase.
  * 
  * **Problema resolvido:**
@@ -15,6 +32,16 @@ import { pb, UserRecord, getCurrentUser } from '@/integrations/pocketbase/client
  * @returns currentUser - Usuário autenticado ou undefined
  * @returns isAuthenticated - Boolean indicando se há sessão válida
  * @returns isLoading - Boolean durante carregamento inicial
+ * 
+ * @example
+ * ```tsx
+ * const { currentUser, isAuthenticated, isLoading } = useAuthState();
+ * 
+ * if (isLoading) return <Spinner />;
+ * if (!isAuthenticated) return <LoginPage />;
+ * 
+ * return <Dashboard user={currentUser} />;
+ * ```
  */
 export const useAuthState = () => {
   const [currentUser, setCurrentUser] = useState<UserRecord | undefined>(() => getCurrentUser());
@@ -29,14 +56,23 @@ export const useAuthState = () => {
 
     // Subscrever a mudanças no authStore
     const unsubscribe = pb.authStore.onChange((token, model) => {
-      console.log('🔄 [useAuthState] Auth changed:', {
-        hasToken: !!token,
-        hasModel: !!model,
-        userId: model?.id || 'none'
-      });
+      // Desenvolvimento: log apenas em modo dev
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔄 [useAuthState] Auth changed:', {
+          hasToken: !!token,
+          hasModel: !!model,
+          userId: model?.id || 'none'
+        });
+      }
 
-      setCurrentUser(model ? (model as unknown as UserRecord) : undefined);
-      setIsAuthenticated(!!token && !!model);
+      // Validar tipo antes de atribuir
+      if (model && isValidUserRecord(model)) {
+        setCurrentUser(model);
+        setIsAuthenticated(!!token);
+      } else {
+        setCurrentUser(undefined);
+        setIsAuthenticated(false);
+      }
     });
 
     // Cleanup: desinscrever quando componente desmontar
