@@ -1,4 +1,4 @@
-import { User, MessageSquare, GraduationCap, Presentation, BookOpen, X, Bell, Check, CheckCheck } from "lucide-react";
+import { User, MessageSquare, GraduationCap, Presentation, BookOpen, X, Bell, Check, CheckCheck, LogOut } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -139,6 +139,12 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     }
   };
 
+  // Função de logout
+  const handleLogout = useCallback(() => {
+    pb.authStore.clear();
+    window.location.href = '/login';
+  }, []);
+
   // Subscribe to real-time notifications
   useEffect(() => {
     if (!userId) return;
@@ -217,18 +223,13 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
   const handleOpenTeacherPanel = useCallback(() => {
     if (isTeacherButtonAnimating) return;
     setIsTeacherButtonAnimating(true);
-  }, [isTeacherButtonAnimating]);
-
-  useEffect(() => {
-    if (!isTeacherButtonAnimating) return;
+    
     const timeout = window.setTimeout(() => {
       onNavChange && onNavChange("teacher");
-      navigate("/teacher");
-      setIsTeacherButtonAnimating(false);
+      // Forçar refresh da página ao navegar para /teacher
+      window.location.href = "/teacher";
     }, 420);
-
-    return () => window.clearTimeout(timeout);
-  }, [isTeacherButtonAnimating, navigate, onNavChange]);
+  }, [isTeacherButtonAnimating, onNavChange]);
 
   // Listener global para atalhos (ignora campos de texto)
   useEffect(() => {
@@ -300,6 +301,8 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
       <SidebarFooter className="gap-3">
         {state === "collapsed" ? (
           <div className="flex flex-col items-center gap-3 w-full">
+
+            {/* PAINEL DO PROFESSOR */}
             {canAccessTeacherPanel && (
               <motion.div
                 initial={false}
@@ -318,25 +321,53 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                 </Button>
               </motion.div>
             )}
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="relative"
-            >
-              <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] ring-2 ring-offset-2 ring-[hsl(var(--education-primary-light))] shadow-md cursor-pointer">
-                {userAvatarUrl ? (
-                  <img
-                    src={userAvatarUrl}
-                    alt={userName}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-white font-bold text-sm">
-                    {userName.charAt(0).toUpperCase()}
+            
+            {/* Avatar com Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="relative cursor-pointer"
+                >
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] ring-2 ring-offset-2 ring-[hsl(var(--education-primary-light))] shadow-md">
+                    {userAvatarUrl ? (
+                      <img
+                        src={userAvatarUrl}
+                        alt={userName}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white font-bold text-sm">
+                        {userName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </motion.div>
+                </motion.div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2">
+                <DropdownMenuLabel className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+                  {userName}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
+                <DropdownMenuItem
+                  onClick={() => navigate("/profile")}
+                  className="text-xs cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1.5"
+                >
+                  <User className="h-3.5 w-3.5 mr-2" />
+                  Ver perfil
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="text-xs cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded px-2 py-1.5"
+                >
+                  <LogOut className="h-3.5 w-3.5 mr-2" />
+                  Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
             <ThemeToggle />
           </div>
         ) : (
@@ -365,28 +396,52 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
               <div className="flex items-stretch gap-0 rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white/90 to-gray-50/90 dark:from-gray-800/90 dark:to-gray-900/90 backdrop-blur-xl shadow-lg overflow-hidden">
                 
                 {/* Avatar Section */}
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="flex items-center justify-center p-3 cursor-pointer group"
-                  onClick={() => navigate("/profile")}
-                >
-                  <div className="relative">
-                    <div className="w-11 h-11 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 ring-2 ring-white/20 dark:ring-gray-700/20 shadow-md group-hover:ring-4 transition-all duration-300">
-                      {userAvatarUrl ? (
-                        <img
-                          src={userAvatarUrl}
-                          alt={userName}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-white font-semibold text-sm">
-                          {userName.charAt(0).toUpperCase()}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="flex items-center justify-center p-3 cursor-pointer group"
+                    >
+                      <div className="relative">
+                        <div className="w-11 h-11 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 ring-2 ring-white/20 dark:ring-gray-700/20 shadow-md group-hover:ring-4 transition-all duration-300">
+                          {userAvatarUrl ? (
+                            <img
+                              src={userAvatarUrl}
+                              alt={userName}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-white font-semibold text-sm">
+                              {userName.charAt(0).toUpperCase()}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
+                      </div>
+                    </motion.div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2">
+                    <DropdownMenuLabel className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+                      {userName}
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
+                    <DropdownMenuItem
+                      onClick={() => navigate("/profile")}
+                      className="text-xs cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1.5"
+                    >
+                      <User className="h-3.5 w-3.5 mr-2" />
+                      Ver perfil
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
+                    <DropdownMenuItem
+                      onClick={handleLogout}
+                      className="text-xs cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded px-2 py-1.5"
+                    >
+                      <LogOut className="h-3.5 w-3.5 mr-2" />
+                      Sair
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
                 {/* Divider */}
                 <div className="w-px bg-gradient-to-b from-transparent via-gray-200 to-transparent dark:via-gray-700" />
@@ -557,7 +612,10 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                                 {/* Avatar with Dropdown */}
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <button className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                                    <button 
+                                      className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
                                       {notification.expand?.sender?.avatar ? (
                                         <img
                                           src={`${pb.baseUrl}/api/files/${notification.expand.sender.collectionId}/${notification.expand.sender.id}/${notification.expand.sender.avatar}`}
