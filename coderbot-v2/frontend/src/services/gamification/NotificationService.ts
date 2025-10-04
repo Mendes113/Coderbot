@@ -32,8 +32,6 @@ export class NotificationService {
           difficulty: achievement.metadata?.difficulty
         }
       });
-
-      console.log(`[NotificationService] Achievement notification created: ${notification.id}`);
     } catch (error) {
       console.error('[NotificationService] Failed to create achievement notification:', error);
       throw error;

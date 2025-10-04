@@ -16,6 +16,7 @@ import {
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { pb } from "@/integrations/pocketbase/client";
 import { useAuthState } from "@/hooks/useAuthState";
+import { useNotifications } from "@/context/NotificationContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTheme } from "@/context/ThemeContext";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,9 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
   // 🔥 FIX: Usar hook reativo ao invés de getCurrentUser()
   const { currentUser, isAuthenticated } = useAuthState();
   
+  // 🔥 Usar contexto de notificações ao invés de estado local
+  const { notifications, unreadCount } = useNotifications();
+  
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,8 +67,6 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>("");
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [isShaking, setIsShaking] = useState(false);
   const [clickCount, setClickCount] = useState(0);
   const [clickTimer, setClickTimer] = useState<NodeJS.Timeout | null>(null);
@@ -147,73 +149,24 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
         setUserAvatarUrl(null);
       }
       
-      // Buscar notificações
-      fetchNotifications(currentUser.id);
+      // Notificações agora são gerenciadas pelo NotificationContext
     } else {
       // Limpar dados quando usuário deslogar
       setUserRole(null);
       setUserId(undefined);
       setUserName("");
       setUserAvatarUrl(null);
-      setNotifications([]);
-      setUnreadCount(0);
     }
     setIsLoading(false);
   }, [currentUser?.id]); // Re-executar quando o ID do usuário mudar (login/logout)
 
-  // Buscar notificações do usuário
-  const fetchNotifications = async (uid: string) => {
+  // 🔥 Usar funções do contexto de notificações
+  const { markAsRead, markAllAsRead: markAllNotificationsAsRead } = useNotifications();
+
+  // Wrapper para markAllAsRead que também fecha o dropdown
+  const handleMarkAllAsRead = async () => {
     try {
-      const response = await pb.collection('notifications').getList(1, 5, {
-        filter: `recipient = "${uid}" && read = false`,
-        sort: '-created',
-        expand: 'sender'
-      });
-      
-      setNotifications(response.items || []);
-      setUnreadCount(response.totalItems || 0);
-    } catch (error) {
-      console.error('Erro ao buscar notificações:', error);
-    }
-  };
-
-  // Marcar notificação individual como lida
-  const markAsRead = async (notificationId: string) => {
-    try {
-      await pb.collection('notifications').update(notificationId, {
-        read: true,
-        read_at: new Date().toISOString()
-      });
-      
-      // Atualiza o estado local removendo a notificação da lista
-      setNotifications(prev => prev.filter(n => n.id !== notificationId));
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error('Erro ao marcar notificação como lida:', error);
-    }
-  };
-
-  // Marcar todas as notificações como lidas
-  const markAllAsRead = async () => {
-    if (!userId) return;
-    
-    try {
-      // Marca todas as notificações não lidas do usuário
-      const unreadNotifications = await pb.collection('notifications').getFullList({
-        filter: `recipient = "${userId}" && read = false`
-      });
-
-      await Promise.all(
-        unreadNotifications.map(notification =>
-          pb.collection('notifications').update(notification.id, {
-            read: true,
-            read_at: new Date().toISOString()
-          })
-        )
-      );
-
-      setNotifications([]);
-      setUnreadCount(0);
+      await markAllNotificationsAsRead();
       setShowNotifications(false);
     } catch (error) {
       console.error('Erro ao marcar todas como lidas:', error);
@@ -367,20 +320,8 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     setThemeClickTimer(timer);
   }, [themeClickCount, themeClickTimer, theme, handleTrackAction]);
 
-  // Subscribe to real-time notifications
-  useEffect(() => {
-    if (!userId) return;
-
-    const unsubscribe = pb.collection('notifications').subscribe('*', (e) => {
-      if (e.record?.recipient === userId) {
-        fetchNotifications(userId);
-      }
-    });
-
-    return () => {
-      unsubscribe.then(unsub => unsub()).catch(err => console.error('Error unsubscribing:', err));
-    };
-  }, [userId]);
+  // 🔥 Realtime notifications agora são gerenciados pelo NotificationContext
+  // (Removido código duplicado)
 
   // Detectar mudanças nos pontos e level ups
   useEffect(() => {
@@ -1206,7 +1147,7 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                               whileTap={{ scale: 0.95 }}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                markAllAsRead();
+                                handleMarkAllAsRead();
                               }}
                               className="p-1.5 rounded-full transition-colors group"
                               title="Marcar todas como lidas"

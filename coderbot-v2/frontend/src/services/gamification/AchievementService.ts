@@ -21,7 +21,6 @@ export class AchievementService {
       ).catch(() => null);
 
       if (existing) {
-        console.log(`[AchievementService] Achievement already unlocked: ${definition.name}`);
         return existing;
       }
 
@@ -44,8 +43,6 @@ export class AchievementService {
         }
       });
 
-      console.log(`[AchievementService] Achievement unlocked: ${definition.name} (+${definition.points} pontos)`);
-      
       return achievement;
     } catch (error) {
       console.error('[AchievementService] Failed to unlock achievement:', error);

@@ -16,6 +16,7 @@ import MobileHome from "@/components/mobile/MobileHome";
 import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
 import { gamificationService } from "@/services/gamification/GamificationService";
 import { AchievementDetectors } from "@/components/gamification/AchievementDetectors";
+import { NotificationProvider } from "@/context/NotificationContext";
 import Auth from "./pages/Auth";
 // import { CodeEditorProvider } from "@/context/CodeEditorContext";
 // import { CodeEditorProvider } from "@/context/CodeEditorContext";
@@ -204,7 +205,8 @@ const App = () => {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          {/* <CodeEditorProvider> */}
+          <NotificationProvider>
+            {/* <CodeEditorProvider> */}
             <Toaster />
             <Sonner />
             <AnalyticsConsentBanner
@@ -271,7 +273,8 @@ const App = () => {
                 </Routes>
               </Suspense>
             </BrowserRouter>
-          {/* </CodeEditorProvider> */}
+            {/* </CodeEditorProvider> */}
+          </NotificationProvider>
         </TooltipProvider>
       </QueryClientProvider>
     </ErrorBoundary>
