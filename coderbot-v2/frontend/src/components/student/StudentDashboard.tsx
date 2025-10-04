@@ -18,7 +18,13 @@ import {
   ArrowRight,
   SortDesc,
 } from "lucide-react";
-import { joinClassByCode, listClassEvents, listMyClasses } from "@/integrations/pocketbase/client";
+import { 
+  joinClassByCode, 
+  listClassEvents, 
+  listMyClasses, 
+  getLastInteractionsForClasses,
+  getCurrentUser,
+} from "@/integrations/pocketbase/client";
 import type { ClassEvent } from "@/integrations/pocketbase/client";
 
 type StudentClass = {
@@ -42,7 +48,6 @@ type ClassMetrics = {
   overdue: number;
   upcoming?: UpcomingEvent;
   typeCounts: Record<string, number>;
-  lastInteractionAt?: string;
 };
 
 type ClassSummaryState =
@@ -111,7 +116,6 @@ function computeClassMetrics(events: ClassEvent[]): ClassMetrics {
   let overdue = 0;
   const typeCounts: Record<string, number> = {};
   const futureEvents: { event: ClassEvent; timestamp: number }[] = [];
-  let lastInteractionAt: string | undefined;
 
   for (const event of events) {
     const typeKey = event?.type ?? "outros";
@@ -131,12 +135,6 @@ function computeClassMetrics(events: ClassEvent[]): ClassMetrics {
     } else {
       overdue += 1;
     }
-
-    // Tracking the most recent interaction (using created date as proxy for interaction)
-    const createdAt = event?.created;
-    if (createdAt && (!lastInteractionAt || createdAt > lastInteractionAt)) {
-      lastInteractionAt = createdAt;
-    }
   }
 
   futureEvents.sort((a, b) => a.timestamp - b.timestamp);
@@ -155,14 +153,15 @@ function computeClassMetrics(events: ClassEvent[]): ClassMetrics {
         }
       : undefined,
     typeCounts,
-    lastInteractionAt,
   };
 }
 
 export const StudentDashboard = () => {
   const navigate = useNavigate();
+  const currentUser = getCurrentUser();
   const [classes, setClasses] = useState<StudentClass[]>([]);
   const [classSummaries, setClassSummaries] = useState<Record<string, ClassSummaryState>>({});
+  const [classInteractions, setClassInteractions] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [filterQuery, setFilterQuery] = useState<string>("");
@@ -279,6 +278,22 @@ export const StudentDashboard = () => {
     };
   }, [classes]);
 
+  // Load user interactions for sorting
+  useEffect(() => {
+    if (!currentUser || classes.length === 0 || !sortByInteraction) {
+      return;
+    }
+
+    const classIds = classes.map(cls => cls.classId);
+    getLastInteractionsForClasses(currentUser.id, classIds)
+      .then(interactions => {
+        setClassInteractions(interactions);
+      })
+      .catch(err => {
+        console.error('Erro ao buscar interações:', err);
+      });
+  }, [currentUser, classes, sortByInteraction]);
+
   const handleJoinClass = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const code = joinCode.trim();
@@ -325,12 +340,9 @@ export const StudentDashboard = () => {
     // Apply sorting by interaction if enabled
     if (sortByInteraction) {
       result.sort((a, b) => {
-        const aMetrics = classSummaries[a.classId];
-        const bMetrics = classSummaries[b.classId];
+        const aLastInteraction = classInteractions[a.classId];
+        const bLastInteraction = classInteractions[b.classId];
         
-        const aLastInteraction = aMetrics?.status === 'ready' ? aMetrics.metrics.lastInteractionAt : null;
-        const bLastInteraction = bMetrics?.status === 'ready' ? bMetrics.metrics.lastInteractionAt : null;
-
         // Classes with no interaction go to the end
         if (!aLastInteraction && !bLastInteraction) return 0;
         if (!aLastInteraction) return 1;
@@ -342,7 +354,7 @@ export const StudentDashboard = () => {
     }
 
     return result;
-  }, [classes, filterQuery, sortByInteraction, classSummaries]);
+  }, [classes, filterQuery, sortByInteraction, classInteractions]);
 
   const renderSummary = (state: ClassSummaryState | undefined) => {
     if (!state || state.status === "loading") {

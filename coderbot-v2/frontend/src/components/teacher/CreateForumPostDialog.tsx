@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Loader2, Plus, Link2, FileText, X, Target, MessageCircle, Code, BookOpen, Music, Sparkles, ClipboardList, Zap } from 'lucide-react';
 import {
   Dialog,
@@ -100,6 +101,7 @@ const activityTypeDescriptions: Record<ActivityType, string> = {
 };
 
 export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPostDialogProps) => {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [title, setTitle] = useState('');
@@ -579,94 +581,35 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
                 </>
               )}
 
-              {/* Configurações de Quiz/Survey */}
+              {/* Redirect para criar Quiz/Survey */}
               {activityMode === 'quiz' && (
-                <>
-                  {/* Tipo de Quiz */}
-                  <div className="space-y-2">
-                    <Label htmlFor="activity-type" className="flex items-center gap-2">
-                      Tipo de quiz *
-                    </Label>
-                    <Select value={activityType} onValueChange={(value) => setActivityType(value as ActivityType)}>
-                      <SelectTrigger id="activity-type" className="h-auto py-2.5">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(['quiz', 'survey', 'form', 'poll'] as ActivityType[]).map((type) => (
-                          <SelectItem key={type} value={type} className="py-3">
-                            <div className="flex flex-col gap-0.5">
-                              <span className="font-medium">{activityTypeLabels[type]}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {activityTypeDescriptions[type]}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Configurações de pontuação e tentativas */}
-                  <div className="grid gap-4 sm:grid-cols-3">
+                <Card className="border-2 border-dashed border-purple-300 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20">
+                  <CardContent className="flex flex-col items-center justify-center p-8 text-center space-y-4">
+                    <div className="rounded-full bg-purple-100 dark:bg-purple-900/30 p-4">
+                      <ClipboardList className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+                    </div>
                     <div className="space-y-2">
-                      <Label htmlFor="activity-reward" className="flex items-center gap-2">
-                        <Zap className="h-3.5 w-3.5 text-amber-500" />
-                        Pontos *
-                      </Label>
-                      <Input
-                        id="activity-reward"
-                        type="number"
-                        placeholder="Ex: 100"
-                        value={activityReward}
-                        onChange={(e) => setActivityReward(parseInt(e.target.value) || 0)}
-                        min={0}
-                        disabled={submitting}
-                        className="h-11"
-                      />
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                        Criar Atividade/Quiz
+                      </h3>
+                      <p className="text-sm text-muted-foreground max-w-md">
+                        Use nosso editor dedicado com mais espaço e recursos para criar quizzes, 
+                        surveys, formulários e enquetes de forma profissional.
+                      </p>
                     </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="max-attempts">Tentativas</Label>
-                      <Input
-                        id="max-attempts"
-                        type="number"
-                        placeholder="Ex: 3"
-                        value={maxAttempts}
-                        onChange={(e) => setMaxAttempts(parseInt(e.target.value) || 1)}
-                        min={1}
-                        disabled={submitting}
-                        className="h-11"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="time-limit">Tempo (min)</Label>
-                      <Input
-                        id="time-limit"
-                        type="number"
-                        placeholder="0 = ilimitado"
-                        value={timeLimit}
-                        onChange={(e) => setTimeLimit(parseInt(e.target.value) || 0)}
-                        min={0}
-                        disabled={submitting}
-                        className="h-11"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Editor SurveyJS */}
-                  <div className="space-y-2">
-                    <Label>Editor de Quiz/Survey</Label>
-                    <div className="rounded-lg border border-border overflow-hidden bg-background">
-                      {surveyCreator && (
-                        <SurveyCreatorComponent creator={surveyCreator} />
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Use o editor visual para criar perguntas, configurar tipos de resposta e adicionar lógica condicional.
-                    </p>
-                  </div>
-                </>
+                    <Button
+                      onClick={() => {
+                        setOpen(false);
+                        navigate(`/class/${classId}/create-activity`);
+                      }}
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                      size="lg"
+                    >
+                      <Target className="mr-2 h-4 w-4" />
+                      Abrir Editor de Atividades
+                    </Button>
+                  </CardContent>
+                </Card>
               )}
             </div>
           )}

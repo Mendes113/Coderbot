@@ -39,6 +39,7 @@ const NotificationsTest = React.lazy(() => import("./pages/NotificationsTest"));
 const UserInfo = React.lazy(() => import("./pages/UserInfo"));
 const ActivityPage = React.lazy(() => import("./pages/ActivityPage"));
 const ActivityResults = React.lazy(() => import("./pages/ActivityResults"));
+const CreateActivity = React.lazy(() => import("./pages/CreateActivity"));
 
 const queryClient = new QueryClient();
 
@@ -242,6 +243,7 @@ const App = () => {
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/terms" element={<TermsOfService />} />
                   <Route path="/class/:classId" element={<ClassForum />} />
+                  <Route path="/class/:classId/create-activity" element={<RequireAuth><CreateActivity /></RequireAuth>} />
                   <Route path="/activity/:activityId" element={<RequireAuth><ActivityPage /></RequireAuth>} />
                   <Route path="/activity/:activityId/results" element={<RequireAuth><ActivityResults /></RequireAuth>} />
                   <Route path="/classes" element={<PublicClasses />} />
