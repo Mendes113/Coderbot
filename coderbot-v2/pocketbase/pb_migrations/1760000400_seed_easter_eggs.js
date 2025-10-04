@@ -72,7 +72,7 @@ migrate((app) => {
       "sequence": ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "b", "a"],
       "timeWindow": 5000
     },
-    "achievement_message": "�� LEGENDARY! Você conhece a história dos games!",
+    "achievement_message": "🎮 LEGENDARY! Você conhece a história dos games!",
     "points": 150,
     "icon": "🕹️",
     "is_active": true,
