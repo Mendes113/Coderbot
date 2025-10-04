@@ -544,7 +544,7 @@ const ClassForumPage = () => {
           return;
         }
 
-        const commentAuthor = user ?? undefined;
+        const commentAuthor = currentUser ?? undefined;
 
         setCommentsMap((prev) => ({
           ...prev,
@@ -587,7 +587,7 @@ const ClassForumPage = () => {
         setCommentSubmitting((prev) => ({ ...prev, [post.id]: false }));
       }
     },
-    [commentDrafts, user],
+    [commentDrafts, currentUser],
   );
 
   const handleRefresh = useCallback(() => {
@@ -784,9 +784,9 @@ const ClassForumPage = () => {
 
   const classTitle = classInfo.name || classInfo.title || 'Turma';
   const activeType = selectedType === 'all' ? undefined : selectedType;
-  const isOwner = user && classInfo.createdBy === user.id;
-  const isTeacher = user?.role === 'teacher';
-  const canCreatePost = isOwner || isTeacher || user?.role === 'admin';
+  const isOwner = currentUser && classInfo.createdBy === currentUser.id;
+  const isTeacher = currentUser?.role === 'teacher';
+  const canCreatePost = isOwner || isTeacher || currentUser?.role === 'admin';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted/30 via-background to-background pb-16">
@@ -1174,7 +1174,7 @@ const ClassForumPage = () => {
                         </p>
                       </div>
 
-                      {canEditPost(post, user) && (
+                      {canEditPost(post, currentUser) && (
                         <Button
                           variant="ghost"
                           size="sm"
