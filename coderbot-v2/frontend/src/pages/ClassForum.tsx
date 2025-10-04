@@ -45,7 +45,6 @@ import {
   ClassForumPostRecord,
   ClassForumPostType,
   createClassForumComment,
-  getCurrentUser,
   getClassByIdentifier,
   isCurrentUserMemberOfClass,
   listClassForumComments,
@@ -59,6 +58,7 @@ import {
   ClassMissionRecord,
   MissionType,
 } from '@/integrations/pocketbase/client';
+import { useAuthState } from '@/hooks/useAuthState';
 
 type ForumInteractionType = 'post_viewed' | 'post_expanded' | 'comment_created' | 'external_link_clicked' | 'activity_started' | 'activity_completed' | 'mission_progress_updated';
 
@@ -271,9 +271,11 @@ const renderForbiddenState = (onBack: () => void) => (
 const ClassForumPage = () => {
   const { classId: classIdentifier } = useParams<Params>();
   const navigate = useNavigate();
-  const user = getCurrentUser();
-  const userId = user?.id;
-  const userRole = user?.role;
+  
+  // 🔥 FIX: Usar hook reativo ao invés de getCurrentUser()
+  const { currentUser } = useAuthState();
+  const userId = currentUser?.id;
+  const userRole = currentUser?.role;
 
   const [classInfo, setClassInfo] = useState<any | null>(null);
   const [loadingClass, setLoadingClass] = useState(true);
@@ -468,12 +470,11 @@ const ClassForumPage = () => {
     postId?: string,
     metadata?: Record<string, any>
   ) => {
-    const user = getCurrentUser();
-    if (!user || !classInfo) return;
+    if (!currentUser || !classInfo) return;
 
     try {
       await pb.collection('forum_user_interactions').create({
-        user: user.id,
+        user: currentUser.id,
         class: classInfo.id,
         interaction_type: interactionType,
         target_id: postId || '',
