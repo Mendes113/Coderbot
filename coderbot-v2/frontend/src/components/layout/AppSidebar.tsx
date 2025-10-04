@@ -71,6 +71,12 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
   const { state } = useSidebar();
   const { theme } = useTheme();
   
+  // Estados para animação de ganho de pontos e level up
+  const [isShowingPointsGain, setIsShowingPointsGain] = useState(false);
+  const [pointsGained, setPointsGained] = useState(0);
+  const [previousLevel, setPreviousLevel] = useState(1);
+  const [isLevelingUp, setIsLevelingUp] = useState(false);
+  
   // Hook de gamificação para rastrear easter eggs
   const { trackAction, getTotalPoints, stats } = useGamification();
   
@@ -84,6 +90,37 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     if (points < 750) return 5;
     return Math.floor(points / 200) + 3; // Níveis avançados
   }, [stats.totalPoints]);
+
+  // Calcular XP para o próximo nível
+  const getXPForNextLevel = useCallback((level: number) => {
+    if (level === 1) return 50;
+    if (level === 2) return 150;
+    if (level === 3) return 300;
+    if (level === 4) return 500;
+    if (level === 5) return 750;
+    return 750 + ((level - 5) * 200); // Níveis avançados
+  }, []);
+
+  // Calcular XP do nível atual
+  const getXPForCurrentLevel = useCallback((level: number) => {
+    if (level === 1) return 0;
+    if (level === 2) return 50;
+    if (level === 3) return 150;
+    if (level === 4) return 300;
+    if (level === 5) return 500;
+    return 500 + ((level - 5) * 200); // Níveis anteriores
+  }, []);
+
+  // Calcular progresso no nível atual (0-100%)
+  const getLevelProgress = useCallback(() => {
+    const currentLevel = getUserLevel();
+    const currentXP = stats.totalPoints;
+    const currentLevelXP = getXPForCurrentLevel(currentLevel);
+    const nextLevelXP = getXPForNextLevel(currentLevel);
+    const xpInCurrentLevel = currentXP - currentLevelXP;
+    const xpNeededForLevel = nextLevelXP - currentLevelXP;
+    return Math.min(100, Math.max(0, (xpInCurrentLevel / xpNeededForLevel) * 100));
+  }, [stats.totalPoints, getUserLevel, getXPForCurrentLevel, getXPForNextLevel]);
 
   // Memoizar busca do usuário para evitar recálculos
   useEffect(() => {
@@ -163,6 +200,36 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     }
   };
 
+  // Função para disparar animação de ganho de pontos
+  const showPointsGainAnimation = useCallback((points: number) => {
+    setPointsGained(points);
+    setIsShowingPointsGain(true);
+    
+    // Esconder a animação após 2 segundos
+    setTimeout(() => {
+      setIsShowingPointsGain(false);
+    }, 2000);
+  }, []);
+
+  // Wrapper do trackAction para disparar animações
+  const handleTrackAction = useCallback(async (
+    easterEggName: string,
+    actionData?: Record<string, any>
+  ) => {
+    const previousPoints = stats.totalPoints;
+    const result = await trackAction(easterEggName, actionData);
+    
+    // Se completou e ganhou pontos, mostrar animação
+    if (result.completed && result.achievement && result.achievement.is_new) {
+      const pointsGained = result.achievement.points || 0;
+      if (pointsGained > 0) {
+        showPointsGainAnimation(pointsGained);
+      }
+    }
+    
+    return result;
+  }, [trackAction, stats.totalPoints, showPointsGainAnimation]);
+
   // Função de logout
   const handleLogout = useCallback(() => {
     pb.authStore.clear();
@@ -187,7 +254,7 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
       setClickCount(0);
       
       // 🎮 Rastrear easter egg de cliques no sino
-      trackAction('notification_clicks', {
+      handleTrackAction('notification_clicks', {
         totalClicks: 3,
         timestamp: new Date().toISOString()
       });
@@ -204,7 +271,7 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     }, 1000);
     
     setClickTimer(timer);
-  }, [showNotifications, clickCount, clickTimer, trackAction]);
+  }, [showNotifications, clickCount, clickTimer, handleTrackAction]);
 
   // Detectar cliques rápidos no avatar para animação de shake
   const handleAvatarClick = useCallback((callback?: () => void) => {
@@ -225,7 +292,7 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
       setAvatarClickCount(0);
       
       // 🎮 Rastrear easter egg de cliques no avatar
-      trackAction('avatar_explorer', {
+      handleTrackAction('avatar_explorer', {
         totalClicks: 3,
         timestamp: new Date().toISOString()
       });
@@ -242,7 +309,7 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     }, 1000);
     
     setAvatarClickTimer(timer);
-  }, [avatarClickCount, avatarClickTimer, trackAction]);
+  }, [avatarClickCount, avatarClickTimer, handleTrackAction]);
 
   // Detectar cliques rápidos no theme toggle para animação de shake
   const handleThemeClick = useCallback(() => {
@@ -260,7 +327,7 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
       setThemeClickCount(0);
       
       // 🎮 Rastrear easter egg de cliques no theme toggle
-      trackAction('theme_master', {
+      handleTrackAction('theme_master', {
         totalClicks: 3,
         currentTheme: theme,
         timestamp: new Date().toISOString()
@@ -278,7 +345,7 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     }, 1000);
     
     setThemeClickTimer(timer);
-  }, [themeClickCount, themeClickTimer, theme, trackAction]);
+  }, [themeClickCount, themeClickTimer, theme, handleTrackAction]);
 
   // Subscribe to real-time notifications
   useEffect(() => {
@@ -295,10 +362,31 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     };
   }, [userId]);
 
-  const normalizedUserRole = useMemo(() => (userRole || "").toLowerCase().trim(), [userRole]);
-  const canAccessTeacherPanel = normalizedUserRole === "teacher" || normalizedUserRole === "admin";
+  // Detectar mudanças nos pontos e level ups
+  useEffect(() => {
+    const currentLevel = getUserLevel();
+    const currentPoints = stats.totalPoints;
+    
+    // Guardar nível inicial
+    if (previousLevel === 1 && currentPoints > 0 && currentLevel > 1) {
+      setPreviousLevel(currentLevel);
+      return;
+    }
+    
+    // Detectar level up
+    if (currentLevel > previousLevel && previousLevel > 0) {
+      setIsLevelingUp(true);
+      setPreviousLevel(currentLevel);
+      
+      // Parar animação de level up após 3 segundos
+      setTimeout(() => {
+        setIsLevelingUp(false);
+    }, 3000);
+  }
+}, [stats.totalPoints, getUserLevel, previousLevel]);
 
-  // Temporarily disable NextAuth.js for hydration issues
+  const normalizedUserRole = useMemo(() => (userRole || "").toLowerCase().trim(), [userRole]);
+  const canAccessTeacherPanel = normalizedUserRole === "teacher" || normalizedUserRole === "admin";  // Temporarily disable NextAuth.js for hydration issues
   // const { data: session } = useSession();
 
   const mainNavItems: NavItem[] = useMemo(() => [
@@ -517,21 +605,80 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                       </div>
                     )}
                     </div>
-                    {/* Badge de nível - canto inferior direito */}
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 0.3, type: "spring", stiffness: 300 }}
-                      className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 border-2 border-white dark:border-gray-900 shadow-lg flex items-center justify-center"
-                    >
-                      <span className="text-[9px] font-bold text-white">
-                        {getUserLevel()}
-                      </span>
-                    </motion.div>
+                    {/* Badge de nível ou animação de pontos ganhos */}
+                    <AnimatePresence mode="wait">
+                      {isLevelingUp ? (
+                        // Animação de Level Up!
+                        <motion.div
+                          key="levelup"
+                          initial={{ scale: 0, rotate: -180 }}
+                          animate={{ 
+                            scale: [0, 1.5, 1],
+                            rotate: [- 180, 360, 0]
+                          }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          transition={{ 
+                            duration: 0.8,
+                            ease: [0.34, 1.56, 0.64, 1]
+                          }}
+                          className="absolute -bottom-0.5 -right-0.5 w-7 h-7 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-400 to-orange-500 border-2 border-white dark:border-gray-900 shadow-2xl flex items-center justify-center"
+                        >
+                          {/* Glow effect para level up */}
+                          <motion.div
+                            className="absolute inset-0 rounded-full bg-yellow-400"
+                            animate={{
+                              scale: [1, 1.8, 1],
+                              opacity: [0.6, 0, 0.6]
+                            }}
+                            transition={{
+                              duration: 1.5,
+                              repeat: Infinity,
+                              ease: "easeInOut"
+                            }}
+                          />
+                          <span className="text-[10px] font-black text-white z-10">
+                            ⬆️
+                          </span>
+                        </motion.div>
+                      ) : isShowingPointsGain ? (
+                        // Animação de pontos ganhos
+                        <motion.div
+                          key="points"
+                          initial={{ scale: 0, y: 20 }}
+                          animate={{ 
+                            scale: [0, 1.3, 1],
+                            y: [20, -10, 0]
+                          }}
+                          exit={{ scale: 0, opacity: 0, y: -20 }}
+                          transition={{ 
+                            duration: 0.6,
+                            ease: [0.34, 1.56, 0.64, 1]
+                          }}
+                          className="absolute -bottom-0.5 -right-0.5 px-1.5 h-5 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 border-2 border-white dark:border-gray-900 shadow-lg flex items-center justify-center"
+                        >
+                          <span className="text-[9px] font-bold text-white whitespace-nowrap">
+                            +{pointsGained}
+                          </span>
+                        </motion.div>
+                      ) : (
+                        // Badge normal de nível
+                        <motion.div
+                          key="level"
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: 0.3, type: "spring", stiffness: 300 }}
+                          className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 border-2 border-white dark:border-gray-900 shadow-lg flex items-center justify-center"
+                        >
+                          <span className="text-[9px] font-bold text-white">
+                            {getUserLevel()}
+                          </span>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </motion.div>
                 </motion.div>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2">
+              <DropdownMenuContent align="center" className="w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2">
                 <DropdownMenuLabel className="text-xs font-semibold text-gray-900 dark:text-gray-100">
                   {userName}
                 </DropdownMenuLabel>
@@ -543,6 +690,45 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                   <User className="h-3.5 w-3.5 mr-2" />
                   Ver perfil
                 </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
+                
+                {/* Barra de Progresso de XP */}
+                <div className="px-2 py-3 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600 dark:text-gray-400 font-medium">Nível {getUserLevel()}</span>
+                    <span className="text-gray-500 dark:text-gray-400 text-[10px]">
+                      {stats.totalPoints} / {getXPForNextLevel(getUserLevel())} XP
+                    </span>
+                  </div>
+                  
+                  {/* Barra de Progresso */}
+                  <div className="relative w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <motion.div
+                      className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${getLevelProgress()}%` }}
+                      transition={{ duration: 0.8, ease: "easeOut" }}
+                    >
+                      {/* Animação de brilho */}
+                      <motion.div
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                        animate={{
+                          x: ['-100%', '200%']
+                        }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "linear"
+                        }}
+                      />
+                    </motion.div>
+                  </div>
+                  
+                  <div className="text-[10px] text-gray-500 dark:text-gray-400 text-center">
+                    {Math.round(getLevelProgress())}% para nível {getUserLevel() + 1}
+                  </div>
+                </div>
+                
                 <DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
                 <DropdownMenuItem
                   onClick={handleLogout}
@@ -700,21 +886,68 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                             </div>
                           )}
                         </div>
-                        {/* Badge de nível - canto inferior direito */}
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ delay: 0.3, type: "spring", stiffness: 300 }}
-                          className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 border-2 border-white dark:border-gray-800 shadow-lg flex items-center justify-center"
-                        >
-                          <span className="text-[9px] font-bold text-white">
-                            {getUserLevel()}
-                          </span>
-                        </motion.div>
+                        {/* Badge de nível - canto inferior direito com animações */}
+                        <div className="absolute -bottom-0.5 -right-0.5">
+                          <AnimatePresence mode="wait">
+                            {isLevelingUp ? (
+                              <motion.div
+                                key="levelup"
+                                initial={{ scale: 0, rotate: -180 }}
+                                animate={{ 
+                                  scale: [0, 1.5, 1], 
+                                  rotate: [-180, 360, 0] 
+                                }}
+                                exit={{ scale: 0, opacity: 0 }}
+                                transition={{ duration: 0.8, ease: "easeInOut" }}
+                                className="relative w-7 h-7 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-400 to-orange-500 border-2 border-white dark:border-gray-800 shadow-lg flex items-center justify-center"
+                              >
+                                <motion.div 
+                                  className="absolute inset-0 rounded-full bg-yellow-400"
+                                  animate={{ 
+                                    scale: [1, 1.8, 1],
+                                    opacity: [0.6, 0, 0.6]
+                                  }}
+                                  transition={{ 
+                                    duration: 1.5,
+                                    repeat: Infinity,
+                                    ease: "easeInOut"
+                                  }}
+                                />
+                                <span className="text-[10px] font-black text-white relative z-10">⬆️</span>
+                              </motion.div>
+                            ) : isShowingPointsGain ? (
+                              <motion.div
+                                key="points"
+                                initial={{ scale: 0, y: 20 }}
+                                animate={{ 
+                                  scale: [0, 1.3, 1],
+                                  y: [20, -10, 0]
+                                }}
+                                exit={{ scale: 0, opacity: 0 }}
+                                transition={{ duration: 0.5, ease: "easeOut" }}
+                                className="px-1.5 h-5 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 border-2 border-white dark:border-gray-800 shadow-lg flex items-center justify-center"
+                              >
+                                <span className="text-[9px] font-bold text-white">+{pointsGained}</span>
+                              </motion.div>
+                            ) : (
+                              <motion.div
+                                key="level"
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ delay: 0.3, type: "spring", stiffness: 300 }}
+                                className="w-5 h-5 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 border-2 border-white dark:border-gray-800 shadow-lg flex items-center justify-center"
+                              >
+                                <span className="text-[9px] font-bold text-white">
+                                  {getUserLevel()}
+                                </span>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
                       </motion.div>
                     </motion.div>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2">
+                  <DropdownMenuContent align="start" className="w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2">
                     <DropdownMenuLabel className="text-xs font-semibold text-gray-900 dark:text-gray-100">
                       {userName}
                     </DropdownMenuLabel>
@@ -726,6 +959,45 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                       <User className="h-3.5 w-3.5 mr-2" />
                       Ver perfil
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
+                    
+                    {/* Barra de Progresso de XP */}
+                    <div className="px-2 py-3 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-600 dark:text-gray-400 font-medium">Nível {getUserLevel()}</span>
+                        <span className="text-gray-500 dark:text-gray-400 text-[10px]">
+                          {stats.totalPoints} / {getXPForNextLevel(getUserLevel())} XP
+                        </span>
+                      </div>
+                      
+                      {/* Barra de Progresso */}
+                      <div className="relative w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <motion.div
+                          className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${getLevelProgress()}%` }}
+                          transition={{ duration: 0.8, ease: "easeOut" }}
+                        >
+                          {/* Animação de brilho */}
+                          <motion.div
+                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                            animate={{
+                              x: ['-100%', '200%']
+                            }}
+                            transition={{
+                              duration: 2,
+                              repeat: Infinity,
+                              ease: "linear"
+                            }}
+                          />
+                        </motion.div>
+                      </div>
+                      
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400 text-center">
+                        {Math.round(getLevelProgress())}% para nível {getUserLevel() + 1}
+                      </div>
+                    </div>
+                    
                     <DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
                     <DropdownMenuItem
                       onClick={handleLogout}
