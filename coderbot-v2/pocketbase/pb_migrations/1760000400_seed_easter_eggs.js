@@ -20,7 +20,7 @@ migrate((app) => {
     "category": "ui_interaction",
     "difficulty": "medium"
   });
-  app.dao().saveRecord(record1);
+  app.save(record1);
 
   // Easter Egg 2: Avatar Explorer
   const record2 = new Record(collection, {
@@ -40,7 +40,7 @@ migrate((app) => {
     "category": "exploration",
     "difficulty": "easy"
   });
-  app.dao().saveRecord(record2);
+  app.save(record2);
 
   // Easter Egg 3: Theme Master
   const record3 = new Record(collection, {
@@ -60,7 +60,7 @@ migrate((app) => {
     "category": "ui_interaction",
     "difficulty": "hard"
   });
-  app.dao().saveRecord(record3);
+  app.save(record3);
 
   // Easter Egg 4: Konami Code
   const record4 = new Record(collection, {
@@ -79,14 +79,14 @@ migrate((app) => {
     "category": "secret",
     "difficulty": "legendary"
   });
-  app.dao().saveRecord(record4);
+  app.save(record4);
 }, (app) => {
   const collection = app.findCollectionByNameOrId("easter_egg_definitions");
   const names = ["notification_clicks", "avatar_explorer", "theme_master", "konami_code"];
   names.forEach(name => {
     try {
-      const record = app.dao().findFirstRecordByFilter(collection.name, `name = "${name}"`);
-      if (record) app.dao().deleteRecord(record);
+      const record = app.findFirstRecordByFilter(collection.id, `name = "${name}"`);
+      if (record) app.delete(record);
     } catch (e) {}
   });
 });

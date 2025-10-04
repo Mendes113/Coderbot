@@ -1,116 +1,115 @@
 /// <reference path="../pb_data/types.d.ts" />
 migrate((app) => {
+  // Get the easter_egg_definitions collection ID
+  const easterEggCollection = app.findCollectionByNameOrId("easter_egg_definitions");
+  
   const collection = new Collection({
-    "name": "user_easter_egg_progress",
-    "type": "base",
-    "system": false,
-    "schema": [
+    "createRule": "",
+    "deleteRule": "",
+    "fields": [
       {
-        "system": false,
-        "id": "user",
+        "autogeneratePattern": "[a-z0-9]{15}",
+        "hidden": false,
+        "id": "text3208210256",
+        "max": 15,
+        "min": 15,
+        "name": "id",
+        "pattern": "^[a-z0-9]+$",
+        "presentable": false,
+        "primaryKey": true,
+        "required": true,
+        "system": true,
+        "type": "text"
+      },
+      {
+        "cascadeDelete": true,
+        "collectionId": "_pb_users_auth_",
+        "hidden": false,
+        "id": "relation_user",
+        "maxSelect": 1,
+        "minSelect": 1,
         "name": "user",
-        "type": "relation",
-        "required": true,
         "presentable": false,
-        "unique": false,
-        "options": {
-          "collectionId": "_pb_users_auth_",
-          "cascadeDelete": true,
-          "minSelect": null,
-          "maxSelect": 1,
-          "displayFields": ["name", "email"]
-        }
+        "required": true,
+        "system": false,
+        "type": "relation"
       },
       {
-        "system": false,
-        "id": "easter_egg",
+        "cascadeDelete": true,
+        "collectionId": easterEggCollection.id,
+        "hidden": false,
+        "id": "relation_easter_egg",
+        "maxSelect": 1,
+        "minSelect": 1,
         "name": "easter_egg",
-        "type": "relation",
+        "presentable": false,
         "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "collectionId": "easter_egg_definitions_id",
-          "cascadeDelete": true,
-          "minSelect": null,
-          "maxSelect": 1,
-          "displayFields": ["name", "display_name"]
-        }
+        "system": false,
+        "type": "relation"
       },
       {
-        "system": false,
-        "id": "current_value",
+        "hidden": false,
+        "id": "number_current_value",
+        "max": null,
+        "min": 0,
         "name": "current_value",
-        "type": "number",
-        "required": false,
+        "onlyInt": true,
         "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": null,
-          "noDecimal": true
-        }
+        "required": false,
+        "system": false,
+        "type": "number"
       },
       {
-        "system": false,
-        "id": "session_data",
+        "hidden": false,
+        "id": "json_session_data",
+        "maxSize": 2000000,
         "name": "session_data",
-        "type": "json",
-        "required": false,
         "presentable": false,
-        "unique": false,
-        "options": {
-          "maxSize": 2000000
-        }
+        "required": false,
+        "system": false,
+        "type": "json"
       },
       {
-        "system": false,
-        "id": "is_completed",
+        "hidden": false,
+        "id": "bool_is_completed",
         "name": "is_completed",
-        "type": "bool",
-        "required": false,
         "presentable": false,
-        "unique": false,
-        "options": {}
+        "required": false,
+        "system": false,
+        "type": "bool"
       },
       {
-        "system": false,
-        "id": "completed_at",
+        "hidden": false,
+        "id": "date_completed_at",
+        "max": "",
+        "min": "",
         "name": "completed_at",
-        "type": "date",
-        "required": false,
         "presentable": false,
-        "unique": false,
-        "options": {
-          "min": "",
-          "max": ""
-        }
+        "required": false,
+        "system": false,
+        "type": "date"
       },
       {
-        "system": false,
-        "id": "attempts",
+        "hidden": false,
+        "id": "number_attempts",
+        "max": null,
+        "min": 0,
         "name": "attempts",
-        "type": "number",
-        "required": false,
+        "onlyInt": true,
         "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": null,
-          "noDecimal": true
-        }
+        "required": false,
+        "system": false,
+        "type": "number"
       },
       {
-        "system": false,
-        "id": "metadata",
+        "hidden": false,
+        "id": "json_metadata",
+        "maxSize": 2000000,
         "name": "metadata",
-        "type": "json",
-        "required": false,
         "presentable": false,
-        "unique": false,
-        "options": {
-          "maxSize": 2000000
-        }
+        "required": false,
+        "system": false,
+        "type": "json"
       }
     ],
     "indexes": [
@@ -119,12 +118,12 @@ migrate((app) => {
       "CREATE INDEX idx_progress_completed ON user_easter_egg_progress (is_completed)",
       "CREATE UNIQUE INDEX idx_progress_unique ON user_easter_egg_progress (user, easter_egg)"
     ],
-    "listRule": "@request.auth.id != '' && user = @request.auth.id",
-    "viewRule": "@request.auth.id != '' && user = @request.auth.id",
-    "createRule": "@request.auth.id != '' && user = @request.auth.id",
-    "updateRule": "@request.auth.id != '' && user = @request.auth.id",
-    "deleteRule": null,
-    "options": {}
+    "listRule": "@request.auth.id = user",
+    "name": "user_easter_egg_progress",
+    "system": false,
+    "type": "base",
+    "updateRule": "@request.auth.id = user",
+    "viewRule": "@request.auth.id = user"
   });
 
   return app.save(collection);
