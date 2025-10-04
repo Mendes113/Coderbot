@@ -436,7 +436,7 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                       ) : (
                         <div className="flex items-center h-full">
                           <p className="text-xs text-gray-400 dark:text-gray-500 font-medium">
-                            Nenhuma notificação
+                            
                           </p>
                         </div>
                       )}
