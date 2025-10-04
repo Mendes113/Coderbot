@@ -45,10 +45,6 @@ export const AchievementDetectors = () => {
       try {
         const configs = await achievementConfigService.loadAchievements();
         setAchievements(configs);
-        
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[AchievementDetectors] Loaded', configs.length, 'achievements');
-        }
       } catch (error) {
         console.error('[AchievementDetectors] Failed to load achievements:', error);
       }
@@ -73,30 +69,14 @@ export const AchievementDetectors = () => {
     const lastNotification = notificationTimestamps.current[achievementName];
     
     if (lastNotification && now - lastNotification < 2000) {
-      console.log('⏱️ [trackAchievementWithNotification] DEBOUNCED - too soon since last notification:', {
-        achievementName,
-        timeSinceLastMs: now - lastNotification
-      });
       return { completed: false, achievement: null };
     }
     
-    console.log('🎯 [trackAchievementWithNotification] Called for:', achievementName, actionData);
-    
     const result = await trackAction(achievementName, actionData);
-    
-    console.log('🎯 [trackAchievementWithNotification] trackAction result:', {
-      completed: result.completed,
-      isNew: result.achievement?.is_new,
-      hasUser: !!currentUser
-    });
     
     // Se foi desbloqueado pela primeira vez, enviar notificação
     if (result.completed && result.achievement?.is_new && currentUser) {
-      console.log('📧 [trackAchievementWithNotification] Achievement is NEW - sending notification...');
-      
       const achievement = achievementConfigService.getAchievementByName(achievementName);
-      
-      console.log('🔍 [trackAchievementWithNotification] Achievement config:', achievement);
       
       if (achievement) {
         await sendAchievementNotification({
@@ -109,17 +89,7 @@ export const AchievementDetectors = () => {
         
         // Registrar timestamp da notificação para debounce
         notificationTimestamps.current[achievementName] = now;
-        
-        console.log('✅ [trackAchievementWithNotification] Notification sent successfully');
-      } else {
-        console.warn('⚠️ [trackAchievementWithNotification] Achievement config not found for:', achievementName);
       }
-    } else {
-      console.log('ℹ️ [trackAchievementWithNotification] No notification sent because:', {
-        wasCompleted: result.completed,
-        wasNew: result.achievement?.is_new,
-        hasUser: !!currentUser
-      });
     }
     
     return result;
@@ -127,11 +97,6 @@ export const AchievementDetectors = () => {
 
   // 🔒 Só ativar hooks se usuário estiver autenticado
   const hooksEnabled = isAuthenticated && !!currentUser;
-  
-  console.log('🎮 [AchievementDetectors] Hooks enabled:', hooksEnabled, {
-    isAuthenticated,
-    hasCurrentUser: !!currentUser
-  });
 
   // 🎮 Easter Egg: Konami Code
   useKonamiCode(

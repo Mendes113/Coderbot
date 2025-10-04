@@ -13,25 +13,15 @@ export class EasterEggTracker {
    * Inicializa o tracker carregando as definições ativas do PocketBase
    */
   async initialize(): Promise<void> {
-    console.log('🚀 [EasterEggTracker] initialize() called');
-    
     try {
-      console.log('📡 [EasterEggTracker] Fetching easter_egg_definitions from PocketBase...');
-      
       const records = await pb.collection('easter_egg_definitions').getFullList<EasterEggDefinition>({
         filter: 'is_active = true',
         sort: 'name'
       });
       
-      console.log(`✅ [EasterEggTracker] Received ${records.length} records from PocketBase`);
-      
       records.forEach(def => {
-        console.log(`  📝 Adding definition: ${def.name}`);
         this.definitions.set(def.name, def);
       });
-      
-      console.log(`✅ [EasterEggTracker] Loaded ${this.definitions.size} active easter eggs`);
-      console.log(`📋 [EasterEggTracker] Definition names: ${Array.from(this.definitions.keys()).join(', ')}`);
     } catch (error) {
       console.error('❌ [EasterEggTracker] Failed to load definitions:', error);
       throw error;
@@ -46,14 +36,10 @@ export class EasterEggTracker {
     easterEggName: string,
     actionData?: Record<string, any>
   ): Promise<{ completed: boolean; progress: EasterEggProgress }> {
-    console.log(`🔍 [EasterEggTracker] trackAction called for "${easterEggName}"`);
-    console.log(`🔍 [EasterEggTracker] Available definitions:`, Array.from(this.definitions.keys()));
-    
     const definition = this.definitions.get(easterEggName);
     
     if (!definition) {
       console.warn(`[EasterEggTracker] Easter egg "${easterEggName}" not found or inactive`);
-      console.warn(`[EasterEggTracker] Total definitions loaded: ${this.definitions.size}`);
       return { completed: false, progress: {} as EasterEggProgress };
     }
 
