@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useKonamiCode } from '@/hooks/useKonamiCode';
 import { useDevToolsDetector } from '@/hooks/useDevToolsDetector';
 import { 
@@ -11,21 +11,44 @@ import { toast } from 'sonner';
 import { MatrixRain } from '@/components/effects/MatrixRain';
 import { achievementConfigService, AchievementConfig } from '@/services/gamification/AchievementConfigService';
 import { sendAchievementNotification } from '@/services/notifications/achievementNotifications';
-import { getCurrentUser } from '@/integrations/pocketbase/client';
+import { useAuthState } from '@/hooks/useAuthState';
 
 /**
  * Componente responsável por detectar e rastrear achievements globais
  * Deve ser montado uma única vez no nível da aplicação (App.tsx)
+ * 
+ * ⚠️ BUG CORRIGIDO:
+ * - Antes: getCurrentUser() retornava snapshot não-reativo (logout não desabilitava hooks)
+ * - Agora: useAuthState() reage a mudanças no pb.authStore.onChange()
+ * - Prevenção de duplicatas: debounce de 2s entre notificações do mesmo achievement
  */
 export const AchievementDetectors = () => {
   const { trackAction } = useGamification();
   const [showMatrix, setShowMatrix] = useState(false);
   const [achievements, setAchievements] = useState<AchievementConfig[]>([]);
-  const currentUser = getCurrentUser();
+  
+  // 🔥 FIX: Usar hook reativo ao invés de snapshot
+  const { currentUser, isAuthenticated } = useAuthState();
+  
+  // 🔥 FIX: Debounce para prevenir notificações duplicadas
+  const notificationTimestamps = useRef<Record<string, number>>({});
 
-  console.log('🎮 [AchievementDetectors] Rendering with user:', currentUser?.id || 'NOT AUTHENTICATED');
+  // 🐛 DEBUG: Log de montagem/desmontagem do componente
+  useEffect(() => {
+    const instanceId = Math.random().toString(36).substr(2, 9);
+    console.log(`🔧 [AchievementDetectors-${instanceId}] MOUNTED`);
+    
+    return () => {
+      console.log(`🔧 [AchievementDetectors-${instanceId}] UNMOUNTED`);
+    };
+  }, []);
 
-  // Carregar achievements dinamicamente
+  console.log('🎮 [AchievementDetectors] Rendering with auth:', { 
+    userId: currentUser?.id || 'none',
+    isAuthenticated 
+  });
+
+  // Carregar achievements dinamicamente (apenas uma vez por auth change)
   useEffect(() => {
     const loadAchievements = async () => {
       try {
@@ -41,11 +64,13 @@ export const AchievementDetectors = () => {
     if (currentUser) {
       loadAchievements();
     } else {
-      console.log('🎮 [AchievementDetectors] Skipping load - no user authenticated');
+      // Limpar achievements quando logout
+      setAchievements([]);
+      console.log('🎮 [AchievementDetectors] Cleared achievements - user logged out');
     }
-  }, [currentUser]);
+  }, [currentUser?.id]); // Apenas quando o ID do usuário mudar
 
-  // Log dos achievements carregados (debug)
+  // Log dos achievements carregados (debug) - remover depois
   useEffect(() => {
     if (achievements.length > 0) {
       console.log('📋 [AchievementDetectors] Available achievements:', 
@@ -54,11 +79,23 @@ export const AchievementDetectors = () => {
     }
   }, [achievements]);
 
-  // Helper para rastrear achievement com notificação
+  // Helper para rastrear achievement com notificação + debounce anti-duplicata
   const trackAchievementWithNotification = async (
     achievementName: string,
     actionData: Record<string, any>
   ) => {
+    // 🔥 FIX: Debounce de 2 segundos para prevenir duplicatas
+    const now = Date.now();
+    const lastNotification = notificationTimestamps.current[achievementName];
+    
+    if (lastNotification && now - lastNotification < 2000) {
+      console.log('⏱️ [trackAchievementWithNotification] DEBOUNCED - too soon since last notification:', {
+        achievementName,
+        timeSinceLastMs: now - lastNotification
+      });
+      return { completed: false, achievement: null };
+    }
+    
     console.log('🎯 [trackAchievementWithNotification] Called for:', achievementName, actionData);
     
     const result = await trackAction(achievementName, actionData);
@@ -85,6 +122,10 @@ export const AchievementDetectors = () => {
           achievementDescription: achievement.description,
           points: achievement.points
         });
+        
+        // Registrar timestamp da notificação para debounce
+        notificationTimestamps.current[achievementName] = now;
+        
         console.log('✅ [trackAchievementWithNotification] Notification sent successfully');
       } else {
         console.warn('⚠️ [trackAchievementWithNotification] Achievement config not found for:', achievementName);
@@ -101,9 +142,12 @@ export const AchievementDetectors = () => {
   };
 
   // 🔒 Só ativar hooks se usuário estiver autenticado
-  const hooksEnabled = !!currentUser;
+  const hooksEnabled = isAuthenticated && !!currentUser;
   
-  console.log('🎮 [AchievementDetectors] Hooks enabled:', hooksEnabled);
+  console.log('🎮 [AchievementDetectors] Hooks enabled:', hooksEnabled, {
+    isAuthenticated,
+    hasCurrentUser: !!currentUser
+  });
 
   // 🎮 Easter Egg: Konami Code
   useKonamiCode(
