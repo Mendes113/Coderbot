@@ -58,6 +58,15 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isShaking, setIsShaking] = useState(false);
+  const [clickCount, setClickCount] = useState(0);
+  const [clickTimer, setClickTimer] = useState<NodeJS.Timeout | null>(null);
+  const [isAvatarShaking, setIsAvatarShaking] = useState(false);
+  const [avatarClickCount, setAvatarClickCount] = useState(0);
+  const [avatarClickTimer, setAvatarClickTimer] = useState<NodeJS.Timeout | null>(null);
+  const [isThemeShaking, setIsThemeShaking] = useState(false);
+  const [themeClickCount, setThemeClickCount] = useState(0);
+  const [themeClickTimer, setThemeClickTimer] = useState<NodeJS.Timeout | null>(null);
   const { state } = useSidebar();
   const { theme } = useTheme();
 
@@ -144,6 +153,98 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     pb.authStore.clear();
     window.location.href = '/login';
   }, []);
+
+  // Detectar cliques rápidos para animação de shake
+  const handleNotificationClick = useCallback(() => {
+    setShowNotifications(!showNotifications);
+    
+    // Incrementar contador de cliques
+    setClickCount(prev => prev + 1);
+    
+    // Limpar timer anterior se existir
+    if (clickTimer) {
+      clearTimeout(clickTimer);
+    }
+    
+    // Verificar se chegou a 3 cliques
+    if (clickCount + 1 >= 3) {
+      setIsShaking(true);
+      setClickCount(0);
+      
+      // Parar a animação após 500ms
+      setTimeout(() => {
+        setIsShaking(false);
+      }, 500);
+    }
+    
+    // Resetar contador após 1 segundo sem cliques
+    const timer = setTimeout(() => {
+      setClickCount(0);
+    }, 1000);
+    
+    setClickTimer(timer);
+  }, [showNotifications, clickCount, clickTimer]);
+
+  // Detectar cliques rápidos no avatar para animação de shake
+  const handleAvatarClick = useCallback((callback?: () => void) => {
+    // Executar callback se fornecido (para navegação)
+    if (callback) callback();
+    
+    // Incrementar contador de cliques
+    setAvatarClickCount(prev => prev + 1);
+    
+    // Limpar timer anterior se existir
+    if (avatarClickTimer) {
+      clearTimeout(avatarClickTimer);
+    }
+    
+    // Verificar se chegou a 3 cliques
+    if (avatarClickCount + 1 >= 1) {
+      setIsAvatarShaking(true);
+      setAvatarClickCount(0);
+      
+      // Parar a animação após 500ms
+      setTimeout(() => {
+        setIsAvatarShaking(false);
+      }, 500);
+    }
+    
+    // Resetar contador após 1 segundo sem cliques
+    const timer = setTimeout(() => {
+      setAvatarClickCount(0);
+    }, 1000);
+    
+    setAvatarClickTimer(timer);
+  }, [avatarClickCount, avatarClickTimer]);
+
+  // Detectar cliques rápidos no theme toggle para animação de shake
+  const handleThemeClick = useCallback(() => {
+    // Incrementar contador de cliques
+    setThemeClickCount(prev => prev + 1);
+    
+    // Limpar timer anterior se existir
+    if (themeClickTimer) {
+      clearTimeout(themeClickTimer);
+    }
+    
+    // Verificar se chegou a 3 cliques
+    if (themeClickCount + 1 >= 3) {
+      setIsThemeShaking(true);
+      setThemeClickCount(0);
+      
+      // Parar a animação após 800ms (mais tempo para apreciar o glow)
+      setTimeout(() => {
+        setIsThemeShaking(false);
+      }, 800);
+    }
+    
+    // Resetar contador após 1 segundo sem cliques
+    const timer = setTimeout(() => {
+      setThemeClickCount(0);
+    }, 1000);
+    
+    setThemeClickTimer(timer);
+  }, [themeClickCount, themeClickTimer]);
 
   // Subscribe to real-time notifications
   useEffect(() => {
@@ -237,6 +338,33 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
 
+  // Limpar timer ao desmontar
+  useEffect(() => {
+    return () => {
+      if (clickTimer) {
+        clearTimeout(clickTimer);
+      }
+    };
+  }, [clickTimer]);
+
+  // Limpar timer do avatar ao desmontar
+  useEffect(() => {
+    return () => {
+      if (avatarClickTimer) {
+        clearTimeout(avatarClickTimer);
+      }
+    };
+  }, [avatarClickTimer]);
+
+  // Limpar timer do theme ao desmontar
+  useEffect(() => {
+    return () => {
+      if (themeClickTimer) {
+        clearTimeout(themeClickTimer);
+      }
+    };
+  }, [themeClickTimer]);
+
   // Memoizar função de verificação de item ativo
   const isItemActive = useCallback((item: NavItem) => {
     return currentNav === item.id || location.pathname.startsWith(item.path);
@@ -328,9 +456,21 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                 <motion.div
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
+                  animate={isAvatarShaking ? {
+                    x: [0, -8, 8, -8, 8, -4, 4, 0],
+                    rotate: [0, -3, 3, -3, 3, -1.5, 1.5, 0]
+                  } : {}}
+                  transition={{ duration: 0.5, ease: "easeInOut" }}
                   className="relative cursor-pointer"
+                  onClick={() => handleAvatarClick()}
                 >
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] ring-2 ring-offset-2 ring-[hsl(var(--education-primary-light))] shadow-md">
+                  <motion.div
+                    animate={isAvatarShaking ? {
+                      scale: [1, 1.15, 1, 1.15, 1]
+                    } : {}}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <div className={`w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] ring-2 ring-offset-2 ring-[hsl(var(--education-primary-light))] shadow-md ${isAvatarShaking ? 'ring-4 ring-blue-400 dark:ring-blue-500' : ''}`}>
                     {userAvatarUrl ? (
                       <img
                         src={userAvatarUrl}
@@ -342,7 +482,8 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                         {userName.charAt(0).toUpperCase()}
                       </div>
                     )}
-                  </div>
+                    </div>
+                  </motion.div>
                 </motion.div>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="center" className="w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2">
@@ -368,7 +509,20 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
               </DropdownMenuContent>
             </DropdownMenu>
             
-            <ThemeToggle />
+            {/* Theme Toggle com animação - Giro suave */}
+            <motion.div
+              animate={isThemeShaking ? {
+                rotate: [0, 360],
+                scale: [1, 1.2, 1]
+              } : {}}
+              transition={{ 
+                duration: 0.6, 
+                ease: [0.34, 1.56, 0.64, 1] // Bounce easing
+              }}
+              onClick={handleThemeClick}
+            >
+              <ThemeToggle />
+            </motion.div>
           </div>
         ) : (
           <div className="flex flex-col w-full gap-3">
@@ -392,8 +546,80 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
             )}
             
             {/* Card integrado estilo Apple: Avatar + Notificação + Tema */}
-            <div className="relative w-full">
-              <div className="flex items-stretch gap-0 rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white/90 to-gray-50/90 dark:from-gray-800/90 dark:to-gray-900/90 backdrop-blur-xl shadow-lg overflow-hidden">
+            <motion.div 
+              className="relative w-full"
+              animate={isShaking ? {
+                x: [0, -5, 35, -5, 10, -15, 5, 0],
+                rotate: [0, -2, 2, -2, 2, -1, 1, 0]
+              } : {}}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+            >
+              {/* Glow effect quando theme está shaking */}
+              <AnimatePresence>
+                {isThemeShaking && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 rounded-2xl pointer-events-none"
+                  >
+                    {/* Outer glow - camada mais intensa */}
+                    <motion.div
+                      className="absolute inset-0 rounded-2xl blur-2xl"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.9), rgba(59, 130, 246, 0.9), rgba(147, 51, 234, 0.9))',
+                      }}
+                      animate={{
+                        scale: [1, 1.15, 1],
+                        opacity: [0.8, 1, 0.8],
+                      }}
+                      transition={{
+                        duration: 0.8,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
+                    />
+                    {/* Segunda camada de glow para mais intensidade */}
+                    <motion.div
+                      className="absolute inset-0 rounded-2xl blur-xl"
+                      style={{
+                        background: 'radial-gradient(circle at 50% 50%, rgba(147, 51, 234, 0.8), rgba(59, 130, 246, 0.8))',
+                      }}
+                      animate={{
+                        scale: [1.05, 1.2, 1.05],
+                        opacity: [0.6, 0.9, 0.6],
+                      }}
+                      transition={{
+                        duration: 1,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
+                    />
+                    {/* Animated border */}
+                    <motion.div
+                      className="absolute inset-0 rounded-2xl"
+                      style={{
+                        background: 'linear-gradient(135deg, #9333ea, #3b82f6, #9333ea, #3b82f6)',
+                        backgroundSize: '300% 300%',
+                        padding: '2px',
+                        WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                        WebkitMaskComposite: 'xor',
+                        maskComposite: 'exclude',
+                      }}
+                      animate={{
+                        backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+                      }}
+                      transition={{
+                        duration: 1.2,
+                        repeat: Infinity,
+                        ease: "linear"
+                      }}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              
+              <div className="flex items-stretch gap-0 rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white/90 to-gray-50/90 dark:from-gray-800/90 dark:to-gray-900/90 backdrop-blur-xl shadow-lg overflow-hidden relative z-10">
                 
                 {/* Avatar Section */}
                 <DropdownMenu>
@@ -401,10 +627,22 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                     <motion.div
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
+                      animate={isAvatarShaking ? {
+                        x: [0, -8, 8, -8, 8, -4, 4, 0],
+                        rotate: [0, -3, 3, -3, 3, -1.5, 1.5, 0]
+                      } : {}}
+                      transition={{ duration: 0.5, ease: "easeInOut" }}
                       className="flex items-center justify-center p-3 cursor-pointer group"
+                      onClick={() => handleAvatarClick()}
                     >
-                      <div className="relative">
-                        <div className="w-11 h-11 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 ring-2 ring-white/20 dark:ring-gray-700/20 shadow-md group-hover:ring-4 transition-all duration-300">
+                      <motion.div 
+                        className="relative"
+                        animate={isAvatarShaking ? {
+                          scale: [1, 1.1, 1, 1.1, 1]
+                        } : {}}
+                        transition={{ duration: 0.5 }}
+                      >
+                        <div className={`w-11 h-11 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 ring-2 ring-white/20 dark:ring-gray-700/20 shadow-md group-hover:ring-4 transition-all duration-300 ${isAvatarShaking ? 'ring-4 ring-blue-400 dark:ring-blue-500' : ''}`}>
                           {userAvatarUrl ? (
                             <img
                               src={userAvatarUrl}
@@ -417,7 +655,7 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                             </div>
                           )}
                         </div>
-                      </div>
+                      </motion.div>
                     </motion.div>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2">
@@ -449,7 +687,7 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                 {/* Notification Section - Apple style */}
                 <motion.div 
                   className="flex-1 min-w-0 cursor-pointer group relative"
-                  onClick={() => setShowNotifications(!showNotifications)}
+                  onClick={handleNotificationClick}
                   whileHover={{ backgroundColor: "rgba(0,0,0,0.02)" }}
                   whileTap={{ scale: 0.98 }}
                   transition={{ duration: 0.15 }}
@@ -474,7 +712,10 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                       {unreadCount > 0 && (
                         <motion.div
                           initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
+                          animate={{ 
+                            scale: isShaking ? [1, 1.3, 1, 1.3, 1] : 1 
+                          }}
+                          transition={{ duration: 0.5 }}
                           className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center shadow-sm"
                         >
                           <span className="text-white text-[9px] font-bold leading-none">
@@ -525,10 +766,21 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                 {/* Divider */}
                 <div className="w-px bg-gradient-to-b from-transparent via-gray-200 to-transparent dark:via-gray-700" />
 
-                {/* Theme Toggle Section */}
-                <div className="flex items-center justify-center p-2.5">
+                {/* Theme Toggle Section - Animação sutil */}
+                <motion.div 
+                  className="flex items-center justify-center p-2.5"
+                  animate={isThemeShaking ? {
+                    rotate: [0, 360],
+                    scale: [1, 1.2, 1]
+                  } : {}}
+                  transition={{ 
+                    duration: 0.6, 
+                    ease: [0.34, 1.56, 0.64, 1] // Bounce easing
+                  }}
+                  onClick={handleThemeClick}
+                >
                   <ThemeToggle />
-                </div>
+                </motion.div>
               </div>
 
               {/* Dropdown - Apple style glassmorphism */}
@@ -716,7 +968,7 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
+            </motion.div>
           </div>
         )}
 
