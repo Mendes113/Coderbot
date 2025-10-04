@@ -58,10 +58,6 @@ import {
   registerUserAction,
   ClassMissionRecord,
   MissionType,
-  ClassActivityRecord,
-  listClassActivities,
-  getLatestActivityAttempt,
-  ActivityAttemptRecord,
 } from '@/integrations/pocketbase/client';
 
 type ForumInteractionType = 'post_viewed' | 'post_expanded' | 'comment_created' | 'external_link_clicked' | 'activity_started' | 'activity_completed' | 'mission_progress_updated';
@@ -73,14 +69,6 @@ interface ActivityProgress {
   percentage: number;
   isCompleted: boolean;
   isInProgress: boolean;
-}
-
-interface QuizActivityStatus {
-  activity: ClassActivityRecord;
-  attempt: ActivityAttemptRecord | null;
-  status: 'not_started' | 'in_progress' | 'completed';
-  score?: number;
-  maxScore?: number;
 }
 
 const missionTypeIcons: Record<string, React.ReactNode> = {
@@ -304,8 +292,6 @@ const ClassForumPage = () => {
   const [missions, setMissions] = useState<ClassMissionRecord[]>([]);
   const [loadingMissions, setLoadingMissions] = useState(false);
   const [activitiesMap, setActivitiesMap] = useState<Record<string, ActivityProgress>>({});
-  const [quizActivities, setQuizActivities] = useState<ClassActivityRecord[]>([]);
-  const [quizActivitiesStatus, setQuizActivitiesStatus] = useState<Record<string, QuizActivityStatus>>({});
 
   const dateFormatter = useMemo(
     () =>
@@ -412,7 +398,6 @@ const ClassForumPage = () => {
   const loadMissions = useCallback(async () => {
     if (!classInfo || forbidden) {
       setMissions([]);
-      setQuizActivities([]);
       return;
     }
 
@@ -422,10 +407,6 @@ const ClassForumPage = () => {
       // Carregar missões tradicionais
       const classMissions = await listClassMissions(classInfo.id, { status: 'active' });
       setMissions(classMissions);
-
-      // Carregar quiz/survey activities
-      const classActivities = await listClassActivities(classInfo.id, { status: 'active' });
-      setQuizActivities(classActivities);
 
       // Para cada missão, inicializar o progresso do usuário atual
       if (userId) {
@@ -466,39 +447,6 @@ const ClassForumPage = () => {
           activitiesMapData[activity.mission.id] = activity;
         });
         setActivitiesMap(activitiesMapData);
-
-        // Para cada quiz activity, verificar status do aluno
-        const quizStatusPromises = classActivities.map(async (activity) => {
-          try {
-            const attempt = await getLatestActivityAttempt(activity.id, userId);
-            
-            let status: 'not_started' | 'in_progress' | 'completed' = 'not_started';
-            if (attempt) {
-              status = attempt.status as any;
-            }
-
-            return {
-              activity,
-              attempt,
-              status,
-              score: attempt?.score,
-              maxScore: attempt?.max_score,
-            };
-          } catch (error) {
-            return {
-              activity,
-              attempt: null,
-              status: 'not_started' as const,
-            };
-          }
-        });
-
-        const quizStatusData = await Promise.all(quizStatusPromises);
-        const quizStatusMap: Record<string, QuizActivityStatus> = {};
-        quizStatusData.forEach(status => {
-          quizStatusMap[status.activity.id] = status;
-        });
-        setQuizActivitiesStatus(quizStatusMap);
       }
     } catch (error) {
       console.error('Erro ao carregar missões:', error);
@@ -939,7 +887,7 @@ const ClassForumPage = () => {
         </Card>
 
         {/* Seção de Atividades e Missões */}
-        {!loadingMissions && (missions.length > 0 || quizActivities.length > 0) && (
+        {!loadingMissions && missions.length > 0 && (
           <Card className="mb-8 border-primary/20 bg-gradient-to-r from-primary/5 via-background to-primary/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -1054,137 +1002,17 @@ const ClassForumPage = () => {
                     </Card>
                   );
                 })}
-
-                {/* Render quiz/survey activities */}
-                {quizActivities.map((quizActivity) => {
-                  const quizStatus = quizActivitiesStatus[quizActivity.id];
-                  const isCompleted = quizStatus?.status === 'completed';
-                  const isInProgress = quizStatus?.status === 'in_progress';
-                  const scorePercentage = quizStatus?.score && quizStatus?.maxScore 
-                    ? (quizStatus.score / quizStatus.maxScore) * 100 
-                    : undefined;
-
-                  return (
-                    <Card key={quizActivity.id} className={`transition-all hover:shadow-md ${
-                      isCompleted ? 'border-green-200 bg-green-50/50' :
-                      isInProgress ? 'border-purple-200 bg-purple-50/50' :
-                      'border-border/50'
-                    }`}>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-2">
-                            {isCompleted ? (
-                              <CheckCircle className="h-5 w-5 text-green-600" />
-                            ) : isInProgress ? (
-                              <Clock className="h-5 w-5 text-purple-600" />
-                            ) : (
-                              <FileText className="h-5 w-5 text-purple-500" />
-                            )}
-                            <CardTitle className="text-sm font-medium leading-tight">
-                              {quizActivity.title}
-                            </CardTitle>
-                          </div>
-                          <Badge variant={isCompleted ? "default" : "outline"} className="text-xs bg-purple-100 text-purple-700">
-                            {quizActivity.reward_points || 0} pts
-                          </Badge>
-                        </div>
-                        {quizActivity.description && (
-                          <CardDescription className="text-xs line-clamp-2">
-                            {quizActivity.description}
-                          </CardDescription>
-                        )}
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
-                            {quizActivity.activity_type}
-                          </Badge>
-                          {quizActivity.time_limit && quizActivity.time_limit > 0 && (
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {quizActivity.time_limit} min
-                            </span>
-                          )}
-                        </div>
-
-                        {isCompleted && scorePercentage !== undefined && (
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-xs">
-                              <span>Pontuação</span>
-                              <span className="font-medium">
-                                {quizStatus.score}/{quizStatus.maxScore}
-                              </span>
-                            </div>
-                            <div className="w-full bg-muted rounded-full h-2">
-                              <div
-                                className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                                style={{ width: `${scorePercentage}%` }}
-                              />
-                            </div>
-                            <p className="text-xs text-green-600">
-                              {scorePercentage.toFixed(0)}% de acertos
-                            </p>
-                          </div>
-                        )}
-
-                        {isInProgress && (
-                          <div className="flex items-center gap-2 text-purple-600">
-                            <Clock className="h-4 w-4" />
-                            <span className="text-sm font-medium">Em andamento</span>
-                          </div>
-                        )}
-
-                        {isCompleted && (
-                          <div className="flex items-center gap-2 text-green-600">
-                            <Trophy className="h-4 w-4" />
-                            <span className="text-sm font-medium">Concluída!</span>
-                          </div>
-                        )}
-
-                        {isCompleted ? (
-                          <Button
-                            size="sm"
-                            className="w-full"
-                            variant="outline"
-                            onClick={() => navigate(`/activity/${quizActivity.id}/results`)}
-                          >
-                            <CheckCircle className="mr-2 h-3 w-3" />
-                            Ver Resultados
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            className="w-full"
-                            onClick={() => navigate(`/activity/${quizActivity.id}`)}
-                          >
-                            {isInProgress ? (
-                              <>
-                                <Play className="mr-2 h-3 w-3" />
-                                Continuar Quiz
-                              </>
-                            ) : (
-                              <>
-                                <Play className="mr-2 h-3 w-3" />
-                                Iniciar Quiz
-                              </>
-                            )}
-                          </Button>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
               </div>
 
-              {(missions.length > 6 || quizActivities.length > 6) && (
+              {missions.length > 6 && (
                 <div className="mt-4 text-center">
                   <Button variant="outline" size="sm">
-                    Ver todas as {missions.length + quizActivities.length} atividades
+                    Ver todas as {missions.length} atividades
                   </Button>
                 </div>
               )}
 
-              {missions.length === 0 && quizActivities.length === 0 && (
+              {missions.length === 0 && (
                 <div className="text-center py-8">
                   <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">Nenhuma atividade disponível</h3>

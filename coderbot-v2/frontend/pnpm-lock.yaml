@@ -311,18 +311,6 @@ importers:
       sonner:
         specifier: ^1.5.0
         version: 1.7.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      survey-core:
-        specifier: ^2.3.9
-        version: 2.3.9
-      survey-creator-core:
-        specifier: ^2.3.9
-        version: 2.3.9(survey-core@2.3.9)
-      survey-creator-react:
-        specifier: ^2.3.9
-        version: 2.3.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(survey-core@2.3.9)(survey-creator-core@2.3.9(survey-core@2.3.9))(survey-react-ui@2.3.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(survey-core@2.3.9))
-      survey-react-ui:
-        specifier: ^2.3.9
-        version: 2.3.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(survey-core@2.3.9)
       tailwind-merge:
         specifier: ^2.5.2
         version: 2.6.0
@@ -14001,6 +13989,10 @@ snapshots:
       rehype-raw: 7.0.0
       remark-gfm: 4.0.1
       sonner: 1.7.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      survey-core: 2.3.9
+      survey-creator-core: 2.3.9(survey-core@2.3.9)
+      survey-creator-react: 2.3.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(survey-core@2.3.9)(survey-creator-core@2.3.9(survey-core@2.3.9))(survey-react-ui@2.3.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(survey-core@2.3.9))
+      survey-react-ui: 2.3.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(survey-core@2.3.9)
       tailwind-merge: 2.6.0
       tailwindcss-animate: 1.0.7(tailwindcss@3.4.17(ts-node@10.9.2(@swc/core@1.11.24)(@types/node@22.15.10)(typescript@5.8.3)))
       turndown: 7.2.1
@@ -14020,6 +14012,7 @@ snapshots:
       - '@types/node'
       - '@types/react'
       - '@types/react-dom'
+      - ace-builds
       - bufferutil
       - debug
       - immer
