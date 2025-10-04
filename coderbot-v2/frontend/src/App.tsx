@@ -66,7 +66,7 @@ const App = () => {
     const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY || import.meta.env.VITE_POSTHOG_KEY;
     const posthogHost = import.meta.env.VITE_PUBLIC_POSTHOG_HOST || import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com';
 
-    console.info('[Analytics] PostHog env', { hasKey: Boolean(posthogKey), host: posthogHost });
+    // console.info('[Analytics] PostHog env', { hasKey: Boolean(posthogKey), host: posthogHost });
 
     if (!posthogKey) return;
 
@@ -77,19 +77,20 @@ const App = () => {
       capture_pageview: false,
       autocapture: true,
       disable_session_recording: true,
-      debug: true,
+      debug: false, // Desabilitado para reduzir logs
       request_batching: false,
     });
 
     (window as any).posthog = posthog;
 
-    const __originalCapture = (posthog.capture as any)?.bind?.(posthog);
-    if (__originalCapture) {
-      (posthog as any).capture = (event: string, props?: Record<string, any>) => {
-        console.debug('[Analytics][capture]', event, props);
-        return __originalCapture(event, props);
-      };
-    }
+    // Removido wrapper de console.debug para capture
+    // const __originalCapture = (posthog.capture as any)?.bind?.(posthog);
+    // if (__originalCapture) {
+    //   (posthog as any).capture = (event: string, props?: Record<string, any>) => {
+    //     console.debug('[Analytics][capture]', event, props);
+    //     return __originalCapture(event, props);
+    //   };
+    // }
 
     posthog.capture('edu_debug_boot', { path: window.location.pathname });
 
@@ -121,7 +122,6 @@ const App = () => {
         console.warn('[Analytics][web-vitals] Not available after load');
         return;
       }
-      console.info('[Analytics][web-vitals] Ready');
       const nav = performance.getEntriesByType('navigation')[0] as any;
       const send = (metric: any) => {
         try {

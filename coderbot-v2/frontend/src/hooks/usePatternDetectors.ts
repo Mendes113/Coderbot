@@ -90,32 +90,67 @@ export const useVimCommandDetector = (
 ) => {
   const commandsRef = useRef<string[]>([]);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const inputBufferRef = useRef<string>('');
 
   // Comandos Vim clássicos para detectar
-  const VIM_COMMANDS = [':w', ':q', ':wq', 'dd', 'yy', 'gg', 'ZZ', 'u', ':e'];
+  const VIM_COMMANDS = [':w', ':q', ':wq', ':q!', 'dd', 'yy', 'gg', 'ZZ', 'u', ':e'];
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      console.log('⌨️ [useVimCommandDetector] Hook is DISABLED');
+      return;
+    }
+
+    console.log('⌨️ [useVimCommandDetector] Hook is ENABLED and listening...');
+    console.log('⌨️ [useVimCommandDetector] Valid commands:', VIM_COMMANDS);
 
     const handleKeyPress = (event: KeyboardEvent) => {
-      // Detectar dois pontos (:) como início de comando
-      if (event.key === ':' || event.key === 'd' || event.key === 'y' || event.key === 'g' || event.key === 'Z' || event.key === 'u') {
-        const currentSequence = commandsRef.current.join('') + event.key;
-        
-        // Verificar se algum comando Vim foi formado
-        for (const cmd of VIM_COMMANDS) {
-          if (currentSequence.endsWith(cmd)) {
-            commandsRef.current.push(cmd);
-            
-            // Detectar após 3 comandos Vim válidos
-            if (commandsRef.current.length >= 3) {
-              onDetect();
-              commandsRef.current = [];
-              return;
-            }
-            break;
+      // Ignorar se estiver em campos de input/textarea
+      const target = event.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      console.log('⌨️ [useVimCommandDetector] Key pressed:', event.key);
+      
+      // Adicionar tecla ao buffer de entrada
+      inputBufferRef.current += event.key;
+      
+      // Limitar tamanho do buffer
+      if (inputBufferRef.current.length > 10) {
+        inputBufferRef.current = inputBufferRef.current.slice(-10);
+      }
+
+      console.log('⌨️ [useVimCommandDetector] Input buffer:', inputBufferRef.current);
+      
+      // Verificar se algum comando Vim foi formado
+      let commandDetected = false;
+      for (const cmd of VIM_COMMANDS) {
+        if (inputBufferRef.current.endsWith(cmd)) {
+          console.log('✅ [useVimCommandDetector] Command detected:', cmd);
+          commandsRef.current.push(cmd);
+          commandDetected = true;
+          
+          console.log('⌨️ [useVimCommandDetector] Total commands so far:', commandsRef.current.length, commandsRef.current);
+          
+          // Detectar após 3 comandos Vim válidos
+          if (commandsRef.current.length >= 3) {
+            console.log('🎉 [useVimCommandDetector] VIM MASTER ACHIEVED! Commands:', commandsRef.current);
+            onDetect();
+            commandsRef.current = [];
+            inputBufferRef.current = '';
+            return;
           }
+          break;
         }
+      }
+
+      if (!commandDetected) {
+        console.log('❌ [useVimCommandDetector] No command matched yet');
       }
 
       // Limpar timeout anterior
@@ -125,7 +160,9 @@ export const useVimCommandDetector = (
 
       // Reset após 3 segundos de inatividade
       timeoutRef.current = setTimeout(() => {
+        console.log('⏱️ [useVimCommandDetector] Timeout - resetting buffer and commands');
         commandsRef.current = [];
+        inputBufferRef.current = '';
       }, 3000);
     };
 
