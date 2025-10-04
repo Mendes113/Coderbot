@@ -14,7 +14,9 @@ import { useMobileDetection } from "@/hooks/useMobileDetection";
 import MobileLayout from "@/components/layout/MobileLayout";
 import MobileHome from "@/components/mobile/MobileHome";
 import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
+import { gamificationService } from "@/services/gamification/GamificationService";
 import Auth from "./pages/Auth";
+// import { CodeEditorProvider } from "@/context/CodeEditorContext";
 // import { CodeEditorProvider } from "@/context/CodeEditorContext";
 
 // Lazy loading otimizado com preload para rotas críticas
@@ -155,6 +157,25 @@ const App = () => {
       resetAnalytics();
     }
   }, [consentStatus, initializeAnalytics, resetAnalytics]);
+
+  // 🎮 Initialize Gamification Service
+  useEffect(() => {
+    const initGamification = async () => {
+      try {
+        if (!gamificationService.isInitialized()) {
+          await gamificationService.initialize();
+          console.log('[App] 🎮 Gamification Service initialized');
+        }
+      } catch (error) {
+        console.error('[App] Failed to initialize Gamification Service:', error);
+      }
+    };
+
+    // Inicializar quando usuário estiver autenticado
+    if (pb.authStore.isValid) {
+      initGamification();
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
