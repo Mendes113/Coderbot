@@ -20,7 +20,7 @@ export function useGamification() {
   const [isInitialized, setIsInitialized] = useState(false);
 
   /**
-   * Rastreia uma ação de easter egg e mostra toast se completado
+   * Rastreia uma ação de easter egg e mostra toast se completado PELA PRIMEIRA VEZ
    */
   const trackAction = useCallback(async (
     easterEggName: string,
@@ -29,7 +29,8 @@ export function useGamification() {
   ) => {
     const result = await gamificationService.trackEasterEggAction(easterEggName, actionData);
     
-    if (result.completed && result.achievement && (options?.showToast !== false)) {
+    // ✅ Só mostra toast se completou AGORA (não se já estava completado antes)
+    if (result.completed && result.achievement && result.achievement.is_new && (options?.showToast !== false)) {
       toast.success(result.achievement.display_name, {
         description: result.achievement.achievement_message,
         duration: 5000,
