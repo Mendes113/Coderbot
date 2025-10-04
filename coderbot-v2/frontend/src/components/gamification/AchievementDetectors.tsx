@@ -23,27 +23,60 @@ export const AchievementDetectors = () => {
   const [achievements, setAchievements] = useState<AchievementConfig[]>([]);
   const currentUser = getCurrentUser();
 
+  console.log('🎮 [AchievementDetectors] Rendering with user:', currentUser?.id || 'NOT AUTHENTICATED');
+
   // Carregar achievements dinamicamente
   useEffect(() => {
     const loadAchievements = async () => {
-      const configs = await achievementConfigService.loadAchievements();
-      setAchievements(configs);
-      console.log('[AchievementDetectors] Loaded achievements:', configs.length);
+      try {
+        const configs = await achievementConfigService.loadAchievements();
+        setAchievements(configs);
+        console.log('🎮 [AchievementDetectors] Loaded', configs.length, 'achievements');
+      } catch (error) {
+        console.error('[AchievementDetectors] Failed to load achievements:', error);
+      }
     };
 
-    loadAchievements();
-  }, []);
+    // Só carregar achievements se usuário estiver autenticado
+    if (currentUser) {
+      loadAchievements();
+    } else {
+      console.log('🎮 [AchievementDetectors] Skipping load - no user authenticated');
+    }
+  }, [currentUser]);
+
+  // Log dos achievements carregados (debug)
+  useEffect(() => {
+    if (achievements.length > 0) {
+      console.log('📋 [AchievementDetectors] Available achievements:', 
+        achievements.map(a => a.name).join(', ')
+      );
+    }
+  }, [achievements]);
 
   // Helper para rastrear achievement com notificação
   const trackAchievementWithNotification = async (
     achievementName: string,
     actionData: Record<string, any>
   ) => {
+    console.log('🎯 [trackAchievementWithNotification] Called for:', achievementName, actionData);
+    
     const result = await trackAction(achievementName, actionData);
+    
+    console.log('🎯 [trackAchievementWithNotification] trackAction result:', {
+      completed: result.completed,
+      isNew: result.achievement?.is_new,
+      hasUser: !!currentUser
+    });
     
     // Se foi desbloqueado pela primeira vez, enviar notificação
     if (result.completed && result.achievement?.is_new && currentUser) {
+      console.log('📧 [trackAchievementWithNotification] Achievement is NEW - sending notification...');
+      
       const achievement = achievementConfigService.getAchievementByName(achievementName);
+      
+      console.log('🔍 [trackAchievementWithNotification] Achievement config:', achievement);
+      
       if (achievement) {
         await sendAchievementNotification({
           userId: currentUser.id,
@@ -52,11 +85,25 @@ export const AchievementDetectors = () => {
           achievementDescription: achievement.description,
           points: achievement.points
         });
+        console.log('✅ [trackAchievementWithNotification] Notification sent successfully');
+      } else {
+        console.warn('⚠️ [trackAchievementWithNotification] Achievement config not found for:', achievementName);
       }
+    } else {
+      console.log('ℹ️ [trackAchievementWithNotification] No notification sent because:', {
+        wasCompleted: result.completed,
+        wasNew: result.achievement?.is_new,
+        hasUser: !!currentUser
+      });
     }
     
     return result;
   };
+
+  // 🔒 Só ativar hooks se usuário estiver autenticado
+  const hooksEnabled = !!currentUser;
+  
+  console.log('🎮 [AchievementDetectors] Hooks enabled:', hooksEnabled);
 
   // 🎮 Easter Egg: Konami Code
   useKonamiCode(
@@ -73,7 +120,7 @@ export const AchievementDetectors = () => {
         description: 'Você descobriu o código secreto dos gamers raiz!'
       });
     },
-    achievements.length > 0 // Só ativar após carregar achievements
+    hooksEnabled // Ativo apenas se usuário autenticado
   );
 
   // 🛠️ Easter Egg: Dev Tools Detective
@@ -88,7 +135,7 @@ export const AchievementDetectors = () => {
         description: 'Você descobriu os segredos do código! Curioso...'
       });
     },
-    achievements.length > 0
+    hooksEnabled // Ativo apenas se usuário autenticado
   );
 
   // ⌨️ Easter Egg: Vim Master (detectar comandos Vim)
@@ -103,7 +150,7 @@ export const AchievementDetectors = () => {
         description: 'Você é um verdadeiro ninja do teclado! :wq'
       });
     },
-    achievements.length > 0
+    hooksEnabled // Ativo apenas se usuário autenticado
   );
 
   // 🗺️ Easter Egg: Treasure Hunter (explorar todas as páginas)
@@ -120,11 +167,11 @@ export const AchievementDetectors = () => {
         description: `Você explorou todas as ${visitedPaths.length} áreas da plataforma!`
       });
     },
-    achievements.length > 0,
+    hooksEnabled, // Ativo apenas se usuário autenticado
     120000 // 2 minutos para visitar todas as páginas
   );
 
-    // 🌅 Easter Egg: Early Bird (acesso entre 5h-7h)
+  // 🌅 Easter Egg: Early Bird (acesso entre 5h-7h)
   useTextPatternDetector(
     ['early_bird_check'],
     async () => {
@@ -141,7 +188,7 @@ export const AchievementDetectors = () => {
         });
       }
     },
-    achievements.length > 0,
+    hooksEnabled, // Ativo apenas se usuário autenticado
     5000
   );
 
@@ -162,11 +209,9 @@ export const AchievementDetectors = () => {
         });
       }
     },
-    achievements.length > 0,
+    hooksEnabled, // Ativo apenas se usuário autenticado
     5000
-  );
-
-  return (
+  );  return (
     <>
       {showMatrix && (
         <MatrixRain

@@ -31,17 +31,22 @@ class GamificationService {
    * Inicializa o serviço (deve ser chamado no mount da aplicação)
    */
   async initialize(): Promise<void> {
+    console.log('🎮 [GamificationService] initialize() called');
+    console.log('🎮 [GamificationService] Current initialized state:', this.initialized);
+    
     if (this.initialized) {
-      console.warn('[GamificationService] Already initialized');
+      console.warn('[GamificationService] Already initialized - skipping');
       return;
     }
 
     try {
+      console.log('🎮 [GamificationService] Calling tracker.initialize()...');
       await this.tracker.initialize();
+      
       this.initialized = true;
-      console.log('[GamificationService] Initialized successfully');
+      console.log('✅ [GamificationService] Initialized successfully');
     } catch (error) {
-      console.error('[GamificationService] Failed to initialize:', error);
+      console.error('❌ [GamificationService] Failed to initialize:', error);
       throw error;
     }
   }

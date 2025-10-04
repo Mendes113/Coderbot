@@ -18,10 +18,17 @@ export async function sendAchievementNotification({
   achievementDescription,
   points
 }: SendAchievementNotificationParams): Promise<void> {
+  console.log('📬 [sendAchievementNotification] Called with:', {
+    userId,
+    achievementName,
+    achievementIcon,
+    points
+  });
+
   try {
-    await pb.collection('notifications').create({
+    const notificationData = {
       recipient: userId,
-      sender: 'system', // Sistema envia a notificação
+      sender: userId, // Self-notification (próprio usuário como sender)
       title: `${achievementIcon} Carta Especial: ${achievementName}`,
       content: `Parabéns! Você desbloqueou "${achievementName}"!\n\n${achievementDescription}\n\n🎯 +${points} pontos ganhos!`,
       type: 'achievement',
@@ -32,10 +39,19 @@ export async function sendAchievementNotification({
         points,
         timestamp: new Date().toISOString()
       }
-    });
+    };
 
-    console.log(`[Achievement] Notification sent for "${achievementName}" to user ${userId}`);
+    console.log('📬 [sendAchievementNotification] Creating notification with data:', notificationData);
+
+    const result = await pb.collection('notifications').create(notificationData);
+
+    console.log(`✅ [sendAchievementNotification] Notification created successfully:`, result.id);
   } catch (error) {
-    console.error('[Achievement] Failed to send notification:', error);
+    console.error('❌ [sendAchievementNotification] Failed to send notification:', error);
+    console.error('❌ Error details:', {
+      message: (error as any)?.message,
+      data: (error as any)?.data,
+      status: (error as any)?.status
+    });
   }
 }

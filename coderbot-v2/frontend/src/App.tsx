@@ -66,7 +66,7 @@ const App = () => {
     const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY || import.meta.env.VITE_POSTHOG_KEY;
     const posthogHost = import.meta.env.VITE_PUBLIC_POSTHOG_HOST || import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com';
 
-    console.info('[Analytics] PostHog env', { hasKey: Boolean(posthogKey), host: posthogHost });
+    // console.info('[Analytics] PostHog env', { hasKey: Boolean(posthogKey), host: posthogHost });
 
     if (!posthogKey) return;
 
@@ -77,19 +77,20 @@ const App = () => {
       capture_pageview: false,
       autocapture: true,
       disable_session_recording: true,
-      debug: true,
+      debug: false, // Desabilitado para reduzir logs
       request_batching: false,
     });
 
     (window as any).posthog = posthog;
 
-    const __originalCapture = (posthog.capture as any)?.bind?.(posthog);
-    if (__originalCapture) {
-      (posthog as any).capture = (event: string, props?: Record<string, any>) => {
-        console.debug('[Analytics][capture]', event, props);
-        return __originalCapture(event, props);
-      };
-    }
+    // Removido wrapper de console.debug para capture
+    // const __originalCapture = (posthog.capture as any)?.bind?.(posthog);
+    // if (__originalCapture) {
+    //   (posthog as any).capture = (event: string, props?: Record<string, any>) => {
+    //     console.debug('[Analytics][capture]', event, props);
+    //     return __originalCapture(event, props);
+    //   };
+    // }
 
     posthog.capture('edu_debug_boot', { path: window.location.pathname });
 
@@ -118,14 +119,13 @@ const App = () => {
     loadWebVitalsScript().then(() => {
       const wv = (window as any).webVitals;
       if (!wv) {
-        console.warn('[Analytics][web-vitals] Not available after load');
+        // console.warn('[Analytics][web-vitals] Not available after load');
         return;
       }
-      console.info('[Analytics][web-vitals] Ready');
       const nav = performance.getEntriesByType('navigation')[0] as any;
       const send = (metric: any) => {
         try {
-          console.debug('[Analytics][web-vitals][report]', metric?.name, metric?.value, metric);
+          // console.debug('[Analytics][web-vitals][report]', metric?.name, metric?.value, metric);
           posthog.capture('$web_vitals', {
             metric_name: metric?.name,
             value: metric?.value,
@@ -136,7 +136,7 @@ const App = () => {
             navigation_type: nav?.type,
           });
         } catch (e) {
-          console.warn('[Analytics][web-vitals] capture failed', e);
+          // console.warn('[Analytics][web-vitals] capture failed', e);
         }
       };
       wv.onCLS?.(send, { reportAllChanges: true });
@@ -146,7 +146,7 @@ const App = () => {
       wv.onINP?.(send, { reportAllChanges: true });
       wv.onFCP?.(send);
     }).catch((e) => {
-      console.warn('[Analytics] Web Vitals load failed', e);
+      // console.warn('[Analytics] Web Vitals load failed', e);
     });
   }, []);
 
@@ -286,7 +286,7 @@ const AnalyticsTracker = ({ enabled }: { enabled: boolean }) => {
   useEffect(() => {
     if (!enabled) return;
     if (posthog && typeof posthog.capture === 'function') {
-      console.debug('[Analytics][$pageview]', { path: location.pathname });
+      // console.debug('[Analytics][$pageview]', { path: location.pathname });
       posthog.capture('$pageview', { path: location.pathname });
     }
   }, [location.pathname, enabled]);
@@ -296,12 +296,12 @@ const AnalyticsTracker = ({ enabled }: { enabled: boolean }) => {
     const handleVisibility = () => {
       const eventName = document.visibilityState === 'visible' ? 'edu_app_focus' : 'edu_app_blur';
       if (posthog && typeof posthog.capture === 'function') {
-        console.debug('[Analytics][visibility]', { eventName });
+        // console.debug('[Analytics][visibility]', { eventName });
         posthog.capture(eventName);
         if (document.visibilityState !== 'visible') {
           // Send $pageleave to improve bounce/session duration analytics
           posthog.capture('$pageleave', { path: location.pathname });
-          console.debug('[Analytics][$pageleave]', { path: location.pathname });
+          // console.debug('[Analytics][$pageleave]', { path: location.pathname });
         }
       }
     };
