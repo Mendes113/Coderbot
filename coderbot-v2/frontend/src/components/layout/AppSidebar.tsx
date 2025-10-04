@@ -20,8 +20,14 @@ import { useTheme } from "@/context/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
-import { DropdownMenu } from "../ui/dropdown-menu";
-
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 // Temporarily disable NextAuth.js for hydration issues
 // import { useSession } from 'next-auth/react';
 
@@ -548,38 +554,51 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                               }}
                             >
                               <div className="flex items-start gap-3">
-                                {/* Avatar */}
-
-{/* 
-                               
-                                {/* Isso aqui vai ser um DropDown, o trigger é so um botão */}
-
+                                {/* Avatar with Dropdown */}
                                 <DropdownMenu>
-                                  <DropdownMenu.Trigger className="sr-only">Log out</DropdownMenu.Trigger>
-                                  <DropdownMenu.Content align="end" className="w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2">
-                                    <DropdownMenu.Item
-                                      onClick={() => {
-                                        // Handle log out
-                                        setShowNotifications(false);
+                                  <DropdownMenuTrigger asChild>
+                                    <button className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                                      {notification.expand?.sender?.avatar ? (
+                                        <img
+                                          src={`${pb.baseUrl}/api/files/${notification.expand.sender.collectionId}/${notification.expand.sender.id}/${notification.expand.sender.avatar}`}
+                                          alt={notification.expand.sender.name}
+                                          className="w-full h-full object-cover rounded-full"
+                                        />
+                                      ) : (
+                                        <span className="text-white text-xs font-semibold">
+                                          {(notification.expand?.sender?.name || 'U').charAt(0).toUpperCase()}
+                                        </span>
+                                      )}
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="start" className="w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2">
+                                    <DropdownMenuLabel className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+                                      {notification.expand?.sender?.name || 'Usuário'}
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
+                                    <DropdownMenuItem
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (notification.expand?.sender?.id) {
+                                          navigate(`/profile/${notification.expand.sender.id}`);
+                                          setShowNotifications(false);
+                                        }
                                       }}
+                                      className="text-xs cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1.5"
                                     >
-                                      Log out
-                                    </DropdownMenu.Item>
-                                  </DropdownMenu.Content>
+                                      Ver perfil
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        markAsRead(notification.id);
+                                      }}
+                                      className="text-xs cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1.5"
+                                    >
+                                      Marcar como lida
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
                                 </DropdownMenu>
-                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-sm">
-                                  {notification.expand?.sender?.avatar ? (
-                                    <img
-                                      src={`${pb.baseUrl}/api/files/${notification.expand.sender.collectionId}/${notification.expand.sender.id}/${notification.expand.sender.avatar}`}
-                                      alt={notification.expand.sender.name}
-                                      className="w-full h-full object-cover rounded-full"
-                                    />
-                                  ) : (
-                                    <span className="text-white text-xs font-semibold">
-                                      {(notification.expand?.sender?.name || 'U').charAt(0).toUpperCase()}
-                                    </span>
-                                  )}
-                                </div>
                                 
                                 {/* Content */}
                                 <div className="flex-1 min-w-0 space-y-1">
