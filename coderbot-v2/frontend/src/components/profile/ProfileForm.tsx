@@ -23,6 +23,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { AvatarPresets } from "./AvatarPresets";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { useGamification } from "@/hooks/useGamification";
+import { sendAchievementNotification } from "@/services/notifications/achievementNotifications";
+import { AchievementConfigService } from "@/services/gamification/AchievementConfigService";
 
 interface ProfileFormProps {
   isEditing: boolean;
@@ -71,6 +74,7 @@ interface Notification {
 
 export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
   const { profile, loading } = useUserData();
+  const { trackAction } = useGamification();
   const [updating, setUpdating] = useState(false);
   const [avatar, setAvatar] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -79,6 +83,31 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
   const [loadingNotifications, setLoadingNotifications] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const achievementConfigService = AchievementConfigService.getInstance();
+
+  // Helper para rastrear achievements com notificações
+  const trackAchievementWithNotification = async (
+    achievementName: string,
+    actionData: Record<string, any>
+  ) => {
+    const currentUser = getCurrentUser();
+    const result = await trackAction(achievementName, actionData, { showToast: true });
+    
+    if (result.completed && result.achievement?.is_new && currentUser) {
+      const achievement = achievementConfigService.getAchievementByName(achievementName);
+      if (achievement) {
+        await sendAchievementNotification({
+          userId: currentUser.id,
+          achievementName: achievement.name,
+          achievementIcon: achievement.icon,
+          achievementDescription: achievement.description,
+          points: achievement.points
+        });
+      }
+    }
+    
+    return result;
+  };
 
   // Small mock notifications for local testing (visible when running profile)
   const mockNotifications: Notification[] = [
@@ -152,6 +181,13 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
         setAvatarPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
+
+      // Track achievement: Avatar personalizado
+      trackAchievementWithNotification('avatar_personalizado', {
+        timestamp: new Date().toISOString(),
+        fileName: file.name,
+        fileSize: file.size
+      });
     }
   };
 
@@ -173,6 +209,12 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
       setAvatarPreview(url);
 
       toast.success('Avatar preset selecionado!');
+
+      // Track achievement: Colecionador de Avatares
+      await trackAchievementWithNotification('colecionador_avatares', {
+        timestamp: new Date().toISOString(),
+        presetUrl: url
+      });
     } catch (error) {
       console.error('Erro ao baixar preset:', error);
       toast.error('Erro ao selecionar avatar preset');
@@ -310,6 +352,46 @@ export function ProfileForm({ isEditing, onSaved }: ProfileFormProps) {
 
       // Atualiza o usuário no PocketBase
       await pb.collection("users").update(profile.id, formData);
+
+      // Track bio-related achievements
+      const oldBio = profile.bio || '';
+      const newBio = data.bio || '';
+
+      // 📝 First Bio Achievement
+      if (!oldBio && newBio.trim()) {
+        await trackAchievementWithNotification('primeira_bio', {
+          timestamp: new Date().toISOString(),
+          bioLength: newBio.length
+        });
+      }
+
+      // 📚 Bio Eloquent (100+ characters)
+      if (newBio.length >= 100) {
+        await trackAchievementWithNotification('bio_eloquente', {
+          timestamp: new Date().toISOString(),
+          bioLength: newBio.length
+        });
+      }
+
+      // ✍️ Bio Master (200+ characters)
+      if (newBio.length >= 200) {
+        await trackAchievementWithNotification('bio_master', {
+          timestamp: new Date().toISOString(),
+          bioLength: newBio.length
+        });
+      }
+
+      // 🎨 Profile Complete (name + bio + avatar)
+      const hasName = data.name.trim().length > 0;
+      const hasBio = newBio.trim().length > 0;
+      const hasAvatar = profile.avatar_url || avatar;
+      
+      if (hasName && hasBio && hasAvatar) {
+        await trackAchievementWithNotification('perfil_completo', {
+          timestamp: new Date().toISOString(),
+          completeness: 100
+        });
+      }
 
       toast.success("Perfil atualizado com sucesso");
       onSaved();

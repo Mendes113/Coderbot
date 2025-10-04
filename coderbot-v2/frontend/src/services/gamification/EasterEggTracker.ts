@@ -47,9 +47,10 @@ export class EasterEggTracker {
     // Carregar ou criar progresso
     let progress = await this.getOrCreateProgress(userId, definition.id);
     
-    // Se já completado, não fazer nada
+    // Se já completado antes, retornar sem processar (EVITA NOTIFICAÇÕES DUPLICADAS)
     if (progress.is_completed) {
-      return { completed: true, progress };
+      console.log(`[EasterEggTracker] Easter egg "${easterEggName}" already completed for user ${userId}`);
+      return { completed: false, progress }; // FALSE = não é nova conquista
     }
 
     // Atualizar progresso baseado no tipo de trigger

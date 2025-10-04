@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { useGamification } from "@/hooks/useGamification";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,6 +69,11 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
   const [isThemeShaking, setIsThemeShaking] = useState(false);
   const [themeClickCount, setThemeClickCount] = useState(0);
   const [themeClickTimer, setThemeClickTimer] = useState<NodeJS.Timeout | null>(null);
+  
+  // Estado para rastrear clicks obsessivos na sidebar (Clickomaníaco)
+  const [sidebarClickCount, setSidebarClickCount] = useState(0);
+  const [sidebarClickTimer, setSidebarClickTimer] = useState<NodeJS.Timeout | null>(null);
+  
   const { state } = useSidebar();
   const { theme } = useTheme();
   
@@ -487,6 +493,49 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     };
   }, [themeClickTimer]);
 
+  // Limpar timer da sidebar ao desmontar
+  useEffect(() => {
+    return () => {
+      if (sidebarClickTimer) {
+        clearTimeout(sidebarClickTimer);
+      }
+    };
+  }, [sidebarClickTimer]);
+
+  // Handler para clicks globais na sidebar (Clickomaníaco easter egg)
+  const handleSidebarClick = useCallback(() => {
+    setSidebarClickCount(prev => prev + 1);
+    
+    // Limpar timer anterior se existir
+    if (sidebarClickTimer) {
+      clearTimeout(sidebarClickTimer);
+    }
+    
+    // Verificar se chegou a 30 clicks
+    if (sidebarClickCount + 1 >= 30) {
+      setSidebarClickCount(0);
+      
+      // 🎮 Rastrear easter egg de clickomaníaco
+      handleTrackAction('clickomaniaco', {
+        totalClicks: 30,
+        timestamp: new Date().toISOString(),
+        message: 'OK, já deu pra chamar atenção... CHEGA! 🤦‍♂️'
+      });
+      
+      // Toast divertido
+      toast.info('🖱️ OK, já deu de clicar!', {
+        description: 'Você desbloqueou o easter egg "Clickomaníaco"!'
+      });
+    }
+    
+    // Resetar contador após 5 segundos sem clicks
+    const timer = setTimeout(() => {
+      setSidebarClickCount(0);
+    }, 5000);
+    
+    setSidebarClickTimer(timer);
+  }, [sidebarClickCount, sidebarClickTimer, handleTrackAction]);
+
   // Memoizar função de verificação de item ativo
   const isItemActive = useCallback((item: NavItem) => {
     return currentNav === item.id || location.pathname.startsWith(item.path);
@@ -506,7 +555,7 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
   }
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" onClick={handleSidebarClick}>
       <SidebarContent>
         {/* Header com branding moderno (adapta para compacto) */}
         <div

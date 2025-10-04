@@ -15,6 +15,7 @@ import MobileLayout from "@/components/layout/MobileLayout";
 import MobileHome from "@/components/mobile/MobileHome";
 import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
 import { gamificationService } from "@/services/gamification/GamificationService";
+import { AchievementDetectors } from "@/components/gamification/AchievementDetectors";
 import Auth from "./pages/Auth";
 // import { CodeEditorProvider } from "@/context/CodeEditorContext";
 // import { CodeEditorProvider } from "@/context/CodeEditorContext";
@@ -214,6 +215,8 @@ const App = () => {
             <BrowserRouter>
               <AnalyticsTracker enabled={consentStatus === 'granted'} />
               <PWAInstallPrompt />
+              {/* 🎮 Detectores de Achievements Globais */}
+              <AchievementDetectors />
               <Suspense fallback={
                 <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
                   <div className="text-center">

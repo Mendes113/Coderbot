@@ -24,6 +24,8 @@ export default defineConfig(({ mode }) => ({
     port: 3000,
     allowedHosts: true,
   },
+  // Incluir arquivos .lottie como assets
+  assetsInclude: ['**/*.lottie', '**/*.json'],
   plugins: [
     react(),
     mode === 'development' && componentTagger(),
