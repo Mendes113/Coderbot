@@ -14,7 +14,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { getCurrentUser, pb } from "@/integrations/pocketbase/client";
+import { pb } from "@/integrations/pocketbase/client";
+import { useAuthState } from "@/hooks/useAuthState";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTheme } from "@/context/ThemeContext";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,10 @@ type AppSidebarProps = {
 export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: AppSidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // 🔥 FIX: Usar hook reativo ao invés de getCurrentUser()
+  const { currentUser, isAuthenticated } = useAuthState();
+  
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
@@ -128,24 +133,33 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
     return Math.min(100, Math.max(0, (xpInCurrentLevel / xpNeededForLevel) * 100));
   }, [stats.totalPoints, getUserLevel, getXPForCurrentLevel, getXPForNextLevel]);
 
-  // Memoizar busca do usuário para evitar recálculos
+  // Memoizar busca do usuário para evitar recálculos (agora reativo com useAuthState)
   useEffect(() => {
-    const user = getCurrentUser();
-    if (user) {
-      setUserRole(user.role);
-      setUserId(user.id);
-      setUserName(user.name || user.email || "Usuário");
+    if (currentUser) {
+      setUserRole(currentUser.role);
+      setUserId(currentUser.id);
+      setUserName(currentUser.name || currentUser.email || "Usuário");
       // Construir URL do avatar se existir
-      if (user.avatar) {
-        const avatarUrl = `${pb.baseUrl}/api/files/${user.collectionId}/${user.id}/${user.avatar}`;
+      if (currentUser.avatar) {
+        const avatarUrl = `${pb.baseUrl}/api/files/${currentUser.collectionId}/${currentUser.id}/${currentUser.avatar}`;
         setUserAvatarUrl(avatarUrl);
+      } else {
+        setUserAvatarUrl(null);
       }
       
       // Buscar notificações
-      fetchNotifications(user.id);
+      fetchNotifications(currentUser.id);
+    } else {
+      // Limpar dados quando usuário deslogar
+      setUserRole(null);
+      setUserId(undefined);
+      setUserName("");
+      setUserAvatarUrl(null);
+      setNotifications([]);
+      setUnreadCount(0);
     }
     setIsLoading(false);
-  }, []); // Dependência vazia é intencional - só executar uma vez na montagem
+  }, [currentUser?.id]); // Re-executar quando o ID do usuário mudar (login/logout)
 
   // Buscar notificações do usuário
   const fetchNotifications = async (uid: string) => {

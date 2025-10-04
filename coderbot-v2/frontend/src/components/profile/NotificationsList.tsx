@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { pb } from '@/integrations/pocketbase/client';
-import { getCurrentUser } from '@/integrations/pocketbase/client';
+import { useAuthState } from '@/hooks/useAuthState';
 import { cn } from '@/lib/utils';
 
 interface Notification {
@@ -197,7 +197,8 @@ export const NotificationsList: React.FC<NotificationsListProps> = ({ className 
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
 
-  const currentUser = getCurrentUser();
+  // 🔥 FIX: Usar hook reativo ao invés de getCurrentUser()
+  const { currentUser } = useAuthState();
   const userId = currentUser?.id;
   const abortControllerRef = useRef<AbortController | null>(null);
 
