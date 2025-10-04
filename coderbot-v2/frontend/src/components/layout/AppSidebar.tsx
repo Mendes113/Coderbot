@@ -20,6 +20,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { DropdownMenu } from "../ui/dropdown-menu";
 
 // Temporarily disable NextAuth.js for hydration issues
 // import { useSession } from 'next-auth/react';
@@ -548,6 +549,24 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
                             >
                               <div className="flex items-start gap-3">
                                 {/* Avatar */}
+
+{/* 
+                               
+                                {/* Isso aqui vai ser um DropDown, o trigger é so um botão */}
+
+                                <DropdownMenu>
+                                  <DropdownMenu.Trigger className="sr-only">Log out</DropdownMenu.Trigger>
+                                  <DropdownMenu.Content align="end" className="w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2">
+                                    <DropdownMenu.Item
+                                      onClick={() => {
+                                        // Handle log out
+                                        setShowNotifications(false);
+                                      }}
+                                    >
+                                      Log out
+                                    </DropdownMenu.Item>
+                                  </DropdownMenu.Content>
+                                </DropdownMenu>
                                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-sm">
                                   {notification.expand?.sender?.avatar ? (
                                     <img

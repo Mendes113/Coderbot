@@ -1,5 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef } from 'react';
 import { Loader2, Plus, Link2, FileText, X, Target, MessageCircle, Code, BookOpen, Music, Sparkles, ClipboardList, Zap } from 'lucide-react';
 import {
   Dialog,
@@ -32,10 +31,7 @@ import {
   createClassForumPost,
   MissionType,
   createClassMission,
-  ActivityType,
-  createClassActivity,
 } from '@/integrations/pocketbase/client';
-import { SurveyCreatorComponent, SurveyCreator } from 'survey-creator-react';
 
 interface CreateForumPostDialogProps {
   classId: string;
@@ -86,22 +82,7 @@ const missionTypeDescriptions: Record<MissionType, string> = {
   custom: 'Atividade personalizada definida pelo professor',
 };
 
-const activityTypeLabels: Record<ActivityType, string> = {
-  quiz: 'Quiz',
-  survey: 'Pesquisa',
-  form: 'Formulário',
-  poll: 'Enquete',
-};
-
-const activityTypeDescriptions: Record<ActivityType, string> = {
-  quiz: 'Questionário com pontuação automática',
-  survey: 'Pesquisa de opinião sem pontuação',
-  form: 'Formulário de coleta de dados',
-  poll: 'Votação rápida em opções',
-};
-
 export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPostDialogProps) => {
-  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [title, setTitle] = useState('');
@@ -112,50 +93,11 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
   const [linkInput, setLinkInput] = useState({ url: '', label: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Estado para escolher entre Mission ou Quiz/Survey
-  const [activityMode, setActivityMode] = useState<'mission' | 'quiz'>('mission');
-
   // Estado para missões
   const [missionType, setMissionType] = useState<MissionType>('chat_interaction');
   const [missionTarget, setMissionTarget] = useState(20);
   const [missionReward, setMissionReward] = useState(100);
   const [missionDescription, setMissionDescription] = useState('');
-
-  // Estado para quizzes/surveys
-  const [activityType, setActivityType] = useState<ActivityType>('quiz');
-  const [activityReward, setActivityReward] = useState(100);
-  const [maxAttempts, setMaxAttempts] = useState(3);
-  const [timeLimit, setTimeLimit] = useState(0); // 0 = sem limite
-  const [surveyCreator, setSurveyCreator] = useState<SurveyCreator | null>(null);
-
-  // Inicializar SurveyJS Creator
-  useEffect(() => {
-    if (type === 'atividade' && activityMode === 'quiz') {
-      const options = {
-        showLogicTab: true,
-        showTranslationTab: false,
-        isAutoSave: false,
-      };
-      const creator = new SurveyCreator(options);
-      creator.text = JSON.stringify({
-        title: 'Nova Atividade',
-        description: 'Descreva sua atividade aqui',
-        pages: [
-          {
-            name: 'page1',
-            elements: [
-              {
-                type: 'text',
-                name: 'question1',
-                title: 'Digite sua primeira pergunta',
-              },
-            ],
-          },
-        ],
-      });
-      setSurveyCreator(creator);
-    }
-  }, [type, activityMode]);
 
   const resetForm = () => {
     setTitle('');
@@ -164,16 +106,10 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
     setAttachments([]);
     setLinks([]);
     setLinkInput({ url: '', label: '' });
-    setActivityMode('mission');
     setMissionType('chat_interaction');
     setMissionTarget(20);
     setMissionReward(100);
     setMissionDescription('');
-    setActivityType('quiz');
-    setActivityReward(100);
-    setMaxAttempts(3);
-    setTimeLimit(0);
-    setSurveyCreator(null);
   };
 
   const handleAddLink = () => {
@@ -224,32 +160,17 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
 
     // Validação específica para atividades
     if (type === 'atividade') {
-      if (activityMode === 'mission') {
-        if (missionTarget <= 0) {
-          toast.error('A meta da missão deve ser maior que zero');
-          return;
-        }
-        if (missionReward < 0) {
-          toast.error('Os pontos de recompensa não podem ser negativos');
-          return;
-        }
-        if (!missionDescription.trim()) {
-          toast.error('Digite a descrição da missão');
-          return;
-        }
-      } else if (activityMode === 'quiz') {
-        if (!surveyCreator) {
-          toast.error('Erro ao inicializar o editor de quiz');
-          return;
-        }
-        if (activityReward < 0) {
-          toast.error('Os pontos de recompensa não podem ser negativos');
-          return;
-        }
-        if (maxAttempts < 1) {
-          toast.error('O número de tentativas deve ser pelo menos 1');
-          return;
-        }
+      if (missionTarget <= 0) {
+        toast.error('A meta da missão deve ser maior que zero');
+        return;
+      }
+      if (missionReward < 0) {
+        toast.error('Os pontos de recompensa não podem ser negativos');
+        return;
+      }
+      if (!missionDescription.trim()) {
+        toast.error('Digite a descrição da missão');
+        return;
       }
     }
 
@@ -258,35 +179,17 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
     try {
       // Se for uma atividade
       if (type === 'atividade') {
-        if (activityMode === 'mission') {
-          // Criar missão tradicional
-          await createClassMission({
-            classId,
-            title: title.trim(),
-            description: missionDescription.trim(),
-            type: missionType,
-            target_value: missionTarget,
-            reward_points: missionReward,
-          });
+        // Criar missão tradicional
+        await createClassMission({
+          classId,
+          title: title.trim(),
+          description: missionDescription.trim(),
+          type: missionType,
+          target_value: missionTarget,
+          reward_points: missionReward,
+        });
 
-          toast.success('Missão criada e publicada no fórum com sucesso!');
-        } else if (activityMode === 'quiz') {
-          // Criar quiz/survey com SurveyJS
-          const surveyJson = JSON.parse(surveyCreator!.text);
-          
-          await createClassActivity({
-            classId,
-            title: title.trim(),
-            description: content.trim() || 'Atividade interativa',
-            activityType: activityType,
-            surveyJson: surveyJson,
-            rewardPoints: activityReward,
-            maxAttempts: maxAttempts,
-            timeLimit: timeLimit > 0 ? timeLimit : undefined,
-          });
-
-          toast.success('Quiz/Survey criado com sucesso!');
-        }
+        toast.success('Missão criada e publicada no fórum com sucesso!');
       } else {
         // Para outros tipos, criar post normal
         await createClassForumPost({
@@ -387,71 +290,14 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
                   <Target className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <Label className="text-base font-semibold">Configurações da Atividade</Label>
+                  <Label className="text-base font-semibold">Configurações da Missão</Label>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Escolha entre Mission (rastreamento) ou Quiz/Survey (SurveyJS)
+                    Configure o tipo de missão, meta e recompensa
                   </p>
                 </div>
               </div>
 
-              {/* Seletor Mission vs Quiz */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  Tipo de atividade *
-                </Label>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Card
-                    className={`cursor-pointer transition-all hover:shadow-lg ${
-                      activityMode === 'mission'
-                        ? 'border-primary shadow-lg shadow-primary/20 ring-2 ring-primary/20'
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                    onClick={() => setActivityMode('mission')}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 rounded-lg bg-primary/10">
-                          <Target className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold mb-1">Mission</h4>
-                          <p className="text-xs text-muted-foreground leading-relaxed">
-                            Rastreamento de ações (chats, código, exercícios)
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card
-                    className={`cursor-pointer transition-all hover:shadow-lg ${
-                      activityMode === 'quiz'
-                        ? 'border-primary shadow-lg shadow-primary/20 ring-2 ring-primary/20'
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                    onClick={() => setActivityMode('quiz')}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 rounded-lg bg-purple-500/10">
-                          <ClipboardList className="h-5 w-5 text-purple-500" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold mb-1">Quiz/Survey</h4>
-                          <p className="text-xs text-muted-foreground leading-relaxed">
-                            Questionários com pontuação automática
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-
-              {/* Configurações de Mission */}
-              {activityMode === 'mission' && (
-                <>
-                  {/* Tipo de Missão */}
+              {/* Tipo de Missão */}
                   <div className="space-y-2">
                     <Label htmlFor="mission-type" className="flex items-center gap-2">
                       Tipo de missão *
@@ -578,39 +424,6 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
                       )}
                     </div>
                   </div>
-                </>
-              )}
-
-              {/* Redirect para criar Quiz/Survey */}
-              {activityMode === 'quiz' && (
-                <Card className="border-2 border-dashed border-purple-300 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20">
-                  <CardContent className="flex flex-col items-center justify-center p-8 text-center space-y-4">
-                    <div className="rounded-full bg-purple-100 dark:bg-purple-900/30 p-4">
-                      <ClipboardList className="h-8 w-8 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <div className="space-y-2">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                        Criar Atividade/Quiz
-                      </h3>
-                      <p className="text-sm text-muted-foreground max-w-md">
-                        Use nosso editor dedicado com mais espaço e recursos para criar quizzes, 
-                        surveys, formulários e enquetes de forma profissional.
-                      </p>
-                    </div>
-                    <Button
-                      onClick={() => {
-                        setOpen(false);
-                        navigate(`/class/${classId}/create-activity`);
-                      }}
-                      className="bg-purple-600 hover:bg-purple-700 text-white"
-                      size="lg"
-                    >
-                      <Target className="mr-2 h-4 w-4" />
-                      Abrir Editor de Atividades
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
             </div>
           )}
 
