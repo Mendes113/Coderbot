@@ -190,6 +190,65 @@ export const createNotification = async (data: {
   }
 };
 
+// --- Forum User Interactions ---
+export interface ForumUserInteractionRecord extends PBRecord {
+  user: string;
+  class: string;
+  interaction_type: 'post_viewed' | 'post_expanded' | 'comment_created' | 'external_link_clicked';
+  target_id?: string;
+  metadata?: Record<string, any>;
+}
+
+/**
+ * Get the last interaction date for a user in a specific class
+ */
+export const getLastClassInteraction = async (userId: string, classId: string): Promise<string | null> => {
+  try {
+    const record = await pb.collection('forum_user_interactions').getFirstListItem<ForumUserInteractionRecord>(
+      `user = "${userId}" && class = "${classId}"`,
+      {
+        sort: '-created',
+        fields: 'created',
+      }
+    );
+    return record.created;
+  } catch (error) {
+    // No interactions found
+    return null;
+  }
+};
+
+/**
+ * Get last interactions for multiple classes at once
+ */
+export const getLastInteractionsForClasses = async (userId: string, classIds: string[]): Promise<Record<string, string | null>> => {
+  if (classIds.length === 0) return {};
+  
+  try {
+    const classFilter = classIds.map(id => `class = "${id}"`).join(' || ');
+    const records = await pb.collection('forum_user_interactions').getFullList<ForumUserInteractionRecord>({
+      filter: `user = "${userId}" && (${classFilter})`,
+      sort: '-created',
+      fields: 'class,created',
+    });
+
+    // Group by class and get the most recent for each
+    const result: Record<string, string | null> = {};
+    classIds.forEach(id => result[id] = null);
+    
+    records.forEach(record => {
+      if (!result[record.class]) {
+        result[record.class] = record.created;
+      }
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Erro ao buscar interações:', error);
+    return classIds.reduce((acc, id) => ({ ...acc, [id]: null }), {});
+  }
+};
+
 // --- GitHub OAuth com PocketBase ---
 export function startGithubOAuth() {
   pb.collection('users').authWithOAuth2({ provider: 'github' });

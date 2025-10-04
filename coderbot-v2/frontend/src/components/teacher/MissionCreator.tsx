@@ -63,12 +63,6 @@ const predefinedMissions = [
     description: 'Execute seu primeiro programa no ambiente de desenvolvimento',
   },
   {
-    title: 'Crie sua primeira nota musical',
-    type: 'notes_creation' as MissionType,
-    target_value: 1,
-    description: 'Crie e compartilhe sua primeira composição musical',
-  },
-  {
     title: 'Complete 5 exercícios',
     type: 'exercise_completion' as MissionType,
     target_value: 5,
