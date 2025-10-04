@@ -24,8 +24,8 @@ export default defineConfig(({ mode }) => ({
     port: 3000,
     allowedHosts: true,
   },
-  // Incluir arquivos .lottie como assets
-  assetsInclude: ['**/*.lottie', '**/*.json'],
+  // Incluir arquivos .lottie como assets (não JSON genérico para evitar conflitos)
+  assetsInclude: ['**/*.lottie'],
   plugins: [
     react(),
     mode === 'development' && componentTagger(),
@@ -33,8 +33,6 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "magicui": path.resolve(__dirname, "./src/Components/magicui"),
-      "magicui/*": path.resolve(__dirname, "./src/Components/magicui/*"),
     },
     dedupe: ["react", "react-dom"],
   },
