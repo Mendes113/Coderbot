@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { LogOut, ArrowLeft, Github } from "lucide-react";
 import { pb, startGithubOAuth } from "@/integrations/pocketbase/client";
+import { useAuthState } from "@/hooks/useAuthState";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StudentInvitations } from "@/components/student/StudentInvitations";
@@ -20,7 +21,10 @@ const UserProfile = () => {
 
   const { profile, loading } = useUserData();
   const navigate = useNavigate();
-  const userId = pb.authStore.model?.id;
+  
+  // 🔥 FIX: Usar hook reativo ao invés de pb.authStore.model?.id
+  const { currentUser } = useAuthState();
+  const userId = currentUser?.id;
 
   const handleLogout = () => {
     try {

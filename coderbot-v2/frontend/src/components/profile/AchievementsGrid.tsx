@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { pb } from '@/integrations/pocketbase/client';
+import { useAuthState } from '@/hooks/useAuthState';
 import { toast } from 'sonner';
 import { useGamification } from '@/hooks/useGamification';
 import type { UserAchievement, EasterEggDefinition } from '@/services/gamification/types';
@@ -164,12 +165,15 @@ export function AchievementsGrid() {
   const [lockedClickCount, setLockedClickCount] = useState(0);
   const [lockedClickTimer, setLockedClickTimer] = useState<NodeJS.Timeout | null>(null);
   
+  // 🔥 FIX: Usar hook reativo ao invés de pb.authStore.model
+  const { currentUser } = useAuthState();
+  
   // Hook de gamificação
   const { trackAction } = useGamification();
 
   useEffect(() => {
     fetchAchievements();
-  }, []);
+  }, [currentUser?.id]); // Re-executar quando usuário mudar (login/logout)
 
   // Limpar timer ao desmontar
   useEffect(() => {
@@ -216,8 +220,10 @@ export function AchievementsGrid() {
 
   const fetchAchievements = async () => {
     try {
-      const user = pb.authStore.model;
-      if (!user?.id) return;
+      if (!currentUser?.id) {
+        setLoading(false);
+        return;
+      }
 
       // Buscar todas as definições de easter eggs
       const definitions = await pb.collection('easter_egg_definitions').getFullList<EasterEggDefinition>({
@@ -227,7 +233,7 @@ export function AchievementsGrid() {
 
       // Buscar achievements desbloqueados do usuário
       const userAchievements = await pb.collection('user_achievements').getFullList<UserAchievement>({
-        filter: `user = "${user.id}"`,
+        filter: `user = "${currentUser.id}"`,
         expand: 'easter_egg',
         sort: '-unlocked_at'
       });
