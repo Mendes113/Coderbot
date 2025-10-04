@@ -18,6 +18,7 @@ export function useGamification() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
 
   /**
    * Rastreia uma ação de easter egg e mostra toast se completado PELA PRIMEIRA VEZ
@@ -57,7 +58,12 @@ export function useGamification() {
       
       setAchievements(userAchievements);
       setStats(userStats);
-    } catch (error) {
+    } catch (error: any) {
+      // Ignorar erros de auto-cancelamento do PocketBase
+      if (error?.originalError?.code === 0 || error?.message?.includes('autocancelled')) {
+        console.debug('[useGamification] Request autocancelled (expected behavior)');
+        return;
+      }
       console.error('[useGamification] Failed to load achievements:', error);
     } finally {
       setIsLoading(false);
@@ -121,15 +127,33 @@ export function useGamification() {
    */
   useEffect(() => {
     const initializeService = async () => {
-      if (!gamificationService.isInitialized()) {
-        await gamificationService.initialize();
+      // Evitar inicializações duplicadas
+      if (isInitializing || isInitialized) {
+        return;
       }
-      setIsInitialized(true);
-      await loadAchievements();
+
+      setIsInitializing(true);
+      
+      try {
+        if (!gamificationService.isInitialized()) {
+          await gamificationService.initialize();
+        }
+        setIsInitialized(true);
+        await loadAchievements();
+      } catch (error: any) {
+        // Ignorar erros de auto-cancelamento
+        if (error?.originalError?.code === 0 || error?.message?.includes('autocancelled')) {
+          console.debug('[useGamification] Initialization request autocancelled');
+        } else {
+          console.error('[useGamification] Failed to initialize:', error);
+        }
+      } finally {
+        setIsInitializing(false);
+      }
     };
 
     initializeService();
-  }, [loadAchievements]);
+  }, []); // Empty deps - só inicializa uma vez
 
   return {
     achievements,
