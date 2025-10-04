@@ -1,50 +1,33 @@
 /// <reference path="../pb_data/types.d.ts" />
-migrate((db) => {
-  const dao = new Dao(db)
-  const collection = dao.findCollectionByNameOrId("notifications")
+migrate((app) => {
+  const collection = app.findCollectionByNameOrId("notifications")
 
-  // Adicionar campo 'type' se não existir (pode já existir)
-  // Adicionar opção 'achievement' aos valores existentes
-  const typeField = collection.schema.fields().find(f => f.name === "type")
-  if (typeField) {
-    // Se já existe, adicionar 'achievement' aos valores se não estiver lá
-    if (!typeField.options.values.includes("achievement")) {
-      typeField.options.values.push("achievement")
+  // Adicionar campo 'type' para achievement
+  collection.fields.addAt(10, new Field({
+    "name": "type",
+    "type": "select",
+    "required": false,
+    "presentable": false,
+    "options": {
+      "maxSelect": 1,
+      "values": [
+        "info",
+        "warning",
+        "error",
+        "success",
+        "achievement"
+      ]
     }
-  } else {
-    // Se não existe, criar campo type
-    collection.schema.addField(new SchemaField({
-      "system": false,
-      "id": "type_field",
-      "name": "type",
-      "type": "select",
-      "required": false,
-      "presentable": false,
-      "unique": false,
-      "options": {
-        "maxSelect": 1,
-        "values": [
-          "info",
-          "warning",
-          "error",
-          "success",
-          "achievement"
-        ]
-      }
-    }))
-  }
+  }))
 
   // Adicionar campo achievement_id
-  collection.schema.addField(new SchemaField({
-    "system": false,
-    "id": "achievement_id",
+  collection.fields.addAt(11, new Field({
     "name": "achievement_id",
     "type": "relation",
     "required": false,
     "presentable": false,
-    "unique": false,
     "options": {
-      "collectionId": "user_achievements_id",
+      "collectionId": "user_achievements",
       "cascadeDelete": true,
       "minSelect": null,
       "maxSelect": 1,
@@ -53,14 +36,11 @@ migrate((db) => {
   }))
 
   // Adicionar campo icon
-  collection.schema.addField(new SchemaField({
-    "system": false,
-    "id": "icon",
+  collection.fields.addAt(12, new Field({
     "name": "icon",
     "type": "text",
     "required": false,
     "presentable": false,
-    "unique": false,
     "options": {
       "min": null,
       "max": 10,
@@ -69,14 +49,11 @@ migrate((db) => {
   }))
 
   // Adicionar campo animation
-  collection.schema.addField(new SchemaField({
-    "system": false,
-    "id": "animation",
+  collection.fields.addAt(13, new Field({
     "name": "animation",
     "type": "select",
     "required": false,
     "presentable": false,
-    "unique": false,
     "options": {
       "maxSelect": 1,
       "values": [
@@ -89,14 +66,11 @@ migrate((db) => {
   }))
 
   // Adicionar campo priority
-  collection.schema.addField(new SchemaField({
-    "system": false,
-    "id": "priority",
+  collection.fields.addAt(14, new Field({
     "name": "priority",
     "type": "select",
     "required": false,
     "presentable": false,
-    "unique": false,
     "options": {
       "maxSelect": 1,
       "values": [
@@ -108,25 +82,16 @@ migrate((db) => {
     }
   }))
 
-  return dao.saveCollection(collection)
-}, (db) => {
-  const dao = new Dao(db)
-  const collection = dao.findCollectionByNameOrId("notifications")
+  return app.save(collection)
+}, (app) => {
+  const collection = app.findCollectionByNameOrId("notifications")
 
-  // Remover campos adicionados
-  collection.schema.removeField("achievement_id")
-  collection.schema.removeField("icon")
-  collection.schema.removeField("animation")
-  collection.schema.removeField("priority")
+  // Remover campos adicionados (em ordem reversa)
+  collection.fields.removeById("priority")
+  collection.fields.removeById("animation")
+  collection.fields.removeById("icon")
+  collection.fields.removeById("achievement_id")
+  collection.fields.removeById("type")
 
-  // Remover 'achievement' do type field se foi adicionado
-  const typeField = collection.schema.fields().find(f => f.name === "type")
-  if (typeField) {
-    const index = typeField.options.values.indexOf("achievement")
-    if (index > -1) {
-      typeField.options.values.splice(index, 1)
-    }
-  }
-
-  return dao.saveCollection(collection)
+  return app.save(collection)
 });

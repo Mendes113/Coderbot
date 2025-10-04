@@ -1,9 +1,6 @@
 /// <reference path="../pb_data/types.d.ts" />
-migrate((db) => {
+migrate((app) => {
   const collection = new Collection({
-    "id": "user_achievements_id",
-    "created": "2025-01-04 10:00:00.000Z",
-    "updated": "2025-01-04 10:00:00.000Z",
     "name": "user_achievements",
     "type": "base",
     "system": false,
@@ -158,10 +155,8 @@ migrate((db) => {
     "options": {}
   });
 
-  return Dao(db).saveCollection(collection);
-}, (db) => {
-  const dao = new Dao(db);
-  const collection = dao.findCollectionByNameOrId("user_achievements_id");
-
-  return dao.deleteCollection(collection);
+  return app.save(collection);
+}, (app) => {
+  const collection = app.findCollectionByNameOrId("user_achievements");
+  return app.delete(collection);
 });

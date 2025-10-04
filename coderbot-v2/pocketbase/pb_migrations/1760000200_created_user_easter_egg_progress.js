@@ -1,9 +1,6 @@
 /// <reference path="../pb_data/types.d.ts" />
-migrate((db) => {
+migrate((app) => {
   const collection = new Collection({
-    "id": "user_easter_egg_progress_id",
-    "created": "2025-01-04 10:02:00.000Z",
-    "updated": "2025-01-04 10:02:00.000Z",
     "name": "user_easter_egg_progress",
     "type": "base",
     "system": false,
@@ -130,10 +127,8 @@ migrate((db) => {
     "options": {}
   });
 
-  return Dao(db).saveCollection(collection);
-}, (db) => {
-  const dao = new Dao(db);
-  const collection = dao.findCollectionByNameOrId("user_easter_egg_progress_id");
-
-  return dao.deleteCollection(collection);
+  return app.save(collection);
+}, (app) => {
+  const collection = app.findCollectionByNameOrId("user_easter_egg_progress");
+  return app.delete(collection);
 });
