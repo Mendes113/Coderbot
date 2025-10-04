@@ -45,6 +45,15 @@ export const AchievementDetectors = () => {
     }
   }, [currentUser]);
 
+  // Log dos achievements carregados (debug)
+  useEffect(() => {
+    if (achievements.length > 0) {
+      console.log('📋 [AchievementDetectors] Available achievements:', 
+        achievements.map(a => a.name).join(', ')
+      );
+    }
+  }, [achievements]);
+
   // Helper para rastrear achievement com notificação
   const trackAchievementWithNotification = async (
     achievementName: string,

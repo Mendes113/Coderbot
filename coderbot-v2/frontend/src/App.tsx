@@ -119,13 +119,13 @@ const App = () => {
     loadWebVitalsScript().then(() => {
       const wv = (window as any).webVitals;
       if (!wv) {
-        console.warn('[Analytics][web-vitals] Not available after load');
+        // console.warn('[Analytics][web-vitals] Not available after load');
         return;
       }
       const nav = performance.getEntriesByType('navigation')[0] as any;
       const send = (metric: any) => {
         try {
-          console.debug('[Analytics][web-vitals][report]', metric?.name, metric?.value, metric);
+          // console.debug('[Analytics][web-vitals][report]', metric?.name, metric?.value, metric);
           posthog.capture('$web_vitals', {
             metric_name: metric?.name,
             value: metric?.value,
@@ -136,7 +136,7 @@ const App = () => {
             navigation_type: nav?.type,
           });
         } catch (e) {
-          console.warn('[Analytics][web-vitals] capture failed', e);
+          // console.warn('[Analytics][web-vitals] capture failed', e);
         }
       };
       wv.onCLS?.(send, { reportAllChanges: true });
@@ -146,7 +146,7 @@ const App = () => {
       wv.onINP?.(send, { reportAllChanges: true });
       wv.onFCP?.(send);
     }).catch((e) => {
-      console.warn('[Analytics] Web Vitals load failed', e);
+      // console.warn('[Analytics] Web Vitals load failed', e);
     });
   }, []);
 
@@ -286,7 +286,7 @@ const AnalyticsTracker = ({ enabled }: { enabled: boolean }) => {
   useEffect(() => {
     if (!enabled) return;
     if (posthog && typeof posthog.capture === 'function') {
-      console.debug('[Analytics][$pageview]', { path: location.pathname });
+      // console.debug('[Analytics][$pageview]', { path: location.pathname });
       posthog.capture('$pageview', { path: location.pathname });
     }
   }, [location.pathname, enabled]);
@@ -296,12 +296,12 @@ const AnalyticsTracker = ({ enabled }: { enabled: boolean }) => {
     const handleVisibility = () => {
       const eventName = document.visibilityState === 'visible' ? 'edu_app_focus' : 'edu_app_blur';
       if (posthog && typeof posthog.capture === 'function') {
-        console.debug('[Analytics][visibility]', { eventName });
+        // console.debug('[Analytics][visibility]', { eventName });
         posthog.capture(eventName);
         if (document.visibilityState !== 'visible') {
           // Send $pageleave to improve bounce/session duration analytics
           posthog.capture('$pageleave', { path: location.pathname });
-          console.debug('[Analytics][$pageleave]', { path: location.pathname });
+          // console.debug('[Analytics][$pageleave]', { path: location.pathname });
         }
       }
     };

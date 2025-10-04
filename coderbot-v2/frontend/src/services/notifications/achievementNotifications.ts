@@ -28,7 +28,7 @@ export async function sendAchievementNotification({
   try {
     const notificationData = {
       recipient: userId,
-      sender: 'system', // Sistema envia a notificação
+      sender: userId, // Self-notification (próprio usuário como sender)
       title: `${achievementIcon} Carta Especial: ${achievementName}`,
       content: `Parabéns! Você desbloqueou "${achievementName}"!\n\n${achievementDescription}\n\n🎯 +${points} pontos ganhos!`,
       type: 'achievement',
