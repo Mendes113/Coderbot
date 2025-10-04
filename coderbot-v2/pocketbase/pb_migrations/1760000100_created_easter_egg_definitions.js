@@ -1,190 +1,179 @@
 /// <reference path="../pb_data/types.d.ts" />
-migrate((db) => {
+migrate((app) => {
   const collection = new Collection({
-    "id": "easter_egg_definitions_id",
-    "created": "2025-01-04 10:01:00.000Z",
-    "updated": "2025-01-04 10:01:00.000Z",
-    "name": "easter_egg_definitions",
-    "type": "base",
-    "system": false,
-    "schema": [
+    "createRule": "@request.auth.role = 'admin'",
+    "deleteRule": "@request.auth.role = 'admin'",
+    "fields": [
       {
-        "system": false,
-        "id": "name",
+        "autogeneratePattern": "[a-z0-9]{15}",
+        "hidden": false,
+        "id": "text3208210256",
+        "max": 15,
+        "min": 15,
+        "name": "id",
+        "pattern": "^[a-z0-9]+$",
+        "presentable": false,
+        "primaryKey": true,
+        "required": true,
+        "system": true,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "text_name",
+        "max": 100,
+        "min": null,
         "name": "name",
-        "type": "text",
-        "required": true,
+        "pattern": "^[a-z_]+$",
         "presentable": true,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 100,
-          "pattern": "^[a-z_]+$"
-        }
+        "primaryKey": false,
+        "required": true,
+        "system": false,
+        "type": "text"
       },
       {
-        "system": false,
-        "id": "display_name",
+        "hidden": false,
+        "id": "text_display_name",
+        "max": 200,
+        "min": null,
         "name": "display_name",
-        "type": "text",
-        "required": true,
+        "pattern": "",
         "presentable": true,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 200,
-          "pattern": ""
-        }
+        "primaryKey": false,
+        "required": true,
+        "system": false,
+        "type": "text"
       },
       {
-        "system": false,
-        "id": "description",
+        "hidden": false,
+        "id": "text_description",
+        "max": 500,
+        "min": null,
         "name": "description",
-        "type": "text",
-        "required": false,
+        "pattern": "",
         "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 500,
-          "pattern": ""
-        }
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
       },
       {
-        "system": false,
-        "id": "trigger_type",
+        "hidden": false,
+        "id": "select_trigger_type",
+        "maxSelect": 1,
         "name": "trigger_type",
-        "type": "select",
-        "required": true,
         "presentable": false,
-        "unique": false,
-        "options": {
-          "maxSelect": 1,
-          "values": [
-            "clicks",
-            "sequence",
-            "time_based",
-            "combo"
-          ]
-        }
+        "required": true,
+        "system": false,
+        "type": "select",
+        "values": [
+          "clicks",
+          "sequence",
+          "time_based",
+          "combo"
+        ]
       },
       {
-        "system": false,
-        "id": "trigger_config",
+        "hidden": false,
+        "id": "json_trigger_config",
+        "maxSize": 2000000,
         "name": "trigger_config",
-        "type": "json",
-        "required": true,
         "presentable": false,
-        "unique": false,
-        "options": {
-          "maxSize": 2000000
-        }
+        "required": true,
+        "system": false,
+        "type": "json"
       },
       {
-        "system": false,
-        "id": "achievement_message",
+        "hidden": false,
+        "id": "text_achievement_message",
+        "max": 1000,
+        "min": null,
         "name": "achievement_message",
-        "type": "text",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
         "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 1000,
-          "pattern": ""
-        }
+        "system": false,
+        "type": "text"
       },
       {
-        "system": false,
-        "id": "points",
+        "hidden": false,
+        "id": "number_points",
+        "max": null,
+        "min": 0,
         "name": "points",
-        "type": "number",
-        "required": false,
+        "onlyInt": true,
         "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": null,
-          "noDecimal": true
-        }
+        "required": false,
+        "system": false,
+        "type": "number"
       },
       {
-        "system": false,
-        "id": "icon",
+        "hidden": false,
+        "id": "text_icon",
+        "max": 10,
+        "min": null,
         "name": "icon",
-        "type": "text",
-        "required": false,
+        "pattern": "",
         "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 10,
-          "pattern": ""
-        }
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
       },
       {
-        "system": false,
-        "id": "is_active",
+        "hidden": false,
+        "id": "bool_is_active",
         "name": "is_active",
-        "type": "bool",
-        "required": false,
         "presentable": false,
-        "unique": false,
-        "options": {}
+        "required": false,
+        "system": false,
+        "type": "bool"
       },
       {
-        "system": false,
-        "id": "category",
+        "hidden": false,
+        "id": "select_category",
+        "maxSelect": 1,
         "name": "category",
-        "type": "select",
-        "required": false,
         "presentable": false,
-        "unique": false,
-        "options": {
-          "maxSelect": 1,
-          "values": [
-            "ui_interaction",
-            "exploration",
-            "achievement",
-            "secret"
-          ]
-        }
+        "required": false,
+        "system": false,
+        "type": "select",
+        "values": [
+          "ui_interaction",
+          "exploration",
+          "achievement",
+          "secret"
+        ]
       },
       {
-        "system": false,
-        "id": "difficulty",
+        "hidden": false,
+        "id": "select_difficulty",
+        "maxSelect": 1,
         "name": "difficulty",
-        "type": "select",
-        "required": false,
         "presentable": false,
-        "unique": false,
-        "options": {
-          "maxSelect": 1,
-          "values": [
-            "easy",
-            "medium",
-            "hard",
-            "legendary"
-          ]
-        }
+        "required": false,
+        "system": false,
+        "type": "select",
+        "values": [
+          "easy",
+          "medium",
+          "hard",
+          "legendary"
+        ]
       }
     ],
-    "indexes": [
-      "CREATE UNIQUE INDEX idx_easter_egg_name ON easter_egg_definitions (name)",
-      "CREATE INDEX idx_easter_egg_active ON easter_egg_definitions (is_active)"
-    ],
+    "indexes": [],
     "listRule": "is_active = true",
-    "viewRule": "is_active = true",
-    "createRule": "@request.auth.role = 'admin'",
+    "name": "easter_egg_definitions",
+    "system": false,
+    "type": "base",
     "updateRule": "@request.auth.role = 'admin'",
-    "deleteRule": "@request.auth.role = 'admin'",
-    "options": {}
+    "viewRule": "is_active = true"
   });
 
-  return Dao(db).saveCollection(collection);
-}, (db) => {
-  const dao = new Dao(db);
-  const collection = dao.findCollectionByNameOrId("easter_egg_definitions_id");
-
-  return dao.deleteCollection(collection);
+  return app.save(collection);
+}, (app) => {
+  const collection = app.findCollectionByNameOrId("easter_egg_definitions");
+  return app.delete(collection);
 });

@@ -1,147 +1,142 @@
 /// <reference path="../pb_data/types.d.ts" />
-migrate((db) => {
+migrate((app) => {
   const collection = new Collection({
-    "id": "user_achievements_id",
-    "created": "2025-01-04 10:00:00.000Z",
-    "updated": "2025-01-04 10:00:00.000Z",
-    "name": "user_achievements",
-    "type": "base",
-    "system": false,
-    "schema": [
+    "createRule": "",
+    "deleteRule": "",
+    "fields": [
       {
-        "system": false,
-        "id": "user_field",
+        "autogeneratePattern": "[a-z0-9]{15}",
+        "hidden": false,
+        "id": "text3208210256",
+        "max": 15,
+        "min": 15,
+        "name": "id",
+        "pattern": "^[a-z0-9]+$",
+        "presentable": false,
+        "primaryKey": true,
+        "required": true,
+        "system": true,
+        "type": "text"
+      },
+      {
+        "cascadeDelete": true,
+        "collectionId": "_pb_users_auth_",
+        "hidden": false,
+        "id": "relation_user",
+        "maxSelect": 1,
+        "minSelect": 1,
         "name": "user",
-        "type": "relation",
-        "required": true,
         "presentable": false,
-        "unique": false,
-        "options": {
-          "collectionId": "_pb_users_auth_",
-          "cascadeDelete": true,
-          "minSelect": null,
-          "maxSelect": 1,
-          "displayFields": ["name", "email"]
-        }
+        "required": true,
+        "system": false,
+        "type": "relation"
       },
       {
-        "system": false,
-        "id": "achievement_id",
+        "hidden": false,
+        "id": "text_achievement_id",
+        "max": null,
+        "min": null,
         "name": "achievement_id",
-        "type": "text",
-        "required": true,
+        "pattern": "",
         "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": null,
-          "pattern": ""
-        }
+        "primaryKey": false,
+        "required": true,
+        "system": false,
+        "type": "text"
       },
       {
-        "system": false,
-        "id": "achievement_name",
+        "hidden": false,
+        "id": "text_achievement_name",
+        "max": null,
+        "min": null,
         "name": "achievement_name",
-        "type": "text",
-        "required": true,
+        "pattern": "",
         "presentable": true,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": null,
-          "pattern": ""
-        }
+        "primaryKey": false,
+        "required": true,
+        "system": false,
+        "type": "text"
       },
       {
-        "system": false,
-        "id": "display_name",
+        "hidden": false,
+        "id": "text_display_name",
+        "max": 200,
+        "min": null,
         "name": "display_name",
-        "type": "text",
-        "required": true,
+        "pattern": "",
         "presentable": true,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 200,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "description",
-        "name": "description",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 500,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "achievement_message",
-        "name": "achievement_message",
-        "type": "text",
+        "primaryKey": false,
         "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 1000,
-          "pattern": ""
-        }
+        "system": false,
+        "type": "text"
       },
       {
+        "hidden": false,
+        "id": "text_description",
+        "max": 500,
+        "min": null,
+        "name": "description",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
         "system": false,
-        "id": "unlocked_at",
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "text_achievement_message",
+        "max": 1000,
+        "min": null,
+        "name": "achievement_message",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": true,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "date_unlocked_at",
+        "max": "",
+        "min": "",
         "name": "unlocked_at",
-        "type": "date",
-        "required": false,
         "presentable": false,
-        "unique": false,
-        "options": {
-          "min": "",
-          "max": ""
-        }
+        "required": false,
+        "system": false,
+        "type": "date"
       },
       {
-        "system": false,
-        "id": "is_new",
+        "hidden": false,
+        "id": "bool_is_new",
         "name": "is_new",
-        "type": "bool",
-        "required": false,
         "presentable": false,
-        "unique": false,
-        "options": {}
+        "required": false,
+        "system": false,
+        "type": "bool"
       },
       {
-        "system": false,
-        "id": "points",
+        "hidden": false,
+        "id": "number_points",
+        "max": null,
+        "min": 0,
         "name": "points",
-        "type": "number",
-        "required": false,
+        "onlyInt": true,
         "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": null,
-          "noDecimal": true
-        }
+        "required": false,
+        "system": false,
+        "type": "number"
       },
       {
-        "system": false,
-        "id": "metadata",
+        "hidden": false,
+        "id": "json_metadata",
+        "maxSize": 2000000,
         "name": "metadata",
-        "type": "json",
-        "required": false,
         "presentable": false,
-        "unique": false,
-        "options": {
-          "maxSize": 2000000
-        }
+        "required": false,
+        "system": false,
+        "type": "json"
       }
     ],
     "indexes": [
@@ -150,18 +145,16 @@ migrate((db) => {
       "CREATE INDEX idx_user_achievements_unlocked_at ON user_achievements (unlocked_at)",
       "CREATE UNIQUE INDEX idx_user_achievements_unique ON user_achievements (user, achievement_id)"
     ],
-    "listRule": "@request.auth.id != '' && user = @request.auth.id",
-    "viewRule": "@request.auth.id != '' && user = @request.auth.id",
-    "createRule": null,
-    "updateRule": null,
-    "deleteRule": null,
-    "options": {}
+    "listRule": "@request.auth.id = user",
+    "name": "user_achievements",
+    "system": false,
+    "type": "base",
+    "updateRule": "@request.auth.id = user",
+    "viewRule": "@request.auth.id = user"
   });
 
-  return Dao(db).saveCollection(collection);
-}, (db) => {
-  const dao = new Dao(db);
-  const collection = dao.findCollectionByNameOrId("user_achievements_id");
-
-  return dao.deleteCollection(collection);
+  return app.save(collection);
+}, (app) => {
+  const collection = app.findCollectionByNameOrId("user_achievements");
+  return app.delete(collection);
 });
