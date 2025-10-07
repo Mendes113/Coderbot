@@ -123,11 +123,36 @@ const executeJavaScriptSafely = (code: string, timeoutMs: number = 5000) => {
   });
 };
 
+// Função para executar código via Piston API
+const executeCodeViaPiston = async (language: string, code: string, stdin: string = '') => {
+  try {
+    const response = await fetch('/api/piston/executar', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        language: language,
+        code: code,
+        stdin: stdin
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('Erro ao executar código via Piston:', error);
+    throw error;
+  }
+};
+
 // Templates iniciais para diferentes linguagens
 const LANGUAGE_TEMPLATES = {
   javascript: `// Bem-vindo ao Editor de Código JavaScript
-// Execute diretamente no navegador com sandbox de segurança!
-
 console.log("🚀 Hello, World!");
 
 // Exemplo de função
@@ -137,29 +162,245 @@ function saudacao(nome) {
 
 console.log(saudacao("Desenvolvedor"));
 
-// Exemplo com arrays e objetos
+// Exemplo com arrays
 const numeros = [1, 2, 3, 4, 5];
 const pares = numeros.filter(n => n % 2 === 0);
-console.log("Números pares:", pares);
-
-// Exemplo com objetos
-const pessoa = {
-  nome: "João",
-  idade: 25,
-  cidade: "São Paulo"
-};
-
-console.log("Pessoa:", pessoa);
-console.log(\`\${pessoa.nome} tem \${pessoa.idade} anos\`);`,
+console.log("Números pares:", pares);`,
   
   python: `# Bem-vindo ao Editor de Código Python
-print("Hello, World!")
+print("🚀 Hello, World!")
 
 # Exemplo de função
 def saudacao(nome):
-    return f"Olá, {nome}!"
+    return f"Olá, {nome}! 👋"
 
-print(saudacao("Desenvolvedor"))`,
+print(saudacao("Desenvolvedor"))
+
+# Exemplo com listas
+numeros = [1, 2, 3, 4, 5]
+pares = [n for n in numeros if n % 2 == 0]
+print("Números pares:", pares)`,
+
+  java: `// Bem-vindo ao Editor de Código Java
+public class Main {
+    public static void main(String[] args) {
+        System.out.println("🚀 Hello, World!");
+        
+        // Exemplo de método
+        String mensagem = saudacao("Desenvolvedor");
+        System.out.println(mensagem);
+        
+        // Exemplo com arrays
+        int[] numeros = {1, 2, 3, 4, 5};
+        System.out.print("Números pares: ");
+        for (int num : numeros) {
+            if (num % 2 == 0) {
+                System.out.print(num + " ");
+            }
+        }
+        System.out.println();
+    }
+    
+    public static String saudacao(String nome) {
+        return "Olá, " + nome + "! 👋";
+    }
+}`,
+
+  cpp: `// Bem-vindo ao Editor de Código C++
+#include <iostream>
+#include <vector>
+#include <string>
+
+using namespace std;
+
+string saudacao(const string& nome) {
+    return "Olá, " + nome + "! 👋";
+}
+
+int main() {
+    cout << "🚀 Hello, World!" << endl;
+    
+    // Exemplo de função
+    cout << saudacao("Desenvolvedor") << endl;
+    
+    // Exemplo com vetores
+    vector<int> numeros = {1, 2, 3, 4, 5};
+    cout << "Números pares: ";
+    for (int num : numeros) {
+        if (num % 2 == 0) {
+            cout << num << " ";
+        }
+    }
+    cout << endl;
+    
+    return 0;
+}`,
+
+  c: `// Bem-vindo ao Editor de Código C
+#include <stdio.h>
+#include <string.h>
+
+void saudacao(const char* nome) {
+    printf("Olá, %s! 👋\\n", nome);
+}
+
+int main() {
+    printf("🚀 Hello, World!\\n");
+    
+    // Exemplo de função
+    saudacao("Desenvolvedor");
+    
+    // Exemplo com arrays
+    int numeros[] = {1, 2, 3, 4, 5};
+    int tamanho = sizeof(numeros) / sizeof(numeros[0]);
+    
+    printf("Números pares: ");
+    for (int i = 0; i < tamanho; i++) {
+        if (numeros[i] % 2 == 0) {
+            printf("%d ", numeros[i]);
+        }
+    }
+    printf("\\n");
+    
+    return 0;
+}`,
+
+  csharp: `// Bem-vindo ao Editor de Código C#
+using System;
+using System.Linq;
+
+class Program 
+{
+    static void Main() 
+    {
+        Console.WriteLine("🚀 Hello, World!");
+        
+        // Exemplo de método
+        Console.WriteLine(Saudacao("Desenvolvedor"));
+        
+        // Exemplo com arrays e LINQ
+        int[] numeros = {1, 2, 3, 4, 5};
+        var pares = numeros.Where(n => n % 2 == 0);
+        Console.WriteLine("Números pares: " + string.Join(" ", pares));
+    }
+    
+    static string Saudacao(string nome) 
+    {
+        return $"Olá, {nome}! 👋";
+    }
+}`,
+
+  go: `// Bem-vindo ao Editor de Código Go
+package main
+
+import "fmt"
+
+func saudacao(nome string) string {
+    return fmt.Sprintf("Olá, %s! 👋", nome)
+}
+
+func main() {
+    fmt.Println("🚀 Hello, World!")
+    
+    // Exemplo de função
+    fmt.Println(saudacao("Desenvolvedor"))
+    
+    // Exemplo com slices
+    numeros := []int{1, 2, 3, 4, 5}
+    fmt.Print("Números pares: ")
+    for _, num := range numeros {
+        if num%2 == 0 {
+            fmt.Printf("%d ", num)
+        }
+    }
+    fmt.Println()
+}`,
+
+  rust: `// Bem-vindo ao Editor de Código Rust
+fn saudacao(nome: &str) -> String {
+    format!("Olá, {}! 👋", nome)
+}
+
+fn main() {
+    println!("🚀 Hello, World!");
+    
+    // Exemplo de função
+    println!("{}", saudacao("Desenvolvedor"));
+    
+    // Exemplo com vetores
+    let numeros = vec![1, 2, 3, 4, 5];
+    print!("Números pares: ");
+    for num in &numeros {
+        if num % 2 == 0 {
+            print!("{} ", num);
+        }
+    }
+    println!();
+}`,
+
+  php: `<?php
+// Bem-vindo ao Editor de Código PHP
+echo "🚀 Hello, World!\\n";
+
+// Exemplo de função
+function saudacao($nome) {
+    return "Olá, $nome! 👋";
+}
+
+echo saudacao("Desenvolvedor") . "\\n";
+
+// Exemplo com arrays
+$numeros = [1, 2, 3, 4, 5];
+$pares = array_filter($numeros, function($n) { return $n % 2 === 0; });
+echo "Números pares: " . implode(" ", $pares) . "\\n";
+?>`,
+
+  ruby: `# Bem-vindo ao Editor de Código Ruby
+puts "🚀 Hello, World!"
+
+# Exemplo de método
+def saudacao(nome)
+  "Olá, #{nome}! 👋"
+end
+
+puts saudacao("Desenvolvedor")
+
+# Exemplo com arrays
+numeros = [1, 2, 3, 4, 5]
+pares = numeros.select { |n| n.even? }
+puts "Números pares: #{pares.join(' ')}"`,
+
+  typescript: `// Bem-vindo ao Editor de Código TypeScript
+console.log("🚀 Hello, World!");
+
+// Exemplo de função tipada
+function saudacao(nome: string): string {
+  return \`Olá, \${nome}! 👋\`;
+}
+
+console.log(saudacao("Desenvolvedor"));
+
+// Exemplo com arrays tipados
+const numeros: number[] = [1, 2, 3, 4, 5];
+const pares: number[] = numeros.filter((n: number) => n % 2 === 0);
+console.log("Números pares:", pares);`,
+
+  kotlin: `// Bem-vindo ao Editor de Código Kotlin
+fun saudacao(nome: String): String {
+    return "Olá, \$nome! 👋"
+}
+
+fun main() {
+    println("🚀 Hello, World!")
+    
+    // Exemplo de função
+    println(saudacao("Desenvolvedor"))
+    
+    // Exemplo com listas
+    val numeros = listOf(1, 2, 3, 4, 5)
+    val pares = numeros.filter { it % 2 == 0 }
+    println("Números pares: \${pares.joinToString(" ")}")
+}`,
   
   html: `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -169,7 +410,7 @@ print(saudacao("Desenvolvedor"))`,
     <title>Minha Página</title>
 </head>
 <body>
-    <h1>Hello, World!</h1>
+    <h1>🚀 Hello, World!</h1>
     <p>Bem-vindo ao editor de código!</p>
 </body>
 </html>`,
@@ -199,12 +440,20 @@ h1 {
 };
 
 const SUPPORTED_LANGUAGES = [
-  { id: 'javascript', name: 'JavaScript', extension: 'js' },
-  { id: 'python', name: 'Python', extension: 'py' },
-  { id: 'html', name: 'HTML', extension: 'html' },
-  { id: 'css', name: 'CSS', extension: 'css' },
-  { id: 'typescript', name: 'TypeScript', extension: 'ts' },
-  { id: 'json', name: 'JSON', extension: 'json' }
+  { id: 'javascript', name: 'JavaScript', extension: 'js', executable: true, monacoLang: 'javascript' },
+  { id: 'python', name: 'Python', extension: 'py', executable: true, monacoLang: 'python' },
+  { id: 'java', name: 'Java', extension: 'java', executable: true, monacoLang: 'java' },
+  { id: 'cpp', name: 'C++', extension: 'cpp', executable: true, monacoLang: 'cpp' },
+  { id: 'c', name: 'C', extension: 'c', executable: true, monacoLang: 'c' },
+  { id: 'csharp', name: 'C#', extension: 'cs', executable: true, monacoLang: 'csharp' },
+  { id: 'go', name: 'Go', extension: 'go', executable: true, monacoLang: 'go' },
+  { id: 'rust', name: 'Rust', extension: 'rs', executable: true, monacoLang: 'rust' },
+  { id: 'php', name: 'PHP', extension: 'php', executable: true, monacoLang: 'php' },
+  { id: 'ruby', name: 'Ruby', extension: 'rb', executable: true, monacoLang: 'ruby' },
+  { id: 'typescript', name: 'TypeScript', extension: 'ts', executable: true, monacoLang: 'typescript' },
+  { id: 'kotlin', name: 'Kotlin', extension: 'kt', executable: true, monacoLang: 'kotlin' },
+  { id: 'html', name: 'HTML', extension: 'html', executable: false, monacoLang: 'html' },
+  { id: 'css', name: 'CSS', extension: 'css', executable: false, monacoLang: 'css' }
 ];
 
 interface CodeEditorPageProps {
@@ -337,9 +586,82 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
           toast.success('JavaScript executado no navegador!');
         }
       } else {
-        // Para outras linguagens, manter simulação
-        setOutput(`📝 Código ${currentLanguage} processado!\n\n⚠️ Nota: Execução real disponível apenas para JavaScript.\nPara outras linguagens, use um ambiente de desenvolvimento apropriado.`);
-        toast.success('Código processado!');
+        // Para outras linguagens executáveis, usar Piston
+        const currentLangConfig = SUPPORTED_LANGUAGES.find(l => l.id === currentLanguage);
+        
+        if (currentLangConfig?.executable) {
+          try {
+            const pistonResult = await executeCodeViaPiston(currentLanguage, code);
+            const executionTime = Date.now() - startTime;
+            
+            let output = '';
+            let hasError = false;
+            
+            // Verificar se houve erro de compilação
+            if (pistonResult.compile_output && pistonResult.compile_output.trim()) {
+              output += `� === Compile Output ===\n${pistonResult.compile_output}\n\n`;
+              if (pistonResult.status?.id !== 3) { // Status 3 = Accepted
+                hasError = true;
+              }
+            }
+            
+            // Saída padrão
+            if (pistonResult.stdout && pistonResult.stdout.trim()) {
+              output += `🖥️ === Output ===\n${pistonResult.stdout}\n\n`;
+            }
+            
+            // Erros de runtime
+            if (pistonResult.stderr && pistonResult.stderr.trim()) {
+              output += `❌ === Runtime Error ===\n${pistonResult.stderr}\n\n`;
+              hasError = true;
+            }
+            
+            // Status da execução
+            if (pistonResult.status) {
+              const statusDescription = pistonResult.status.description || 'Unknown';
+              const statusIcon = pistonResult.status.id === 3 ? '✅' : '❌';
+              output += `${statusIcon} === Status ===\n${statusDescription}`;
+              
+              if (pistonResult.time) {
+                output += ` (${pistonResult.time}s)`;
+              }
+              if (pistonResult.memory) {
+                output += ` [${pistonResult.memory}KB]`;
+              }
+            }
+            
+            if (!output.trim()) {
+              output = hasError ? '❌ Execução falhou sem output' : '✅ Código executado com sucesso! (Sem saída)';
+            }
+            
+            setOutput(output);
+            
+            // Marcar exemplo como executado se estivermos executando um exemplo
+            if (currentExampleId) {
+              markAsExecuted(
+                currentExampleId, 
+                hasError ? 'error' : 'success',
+                output,
+                executionTime
+              );
+            }
+            
+            if (hasError) {
+              toast.error(`Erro na execução ${currentLanguage.toUpperCase()}`);
+            } else {
+              toast.success(`${currentLanguage.toUpperCase()} executado com sucesso!`);
+            }
+            
+          } catch (pistonError) {
+            const errorMessage = pistonError instanceof Error ? pistonError.message : String(pistonError);
+            setOutput(`💥 Erro ao executar ${currentLanguage.toUpperCase()}:\n${errorMessage}\n\n⚠️ Verifique se o serviço Piston está disponível.`);
+            toast.error(`Erro ao executar ${currentLanguage.toUpperCase()}`);
+          }
+        } else {
+          // Para linguagens não executáveis (HTML, CSS)
+          setOutput(`📝 Código ${currentLanguage.toUpperCase()} validado!\n\n⚠️ Esta linguagem não suporta execução direta.\nUse um navegador web ou ferramenta apropriada para visualizar o resultado.`);
+          toast.success('Código validado!');
+        }
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -393,23 +715,44 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
               
               <div className="flex items-center gap-2">
                 <Select value={currentLanguage} onValueChange={handleLanguageChange}>
-                  <SelectTrigger className="w-40">
+                  <SelectTrigger className="w-48">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {SUPPORTED_LANGUAGES.map((lang) => (
-                      <SelectItem key={lang.id} value={lang.id}>
-                        {lang.name}
+                      <SelectItem key={lang.id} value={lang.id} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span>{lang.name}</span>
+                          {lang.executable && (
+                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                              ▶️
+                            </Badge>
+                          )}
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 
-                {/* Badge de execução JavaScript */}
+                {/* Badge de status de execução */}
                 {currentLanguage === 'javascript' && (
-                  <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                     <Shield className="w-3 h-3 mr-1" />
-                    Execução Direta
+                    Navegador
+                  </Badge>
+                )}
+                
+                {currentLanguage !== 'javascript' && SUPPORTED_LANGUAGES.find(l => l.id === currentLanguage)?.executable && (
+                  <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                    <Terminal className="w-3 h-3 mr-1" />
+                    Piston
+                  </Badge>
+                )}
+                
+                {SUPPORTED_LANGUAGES.find(l => l.id === currentLanguage)?.executable === false && (
+                  <Badge variant="secondary" className="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
+                    <FileText className="w-3 h-3 mr-1" />
+                    Texto
                   </Badge>
                 )}
                 
@@ -459,7 +802,7 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
             <div className="flex-1 min-h-0 overflow-hidden">
               <CodeEditor
                 initialCode={currentCode}
-                language={currentLanguage}
+                language={SUPPORTED_LANGUAGES.find(l => l.id === currentLanguage)?.monacoLang || currentLanguage}
                 theme={theme}
                 onCodeChange={handleCodeChange}
                 onRun={handleRunCode}

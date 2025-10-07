@@ -238,5 +238,90 @@ console.log(somar(2, 3)); // Output: undefined`,
     explanation: 'Loop for básico que imprime números de 0 a 4. Note a estrutura: inicialização, condição, incremento.',
     tags: ['loop', 'for', 'iteração'],
     difficulty: 'beginner'
+  },
+  {
+    id: 'python-hello',
+    title: 'Python: Hello World',
+    code: `print("🐍 Hello from Python!")
+
+# Função em Python
+def saudacao(nome):
+    return f"Olá, {nome}!"
+
+print(saudacao("Mundo Python"))
+
+# Lista e list comprehension
+numeros = [1, 2, 3, 4, 5]
+quadrados = [x**2 for x in numeros]
+print("Quadrados:", quadrados)`,
+    language: 'python',
+    type: 'correct',
+    explanation: 'Exemplo básico em Python mostrando funções, f-strings e list comprehensions.',
+    tags: ['python', 'função', 'lista'],
+    difficulty: 'beginner'
+  },
+  {
+    id: 'java-hello',
+    title: 'Java: Hello World',
+    code: `public class HelloWorld {
+    public static void main(String[] args) {
+        System.out.println("☕ Hello from Java!");
+        
+        // Chamando método
+        String mensagem = saudacao("Mundo Java");
+        System.out.println(mensagem);
+        
+        // Array e loop
+        int[] numeros = {1, 2, 3, 4, 5};
+        System.out.print("Números: ");
+        for (int num : numeros) {
+            System.out.print(num + " ");
+        }
+    }
+    
+    public static String saudacao(String nome) {
+        return "Olá, " + nome + "!";
+    }
+}`,
+    language: 'java',
+    type: 'correct',
+    explanation: 'Exemplo básico em Java com classe, método main, métodos estáticos e enhanced for loop.',
+    tags: ['java', 'classe', 'método'],
+    difficulty: 'beginner'
+  },
+  {
+    id: 'cpp-hello',
+    title: 'C++: Hello World',
+    code: `#include <iostream>
+#include <vector>
+#include <string>
+
+using namespace std;
+
+string saudacao(const string& nome) {
+    return "Olá, " + nome + "!";
+}
+
+int main() {
+    cout << "⚡ Hello from C++!" << endl;
+    
+    // Função
+    cout << saudacao("Mundo C++") << endl;
+    
+    // Vector e range-based for loop
+    vector<int> numeros = {1, 2, 3, 4, 5};
+    cout << "Números: ";
+    for (const auto& num : numeros) {
+        cout << num << " ";
+    }
+    cout << endl;
+    
+    return 0;
+}`,
+    language: 'cpp',
+    type: 'correct',
+    explanation: 'Exemplo básico em C++ com STL, strings, vectors e range-based loops.',
+    tags: ['cpp', 'vector', 'stl'],
+    difficulty: 'beginner'
   }
 ];
