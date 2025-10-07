@@ -17,7 +17,9 @@ import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
 import { gamificationService } from "@/services/gamification/GamificationService";
 import { AchievementDetectors } from "@/components/gamification/AchievementDetectors";
 import { NotificationProvider } from "@/context/NotificationContext";
+import { ExamplesProvider } from "@/context/ExamplesContext";
 import Auth from "./pages/Auth";
+import CodeEditorPage from "./pages/CodeEditorPage";
 // import { CodeEditorProvider } from "@/context/CodeEditorContext";
 // import { CodeEditorProvider } from "@/context/CodeEditorContext";
 
@@ -206,9 +208,10 @@ const App = () => {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <NotificationProvider>
-            {/* <CodeEditorProvider> */}
-            <Toaster />
-            <Sonner />
+            <ExamplesProvider>
+              {/* <CodeEditorProvider> */}
+              <Toaster />
+              <Sonner />
             <AnalyticsConsentBanner
               open={consentStatus === 'unknown'}
               onAccept={handleConsentAccept}
@@ -239,6 +242,7 @@ const App = () => {
                     <Route path="student" element={<StudentDashboard />} />
                     <Route path="whiteboard" element={<Whiteboard />} />
                     <Route path="notes" element={<NotesPage />} />
+                    <Route path="code-editor" element={<CodeEditorPage />} />
                   </Route>
                   <Route
                     path="teacher/*"
@@ -274,6 +278,7 @@ const App = () => {
               </Suspense>
             </BrowserRouter>
             {/* </CodeEditorProvider> */}
+            </ExamplesProvider>
           </NotificationProvider>
         </TooltipProvider>
       </QueryClientProvider>
