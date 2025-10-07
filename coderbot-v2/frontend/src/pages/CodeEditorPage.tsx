@@ -557,7 +557,7 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
               </Button>
             </div>
 
-            <div className="relative mt-4">
+            {/* <div className="relative mt-4">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/70" />
               <Input
                 value={searchQuery}
@@ -565,7 +565,7 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
                 placeholder="Buscar por título, linguagem ou tag..."
                 className="h-9 rounded-lg border border-border/70 bg-background/80 pl-9 text-sm placeholder:text-muted-foreground/70"
               />
-            </div>
+            </div> */}
 
             {availableLanguages.length > 1 && (
               <div className="relative mt-3 flex flex-wrap gap-2">
