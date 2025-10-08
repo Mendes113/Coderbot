@@ -2228,7 +2228,7 @@ Obrigado pela paciência! 🤖✨`,
 
         {/* Coluna 2: Painel de Exemplos */}
         {showExamplesPanel && !isMobile && (
-          <div className="w-full lg:w-1/3 xl:w-80 flex flex-col min-w-0 max-w-sm">
+          <div className="w-full lg:w-1/3 xl:w-96 flex flex-col min-w-0 max-w-sm">
             {/* Header dos Exemplos */}
             <div className="px-4 py-2 border-b bg-muted/30 flex items-center justify-between">
               <h3 className="font-medium text-sm">📚 Exemplos de Código</h3>

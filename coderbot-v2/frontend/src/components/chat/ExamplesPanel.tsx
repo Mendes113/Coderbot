@@ -17,7 +17,8 @@ import {
   Clock,
   Play,
   AlertCircle,
-  Calendar
+  Calendar,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'react-hot-toast';
@@ -106,23 +107,30 @@ const ExampleCard: React.FC<{
 
   return (
     <Card className={cn(
-      'transition-all duration-300 hover:shadow-md cursor-pointer border border-border/50 bg-card/50 backdrop-blur-sm',
-      'hover:border-border hover:bg-card/80 group',
+      'transition-all duration-200 hover:shadow-lg cursor-pointer',
+      'border border-border/50 bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-sm',
+      'hover:border-purple-300/50 dark:hover:border-purple-700/50',
+      'hover:shadow-purple-500/10 dark:hover:shadow-purple-500/20',
+      'group relative overflow-hidden',
       example.type === 'correct' 
         ? 'border-l-4 border-l-emerald-500 hover:border-l-emerald-400' 
         : 'border-l-4 border-l-rose-500 hover:border-l-rose-400'
     )}>
+      {/* Glassmorphism overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+      
       <CardHeader 
-        className="pb-3 px-4 py-3 hover:bg-muted/30 transition-colors duration-200"
+        className="pb-3 px-4 py-3 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 transition-all duration-200 relative z-10"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className={cn(
-              "w-8 h-8 rounded-full flex items-center justify-center shadow-sm transition-all duration-200",
+              "w-8 h-8 rounded-lg flex items-center justify-center shadow-sm transition-all duration-200",
+              "group-hover:scale-110 group-hover:shadow-md",
               example.type === 'correct' 
-                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 group-hover:scale-110' 
-                : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 group-hover:scale-110'
+                ? 'bg-gradient-to-br from-emerald-100 to-emerald-50 text-emerald-700 dark:from-emerald-900/30 dark:to-emerald-800/20 dark:text-emerald-300 group-hover:shadow-emerald-500/20' 
+                : 'bg-gradient-to-br from-rose-100 to-rose-50 text-rose-700 dark:from-rose-900/30 dark:to-rose-800/20 dark:text-rose-300 group-hover:shadow-rose-500/20'
             )}>
               {example.type === 'correct' ? (
                 <CheckCircle className="w-4 h-4" />
@@ -131,7 +139,7 @@ const ExampleCard: React.FC<{
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <CardTitle className="text-sm font-semibold leading-tight text-foreground group-hover:text-primary transition-colors duration-200">
+              <CardTitle className="text-sm font-semibold leading-tight text-foreground group-hover:text-purple-700 dark:group-hover:text-purple-400 transition-colors duration-200">
                 {example.title}
               </CardTitle>
               
@@ -139,7 +147,7 @@ const ExampleCard: React.FC<{
               {showExecutionInfo && example.lastExecuted && (
                 <div className="flex items-center gap-2 mt-1">
                   <div className={cn(
-                    "flex items-center gap-1 text-xs px-2 py-0.5 rounded-full",
+                    "flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium",
                     example.lastExecuted.status === 'success' 
                       ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
                       : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300'
@@ -149,7 +157,7 @@ const ExampleCard: React.FC<{
                     ) : (
                       <AlertCircle className="w-2.5 h-2.5" />
                     )}
-                    <span className="font-medium">
+                    <span>
                       {example.lastExecuted.status === 'success' ? 'Executado' : 'Erro'}
                     </span>
                   </div>
@@ -166,13 +174,13 @@ const ExampleCard: React.FC<{
                     <Badge 
                       key={index} 
                       variant="secondary" 
-                      className="text-xs px-2 py-0.5 h-5 bg-muted/70 hover:bg-muted transition-colors"
+                      className="text-xs px-2 py-0.5 h-5 bg-purple-100/80 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border-purple-200/50 dark:border-purple-800/50 hover:bg-purple-200/80 dark:hover:bg-purple-900/50 transition-colors"
                     >
                       {tag}
                     </Badge>
                   ))}
                   {example.tags.length > 3 && (
-                    <Badge variant="outline" className="text-xs px-2 py-0.5 h-5 font-medium">
+                    <Badge variant="outline" className="text-xs px-2 py-0.5 h-5 font-medium border-purple-200 dark:border-purple-800">
                       +{example.tags.length - 3}
                     </Badge>
                   )}
@@ -197,7 +205,7 @@ const ExampleCard: React.FC<{
             
             <div className={cn(
               "w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200",
-              "bg-muted/50 group-hover:bg-muted text-muted-foreground group-hover:text-foreground"
+              "bg-purple-50 dark:bg-purple-950/30 group-hover:bg-purple-100 dark:group-hover:bg-purple-900/50 text-purple-600 dark:text-purple-400"
             )}>
               {isExpanded ? (
                 <ChevronDown className="w-3 h-3" />
@@ -210,7 +218,7 @@ const ExampleCard: React.FC<{
       </CardHeader>
 
       {isExpanded && (
-        <CardContent className="pt-0 px-3 pb-3">
+        <CardContent className="pt-0 px-3 pb-3 relative z-10">
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground leading-relaxed">
               {example.explanation}
@@ -221,7 +229,7 @@ const ExampleCard: React.FC<{
                 variant="ghost"
                 size="sm"
                 onClick={handleToggleCode}
-                className="h-8 px-3 text-xs font-medium hover:bg-primary/10 hover:text-primary transition-all duration-200"
+                className="h-8 px-3 text-xs font-medium hover:bg-purple-100 dark:hover:bg-purple-950/30 hover:text-purple-700 dark:hover:text-purple-300 transition-all duration-200"
               >
                 {showCode ? (
                   <>
@@ -253,26 +261,27 @@ const ExampleCard: React.FC<{
                     e.stopPropagation();
                     onSelect(example);
                   }}
-                  className="h-8 px-4 text-xs font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm hover:shadow transition-all duration-200"
+                  className="h-8 px-4 text-xs font-medium bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-md shadow-purple-500/20 hover:shadow-lg hover:shadow-purple-500/30 transition-all duration-200"
                 >
+                  <Sparkles className="w-3 h-3 mr-1.5" />
                   Usar Exemplo
                 </Button>
               )}
             </div>
 
             {showCode && (
-              <div className="mt-3 border rounded-xl overflow-hidden shadow-sm bg-background">
-                <div className="bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700 px-4 py-3 border-b">
+              <div className="mt-3 border border-purple-200/50 dark:border-purple-800/50 rounded-xl overflow-hidden shadow-sm bg-background">
+                <div className="bg-gradient-to-r from-purple-100/80 to-purple-50/50 dark:from-purple-900/30 dark:to-purple-950/20 px-4 py-3 border-b border-purple-200/50 dark:border-purple-800/50">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full bg-red-500 shadow-sm"></div>
                       <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-sm"></div>
                       <div className="w-3 h-3 rounded-full bg-green-500 shadow-sm"></div>
-                      <span className="text-xs font-medium text-muted-foreground ml-2 capitalize">
+                      <span className="text-xs font-medium text-purple-700 dark:text-purple-300 ml-2 capitalize">
                         {example.language}
                       </span>
                     </div>
-                    <Badge variant="secondary" className="text-xs px-2 py-1 font-mono">
+                    <Badge variant="secondary" className="text-xs px-2 py-1 font-mono bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 border-purple-200 dark:border-purple-800">
                       {example.type === 'correct' ? '✓ Correto' : '✗ Incorreto'}
                     </Badge>
                   </div>
@@ -285,8 +294,8 @@ const ExampleCard: React.FC<{
                   </div>
                 </ScrollArea>
                 {example.hints && example.hints.length > 0 && (
-                  <div className="px-4 py-3 bg-muted/30 border-t">
-                    <div className="text-xs font-medium text-muted-foreground mb-2">💡 Dicas:</div>
+                  <div className="px-4 py-3 bg-purple-50/50 dark:bg-purple-950/20 border-t border-purple-200/50 dark:border-purple-800/50">
+                    <div className="text-xs font-medium text-purple-700 dark:text-purple-300 mb-2">💡 Dicas:</div>
                     <div className="space-y-1">
                       {example.hints.slice(0, 2).map((hint, index) => (
                         <div key={index} className="flex items-start gap-2">
@@ -348,13 +357,15 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
 
   return (
     <div className={cn('flex flex-col h-full bg-background', className)}>
-      <div className="px-4 py-4 border-b bg-gradient-to-r from-background to-muted/30">
+      <div className="px-4 py-4 border-b bg-gradient-to-r from-purple-50/50 via-purple-100/30 to-background dark:from-purple-950/30 dark:via-purple-900/20 dark:to-background">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/25">
             <Lightbulb className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h3 className="font-semibold text-base text-foreground">Exemplos de Código</h3>
+            <h3 className="font-semibold text-base bg-gradient-to-r from-purple-700 to-purple-900 dark:from-purple-400 dark:to-purple-300 bg-clip-text text-transparent">
+              Exemplos de Código
+            </h3>
             <p className="text-xs text-muted-foreground">
               Aprenda com exemplos práticos
               {showExecutionInfo && <span className="ml-1">• Com histórico de execução</span>}
@@ -364,23 +375,32 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
         
         <Tabs value={selectedTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid w-full grid-cols-3 h-9 bg-muted/50">
-            <TabsTrigger value="all" className="text-xs px-2 font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <TabsTrigger 
+              value="all" 
+              className="text-xs px-2 font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-50 data-[state=active]:to-purple-100 dark:data-[state=active]:from-purple-950/50 dark:data-[state=active]:to-purple-900/30 data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:shadow-sm"
+            >
               Todos
-              <Badge variant="secondary" className="ml-2 text-xs px-1.5 h-5">
+              <Badge variant="secondary" className="ml-2 text-xs px-1.5 h-5 bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300">
                 {examples.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="correct" className="text-xs px-2 font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <TabsTrigger 
+              value="correct" 
+              className="text-xs px-2 font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-50 data-[state=active]:to-emerald-100 dark:data-[state=active]:from-emerald-950/50 dark:data-[state=active]:to-emerald-900/30 data-[state=active]:text-emerald-700 dark:data-[state=active]:text-emerald-300 data-[state=active]:shadow-sm"
+            >
               <CheckCircle className="w-3 h-3 mr-1.5 text-emerald-500" />
               Corretos
-              <Badge variant="secondary" className="ml-2 text-xs px-1.5 h-5">
+              <Badge variant="secondary" className="ml-2 text-xs px-1.5 h-5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
                 {correctExamples.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="incorrect" className="text-xs px-2 font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <TabsTrigger 
+              value="incorrect" 
+              className="text-xs px-2 font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-50 data-[state=active]:to-rose-100 dark:data-[state=active]:from-rose-950/50 dark:data-[state=active]:to-rose-900/30 data-[state=active]:text-rose-700 dark:data-[state=active]:text-rose-300 data-[state=active]:shadow-sm"
+            >
               <XCircle className="w-3 h-3 mr-1.5 text-rose-500" />
               Incorretos
-              <Badge variant="secondary" className="ml-2 text-xs px-1.5 h-5">
+              <Badge variant="secondary" className="ml-2 text-xs px-1.5 h-5 bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">
                 {incorrectExamples.length}
               </Badge>
             </TabsTrigger>
@@ -392,8 +412,8 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
         <div className="space-y-3 py-4">
           {filteredExamples.length === 0 ? (
             <div className="text-center py-12">
-              <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
-                <Info className="w-8 h-8 text-muted-foreground/70" />
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-100 to-purple-50 dark:from-purple-900/30 dark:to-purple-950/20 flex items-center justify-center mx-auto mb-4">
+                <Info className="w-8 h-8 text-purple-500 dark:text-purple-400" />
               </div>
               <div className="space-y-2">
                 <h4 className="font-medium text-sm text-foreground">Nenhum exemplo encontrado</h4>

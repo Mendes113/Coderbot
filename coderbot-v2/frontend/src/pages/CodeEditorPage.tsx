@@ -16,19 +16,34 @@ import {
   Folder,
   Plus,
   Code,
+  Code2,
   MessageSquare,
   Sparkles,
   X,
   Search,
   Clock,
   Shield,
-  Trash2Icon
+  Trash2Icon,
+  Zap,
+  Home,
+  Monitor,
+  Moon,
+  Sun,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  AlertCircle,
+  MapPin,
+  Loader2,
+  BookOpen
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 import CodeEditor from '@/components/chat/CodeEditor';
 import ExamplesPanel from '@/components/chat/ExamplesPanel';
 import { useExamples, type CodeExample } from '@/context/ExamplesContext';
+import { useCodeEditor } from '@/context/CodeEditorContext';
+import { Link, useNavigate } from 'react-router-dom';
 
 // Função utilitária para execução segura de JavaScript
 const executeJavaScriptSafely = (code: string, timeoutMs: number = 5000) => {
@@ -443,17 +458,17 @@ const SUPPORTED_LANGUAGES = [
   { id: 'javascript', name: 'JavaScript', extension: 'js', executable: true, monacoLang: 'javascript' },
   { id: 'python', name: 'Python', extension: 'py', executable: true, monacoLang: 'python' },
   { id: 'java', name: 'Java', extension: 'java', executable: true, monacoLang: 'java' },
-  { id: 'cpp', name: 'C++', extension: 'cpp', executable: true, monacoLang: 'cpp' },
-  { id: 'c', name: 'C', extension: 'c', executable: true, monacoLang: 'c' },
-  { id: 'csharp', name: 'C#', extension: 'cs', executable: true, monacoLang: 'csharp' },
-  { id: 'go', name: 'Go', extension: 'go', executable: true, monacoLang: 'go' },
-  { id: 'rust', name: 'Rust', extension: 'rs', executable: true, monacoLang: 'rust' },
-  { id: 'php', name: 'PHP', extension: 'php', executable: true, monacoLang: 'php' },
-  { id: 'ruby', name: 'Ruby', extension: 'rb', executable: true, monacoLang: 'ruby' },
+  // { id: 'cpp', name: 'C++', extension: 'cpp', executable: true, monacoLang: 'cpp' },
+  // { id: 'c', name: 'C', extension: 'c', executable: true, monacoLang: 'c' },
+  // { id: 'csharp', name: 'C#', extension: 'cs', executable: true, monacoLang: 'csharp' },
+  // { id: 'go', name: 'Go', extension: 'go', executable: true, monacoLang: 'go' },
+  // { id: 'rust', name: 'Rust', extension: 'rs', executable: true, monacoLang: 'rust' },
+  // { id: 'php', name: 'PHP', extension: 'php', executable: true, monacoLang: 'php' },
+  // { id: 'ruby', name: 'Ruby', extension: 'rb', executable: true, monacoLang: 'ruby' },
   { id: 'typescript', name: 'TypeScript', extension: 'ts', executable: true, monacoLang: 'typescript' },
-  { id: 'kotlin', name: 'Kotlin', extension: 'kt', executable: true, monacoLang: 'kotlin' },
-  { id: 'html', name: 'HTML', extension: 'html', executable: false, monacoLang: 'html' },
-  { id: 'css', name: 'CSS', extension: 'css', executable: false, monacoLang: 'css' }
+  // { id: 'kotlin', name: 'Kotlin', extension: 'kt', executable: true, monacoLang: 'kotlin' },
+  // { id: 'html', name: 'HTML', extension: 'html', executable: false, monacoLang: 'html' },
+  // { id: 'css', name: 'CSS', extension: 'css', executable: false, monacoLang: 'css' }
 ];
 
 interface CodeEditorPageProps {
@@ -461,6 +476,8 @@ interface CodeEditorPageProps {
 }
 
 export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => {
+  const navigate = useNavigate();
+  
   const { 
     markAsExecuted, 
     examples,
@@ -469,6 +486,15 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
     selectedLanguage, 
     setSelectedLanguage
   } = useExamples();
+  
+  const {
+    isSimpleMode,
+    isAdvancedMode,
+    editorTheme,
+    toggleMode,
+    updatePreference,
+    isSyncingPreferences
+  } = useCodeEditor();
 
   // Computed properties para filtragem
   const availableLanguages = useMemo(() => {
@@ -493,13 +519,25 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
   }, [examples, selectedLanguage, searchQuery]);
   const [currentCode, setCurrentCode] = useState(LANGUAGE_TEMPLATES.javascript);
   const [currentLanguage, setCurrentLanguage] = useState('javascript');
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [theme, setTheme] = useState<'light' | 'dark'>(editorTheme || 'dark');
   const [isRunning, setIsRunning] = useState(false);
   const [output, setOutput] = useState<string>('');
   const [showOutput, setShowOutput] = useState(false);
   const [showExamples, setShowExamples] = useState(true);
   const [fileName, setFileName] = useState('untitled');
   const [currentExampleId, setCurrentExampleId] = useState<string | null>(null);
+
+  // Sync theme with context
+  React.useEffect(() => {
+    setTheme(editorTheme);
+  }, [editorTheme]);
+
+  const handleThemeToggle = useCallback(async () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme); // Update local state immediately
+    await updatePreference('editor_theme', newTheme); // Persist to backend
+    toast.success(`Tema ${newTheme === 'dark' ? 'escuro' : 'claro'} ativado!`);
+  }, [theme, updatePreference]);
 
   const handleLanguageChange = useCallback((language: string) => {
     setCurrentLanguage(language);
@@ -535,15 +573,15 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
         let output = '';
         
         if (executionResult.logs.length > 0) {
-          output += '🖥️ === Console Output ===\n' + executionResult.logs.join('\n') + '\n\n';
+          output += '[Console Output]\n' + executionResult.logs.join('\n') + '\n\n';
         }
         
         if (executionResult.errors.length > 0) {
-          output += '❌ === Console Errors ===\n' + executionResult.errors.join('\n') + '\n\n';
+          output += '[Console Errors]\n' + executionResult.errors.join('\n') + '\n\n';
         }
         
         if (executionResult.executionError) {
-          output += `🚨 === Execution Error ===\n${executionResult.executionError.name}: ${executionResult.executionError.message}`;
+          output += `[Execution Error]\n${executionResult.executionError.name}: ${executionResult.executionError.message}`;
           if (executionResult.executionError.stack) {
             // Limpar stack trace para mostrar apenas linhas relevantes
             const stack = executionResult.executionError.stack
@@ -552,7 +590,7 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
               .slice(0, 3)
               .join('\n');
             if (stack.trim()) {
-              output += `\n\n📍 Stack Trace:\n${stack}`;
+              output += `\n\n[Stack Trace]\n${stack}`;
             }
           }
         } else {
@@ -560,15 +598,15 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
             const resultStr = typeof executionResult.result === 'object' 
               ? JSON.stringify(executionResult.result, null, 2) 
               : String(executionResult.result);
-            output += `✅ === Return Value ===\n${resultStr}`;
+            output += `[Return Value]\n${resultStr}`;
           }
           
           if (executionResult.logs.length === 0 && executionResult.result === undefined) {
-            output += '✅ === Execution Completed ===\nCódigo executado com sucesso! (Sem saída)';
+            output += '[Execution Completed]\nCódigo executado com sucesso! (Sem saída)';
           }
         }
         
-        setOutput(output || '✅ Código executado com sucesso!');
+        setOutput(output || '[Success] Código executado com sucesso!');
         
         // Marcar exemplo como executado se estivermos executando um exemplo
         if (currentExampleId) {
@@ -599,7 +637,7 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
             
             // Verificar se houve erro de compilação
             if (pistonResult.compile_output && pistonResult.compile_output.trim()) {
-              output += `� === Compile Output ===\n${pistonResult.compile_output}\n\n`;
+              output += `[Compile Output]\n${pistonResult.compile_output}\n\n`;
               if (pistonResult.status?.id !== 3) { // Status 3 = Accepted
                 hasError = true;
               }
@@ -607,20 +645,20 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
             
             // Saída padrão
             if (pistonResult.stdout && pistonResult.stdout.trim()) {
-              output += `🖥️ === Output ===\n${pistonResult.stdout}\n\n`;
+              output += `[Output]\n${pistonResult.stdout}\n\n`;
             }
             
             // Erros de runtime
             if (pistonResult.stderr && pistonResult.stderr.trim()) {
-              output += `❌ === Runtime Error ===\n${pistonResult.stderr}\n\n`;
+              output += `[Runtime Error]\n${pistonResult.stderr}\n\n`;
               hasError = true;
             }
             
             // Status da execução
             if (pistonResult.status) {
               const statusDescription = pistonResult.status.description || 'Unknown';
-              const statusIcon = pistonResult.status.id === 3 ? '✅' : '❌';
-              output += `${statusIcon} === Status ===\n${statusDescription}`;
+              const statusPrefix = pistonResult.status.id === 3 ? '[Success]' : '[Error]';
+              output += `${statusPrefix} ${statusDescription}`;
               
               if (pistonResult.time) {
                 output += ` (${pistonResult.time}s)`;
@@ -631,7 +669,7 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
             }
             
             if (!output.trim()) {
-              output = hasError ? '❌ Execução falhou sem output' : '✅ Código executado com sucesso! (Sem saída)';
+              output = hasError ? '[Error] Execução falhou sem output' : '[Success] Código executado com sucesso! (Sem saída)';
             }
             
             setOutput(output);
@@ -654,18 +692,18 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
             
           } catch (pistonError) {
             const errorMessage = pistonError instanceof Error ? pistonError.message : String(pistonError);
-            setOutput(`💥 Erro ao executar ${currentLanguage.toUpperCase()}:\n${errorMessage}\n\n⚠️ Verifique se o serviço Piston está disponível.`);
+            setOutput(`[Error] Erro ao executar ${currentLanguage.toUpperCase()}:\n${errorMessage}\n\n[Warning] Verifique se o serviço Piston está disponível.`);
             toast.error(`Erro ao executar ${currentLanguage.toUpperCase()}`);
           }
         } else {
           // Para linguagens não executáveis (HTML, CSS)
-          setOutput(`📝 Código ${currentLanguage.toUpperCase()} validado!\n\n⚠️ Esta linguagem não suporta execução direta.\nUse um navegador web ou ferramenta apropriada para visualizar o resultado.`);
+          setOutput(`[Info] Código ${currentLanguage.toUpperCase()} validado!\n\n[Warning] Esta linguagem não suporta execução direta.\nUse um navegador web ou ferramenta apropriada para visualizar o resultado.`);
           toast.success('Código validado!');
         }
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      setOutput(`💥 Erro crítico na execução:\n${errorMessage}`);
+      setOutput(`[Critical Error] Erro crítico na execução:\n${errorMessage}`);
       toast.error('Erro crítico ao executar código');
     } finally {
       setIsRunning(false);
@@ -701,21 +739,89 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
   }, [currentLanguage]);
 
   return (
-    <div className={cn('flex h-screen w-full bg-background overflow-hidden', className)}>
+    <div className={cn('flex h-screen w-full bg-gradient-to-br from-background via-background to-purple-50/10 dark:to-purple-950/10 overflow-hidden', className)}>
       {/* Painel Principal - Editor */}
       <div className="flex-1 flex flex-col min-w-0 h-full">
-        {/* Header do Editor */}
-        <div className="border-b px-4 py-3 bg-muted/30 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Code className="w-5 h-5 text-primary" />
-                <h1 className="font-semibold text-lg">Editor de Código</h1>
+        {/* Unified Header with Purple Educational Theme */}
+        <div className="relative border-b flex-shrink-0 bg-gradient-to-r from-purple-500/10 via-purple-400/5 to-transparent">
+          <div className="absolute inset-0 bg-gradient-to-b from-background/60 to-background" />
+          
+          <div className="relative px-6 py-4">
+            <div className="flex items-center justify-between mb-3">
+              {/* Left: Logo and Breadcrumb */}
+              <div className="flex items-center gap-4">
+                <Link to="/home" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg shadow-purple-500/25">
+                    <Code2 className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="hidden sm:block">
+                    <h1 className="text-base font-semibold bg-gradient-to-r from-purple-600 to-purple-800 dark:from-purple-400 dark:to-purple-300 bg-clip-text text-transparent">
+                      CoderBot
+                    </h1>
+                    <p className="text-[10px] text-muted-foreground -mt-0.5">
+                      Editor de Código
+                    </p>
+                  </div>
+                </Link>
+                
+                <div className="h-6 w-px bg-border" />
+                
+                {/* Mode Toggle */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleMode}
+                  disabled={isSyncingPreferences}
+                  className={cn(
+                    "gap-2 transition-all duration-200",
+                    isSimpleMode 
+                      ? "border-green-200 dark:border-green-800 hover:bg-green-50 dark:hover:bg-green-950/30" 
+                      : "border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-950/30"
+                  )}
+                >
+                  {isSimpleMode ? (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                      <span className="text-xs font-medium">Modo Simples</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                      <span className="text-xs font-medium">Modo Avançado</span>
+                    </>
+                  )}
+                </Button>
               </div>
               
+              {/* Right: Quick Actions */}
               <div className="flex items-center gap-2">
+                {/* <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  className="h-8 w-8 p-0"
+                >
+                  {theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+                </Button> */}
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/profile?tab=preferences')}
+                  className="h-8 w-8 p-0"
+                  title="Preferências do Editor"
+                >
+                  <Settings className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            
+            {/* Toolbar */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                {/* Language Selector */}
                 <Select value={currentLanguage} onValueChange={handleLanguageChange}>
-                  <SelectTrigger className="w-48">
+                  <SelectTrigger className="w-48 h-9 bg-background/80 backdrop-blur-sm border-purple-200/50 dark:border-purple-800/50 focus:border-purple-400 dark:focus:border-purple-600 transition-colors">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -724,8 +830,8 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
                         <div className="flex items-center gap-2">
                           <span>{lang.name}</span>
                           {lang.executable && (
-                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                              ▶️
+                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-300 dark:border-green-800">
+                              <Play className="w-3 h-3" />
                             </Badge>
                           )}
                         </div>
@@ -734,63 +840,71 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
                   </SelectContent>
                 </Select>
                 
-                {/* Badge de status de execução */}
+                {/* Execution Badge */}
                 {currentLanguage === 'javascript' && (
-                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                  <Badge variant="secondary" className="bg-gradient-to-r from-blue-100 to-blue-50 text-blue-800 dark:from-blue-900/30 dark:to-blue-950/20 dark:text-blue-200 border-blue-200/50 dark:border-blue-800/50">
                     <Shield className="w-3 h-3 mr-1" />
                     Navegador
                   </Badge>
                 )}
                 
                 {currentLanguage !== 'javascript' && SUPPORTED_LANGUAGES.find(l => l.id === currentLanguage)?.executable && (
-                  <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                  <Badge variant="secondary" className="bg-gradient-to-r from-purple-100 to-purple-50 text-purple-800 dark:from-purple-900/30 dark:to-purple-950/20 dark:text-purple-200 border-purple-200/50 dark:border-purple-800/50">
                     <Terminal className="w-3 h-3 mr-1" />
                     Piston
                   </Badge>
                 )}
                 
                 {SUPPORTED_LANGUAGES.find(l => l.id === currentLanguage)?.executable === false && (
-                  <Badge variant="secondary" className="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
+                  <Badge variant="secondary" className="bg-muted/70 text-muted-foreground border-border/50">
                     <FileText className="w-3 h-3 mr-1" />
                     Texto
                   </Badge>
                 )}
-                
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleReset}
+                  className="h-9 gap-2"
                 >
-                  {theme === 'dark' ? '🌞' : '🌙'}
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Reset</span>
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleSaveFile}
+                  className="h-9 gap-2"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Salvar</span>
+                </Button>
+                
+                <Button 
+                  size="sm" 
+                  onClick={() => handleRunCode(currentCode)}
+                  disabled={isRunning}
+                  className={cn(
+                    "h-9 gap-2 shadow-md transition-all duration-200",
+                    currentLanguage === 'javascript' 
+                      ? 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-green-500/20 hover:shadow-lg hover:shadow-green-500/30' 
+                      : 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 shadow-purple-500/20 hover:shadow-lg hover:shadow-purple-500/30'
+                  )}
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  {isRunning ? 'Executando...' : 
+                   currentLanguage === 'javascript' ? 'Executar' : 'Executar'
+                  }
+                  {currentLanguage === 'javascript' && (
+                    <Shield className="w-3 h-3 ml-1" />
+                  )}
                 </Button>
               </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleReset}>
-                <RotateCcw className="w-4 h-4 mr-1" />
-                Reset
-              </Button>
-              
-              <Button variant="outline" size="sm" onClick={handleSaveFile}>
-                <Download className="w-4 h-4 mr-1" />
-                Salvar
-              </Button>
-              
-              <Button 
-                size="sm" 
-                onClick={() => handleRunCode(currentCode)}
-                disabled={isRunning}
-                className={currentLanguage === 'javascript' ? 'bg-green-600 hover:bg-green-700' : ''}
-              >
-                <Play className="w-4 h-4 mr-1" />
-                {isRunning ? 'Executando...' : 
-                 currentLanguage === 'javascript' ? 'Executar no Navegador' : 'Executar'
-                }
-                {currentLanguage === 'javascript' && (
-                  <Shield className="w-3 h-3 ml-1 text-green-200" />
-                )}
-              </Button>
             </div>
           </div>
         </div>
@@ -949,8 +1063,9 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
       {/* Botão para mostrar exemplos quando oculto */}
       {!showExamples && (
         <div className="fixed bottom-4 right-4">
-          <Button onClick={() => setShowExamples(true)}>
-            📚 Mostrar Exemplos
+          <Button onClick={() => setShowExamples(true)} className="gap-2">
+            <Sparkles className="w-4 h-4" />
+            Mostrar Exemplos
           </Button>
         </div>
       )}

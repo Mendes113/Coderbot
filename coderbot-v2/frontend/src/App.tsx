@@ -18,10 +18,9 @@ import { gamificationService } from "@/services/gamification/GamificationService
 import { AchievementDetectors } from "@/components/gamification/AchievementDetectors";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { ExamplesProvider } from "@/context/ExamplesContext";
+import { CodeEditorProvider } from "@/context/CodeEditorContext";
 import Auth from "./pages/Auth";
 import CodeEditorPage from "./pages/CodeEditorPage";
-// import { CodeEditorProvider } from "@/context/CodeEditorContext";
-// import { CodeEditorProvider } from "@/context/CodeEditorContext";
 
 // Lazy loading otimizado com preload para rotas críticas
 const Index = React.lazy(() => import("./pages/Index"));
@@ -209,7 +208,7 @@ const App = () => {
         <TooltipProvider>
           <NotificationProvider>
             <ExamplesProvider>
-              {/* <CodeEditorProvider> */}
+              <CodeEditorProvider>
               <Toaster />
               <Sonner />
             <AnalyticsConsentBanner
@@ -277,7 +276,7 @@ const App = () => {
                 </Routes>
               </Suspense>
             </BrowserRouter>
-            {/* </CodeEditorProvider> */}
+            </CodeEditorProvider>
             </ExamplesProvider>
           </NotificationProvider>
         </TooltipProvider>

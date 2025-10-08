@@ -76,11 +76,11 @@ const LINTING_RULES = {
         message: 'Use "!==" para comparação estrita',
         severity: 'warning' as const
       },
-      {
-        pattern: /console\.log\s*\(/g,
-        message: 'Remova console.log antes de colocar em produção',
-        severity: 'info' as const
-      }
+      // {
+      //   pattern: /console\.log\s*\(/g,
+      //   message: 'Remova console.log antes de colocar em produção',
+      //   severity: 'info' as const
+      // }
     ]
   }
 };
