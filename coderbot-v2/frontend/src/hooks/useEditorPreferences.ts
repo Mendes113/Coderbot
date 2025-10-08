@@ -62,6 +62,26 @@ export const useEditorPreferences = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [actualTheme, setActualTheme] = useState<'light' | 'dark'>(() => {
+    // Initialize with correct theme based on system preference or saved preference
+    const cached = localStorage.getItem(STORAGE_KEY);
+    if (cached) {
+      try {
+        const prefs = JSON.parse(cached) as EditorPreferences;
+        if (prefs.editor_theme === 'auto') {
+          // Detect system theme
+          if (typeof window !== 'undefined' && window.matchMedia) {
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          return 'dark';
+        }
+        return prefs.editor_theme;
+      } catch {
+        return 'dark';
+      }
+    }
+    return 'dark';
+  });
 
   /**
    * Load preferences from PocketBase
@@ -170,19 +190,42 @@ export const useEditorPreferences = () => {
   const isAdvancedMode = preferences.editor_mode === 'advanced';
 
   /**
-   * Get actual theme considering 'auto' setting
+   * Update actual theme based on preferences and system theme
+   * This runs whenever editor_theme preference changes or system theme changes
    */
-  const getActualTheme = useCallback((): 'light' | 'dark' => {
-    if (preferences.editor_theme !== 'auto') {
-      return preferences.editor_theme;
-    }
+  useEffect(() => {
+    const updateTheme = () => {
+      if (preferences.editor_theme !== 'auto') {
+        // User selected a specific theme (light or dark)
+        setActualTheme(preferences.editor_theme);
+        return;
+      }
 
-    // Check system preference
-    if (typeof window !== 'undefined' && window.matchMedia) {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
+      // Auto mode: detect system preference
+      if (typeof window !== 'undefined' && window.matchMedia) {
+        const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const newTheme = isDark ? 'dark' : 'light';
+        setActualTheme(newTheme);
+        console.log(`[Theme Auto] System theme detected: ${newTheme}`);
+      } else {
+        // Fallback if matchMedia not available
+        setActualTheme('light');
+      }
+    };
 
-    return 'light';
+    updateTheme();
+
+    // Listen for system theme changes when using 'auto'
+    if (preferences.editor_theme === 'auto' && typeof window !== 'undefined') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handler = (e: MediaQueryListEvent) => {
+        console.log(`[Theme Auto] System theme changed to: ${e.matches ? 'dark' : 'light'}`);
+        updateTheme();
+      };
+      
+      mediaQuery.addEventListener('change', handler);
+      return () => mediaQuery.removeEventListener('change', handler);
+    }
   }, [preferences.editor_theme]);
 
   // Load preferences on mount
@@ -190,29 +233,13 @@ export const useEditorPreferences = () => {
     loadPreferences();
   }, [loadPreferences]);
 
-  // Listen for system theme changes when using 'auto'
-  useEffect(() => {
-    if (preferences.editor_theme !== 'auto' || typeof window === 'undefined') {
-      return;
-    }
-
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = () => {
-      // Force re-render when system theme changes
-      setPreferences(prev => ({ ...prev }));
-    };
-
-    mediaQuery.addEventListener('change', handler);
-    return () => mediaQuery.removeEventListener('change', handler);
-  }, [preferences.editor_theme]);
-
   return {
     preferences,
     isLoading,
     isSyncing,
     isSimpleMode,
     isAdvancedMode,
-    actualTheme: getActualTheme(),
+    actualTheme,
     updatePreference,
     savePreferences,
     toggleMode,

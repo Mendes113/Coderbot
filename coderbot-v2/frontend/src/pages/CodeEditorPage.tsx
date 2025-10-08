@@ -491,8 +491,8 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
     isSimpleMode,
     isAdvancedMode,
     editorTheme,
+    editorPreferences,
     toggleMode,
-    updatePreference,
     isSyncingPreferences
   } = useCodeEditor();
 
@@ -531,13 +531,6 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
   React.useEffect(() => {
     setTheme(editorTheme);
   }, [editorTheme]);
-
-  const handleThemeToggle = useCallback(async () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme); // Update local state immediately
-    await updatePreference('editor_theme', newTheme); // Persist to backend
-    toast.success(`Tema ${newTheme === 'dark' ? 'escuro' : 'claro'} ativado!`);
-  }, [theme, updatePreference]);
 
   const handleLanguageChange = useCallback((language: string) => {
     setCurrentLanguage(language);
@@ -795,15 +788,6 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
               
               {/* Right: Quick Actions */}
               <div className="flex items-center gap-2">
-                {/* <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  className="h-8 w-8 p-0"
-                >
-                  {theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-                </Button> */}
-                
                 <Button
                   variant="ghost"
                   size="sm"
@@ -922,8 +906,12 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
                 onRun={handleRunCode}
                 height="100%"
                 showActions={false}
-                enableLinting={true}
-                enableLSP={true}
+                enableLinting={isAdvancedMode}
+                enableLSP={editorPreferences.enable_lsp}
+                fontSize={editorPreferences.font_size}
+                showMinimap={editorPreferences.show_minimap}
+                showLineNumbers={editorPreferences.show_line_numbers}
+                enableLigatures={editorPreferences.enable_ligatures}
                 className="h-full w-full"
               />
             </div>
@@ -982,7 +970,7 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
           <div className="relative border-b border-border/60 px-4 py-4 flex-shrink-0">
             <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-transparent" aria-hidden="true" />
             <div className="relative flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3">
+              {/* <div className="flex items-start gap-3">
                 <span className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-inner shadow-primary/10">
                   <Sparkles className="h-5 w-5" />
                 </span>
@@ -1002,7 +990,7 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
                     Inspirações prontas para usar no editor
                   </p>
                 </div>
-              </div>
+              </div> */}
               <Button
                 variant="ghost"
                 size="icon"

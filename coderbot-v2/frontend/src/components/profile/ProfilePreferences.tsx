@@ -40,13 +40,18 @@ export const ProfilePreferences: React.FC = () => {
     editorPreferences,
     isSimpleMode,
     isAdvancedMode,
-    updatePreference,
     savePreferences,
     isSyncingPreferences,
   } = useCodeEditor();
 
   const [hasChanges, setHasChanges] = useState(false);
   const [localPreferences, setLocalPreferences] = useState(editorPreferences);
+
+  // Sync local preferences when context updates
+  React.useEffect(() => {
+    setLocalPreferences(editorPreferences);
+    setHasChanges(false);
+  }, [editorPreferences]);
 
   // Update local preferences and mark as changed
   const handlePreferenceChange = <K extends keyof typeof localPreferences>(
@@ -116,11 +121,22 @@ export const ProfilePreferences: React.FC = () => {
       <Alert className="border-purple-200 dark:border-purple-800 bg-gradient-to-r from-purple-50/50 to-purple-100/30 dark:from-purple-950/30 dark:to-purple-900/20">
         <Info className="h-4 w-4 text-purple-600 dark:text-purple-400" />
         <AlertDescription className="text-sm">
-          <span className="font-medium">Modos do Editor:</span>{' '}
-          <strong className="text-green-700 dark:text-green-300">Modo Simples</strong> é ideal para iniciantes, 
-          com interface limpa e recursos essenciais. 
-          <strong className="text-purple-700 dark:text-purple-300 ml-1">Modo Avançado</strong> oferece ferramentas 
-          profissionais como LSP, minimap e terminal integrado.
+          <div className="space-y-2">
+            <p>
+              <span className="font-medium">Modos do Editor:</span>
+            </p>
+            <div className="pl-4 space-y-1">
+              <p>
+                <strong className="text-green-700 dark:text-green-300">🌱 Modo Simples:</strong>{' '}
+                Interface limpa e minimalista para iniciantes. Apenas syntax highlighting básico.
+              </p>
+              <p>
+                <strong className="text-purple-700 dark:text-purple-300">⚡ Modo Avançado:</strong>{' '}
+                Ferramentas profissionais - Minimap, Code Folding, Guias de Indentação, 
+                Sticky Scroll, Parameter Hints, Rulers (80/120 caracteres), e formatação automática.
+              </p>
+            </div>
+          </div>
         </AlertDescription>
       </Alert>
 
@@ -191,7 +207,7 @@ export const ProfilePreferences: React.FC = () => {
                     <Sparkles className="w-4 h-4 text-green-600" />
                     <div>
                       <div className="font-medium">Modo Simples</div>
-                      <div className="text-xs text-muted-foreground">Interface limpa para iniciantes</div>
+                      <div className="text-xs text-muted-foreground">Interface minimalista para iniciantes</div>
                     </div>
                   </div>
                 </SelectItem>
@@ -200,7 +216,9 @@ export const ProfilePreferences: React.FC = () => {
                     <Zap className="w-4 h-4 text-purple-600" />
                     <div>
                       <div className="font-medium">Modo Avançado</div>
-                      <div className="text-xs text-muted-foreground">Recursos profissionais completos</div>
+                      <div className="text-xs text-muted-foreground">
+                        Minimap, Code Folding, Rulers, Formatação Auto
+                      </div>
                     </div>
                   </div>
                 </SelectItem>
@@ -279,7 +297,7 @@ export const ProfilePreferences: React.FC = () => {
             <div className="space-y-0.5 flex-1">
               <Label className="flex items-center gap-2">
                 <Monitor className="w-4 h-4" />
-                Minimap
+                Recursos Avançados
                 {localPreferences.editor_mode === 'simple' && (
                   <Badge variant="secondary" className="text-xs">
                     Apenas no Modo Avançado
@@ -287,37 +305,13 @@ export const ProfilePreferences: React.FC = () => {
                 )}
               </Label>
               <p className="text-sm text-muted-foreground">
-                Mapa em miniatura do código na lateral direita
+                Ativa Minimap, Code Folding, Sticky Scroll, Rulers (80/120), 
+                Parameter Hints, Formatação Automática e Guias de Indentação
               </p>
             </div>
             <Switch
               checked={localPreferences.show_minimap}
               onCheckedChange={(checked) => handlePreferenceChange('show_minimap', checked)}
-              disabled={localPreferences.editor_mode === 'simple'}
-            />
-          </div>
-
-          <Separator />
-
-          {/* Enable LSP */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5 flex-1">
-              <Label className="flex items-center gap-2">
-                <Settings className="w-4 h-4" />
-                LSP (Language Server Protocol)
-                {localPreferences.editor_mode === 'simple' && (
-                  <Badge variant="secondary" className="text-xs">
-                    Apenas no Modo Avançado
-                  </Badge>
-                )}
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                Autocompletar avançado, detecção de erros e refatoração
-              </p>
-            </div>
-            <Switch
-              checked={localPreferences.enable_lsp}
-              onCheckedChange={(checked) => handlePreferenceChange('enable_lsp', checked)}
               disabled={localPreferences.editor_mode === 'simple'}
             />
           </div>
@@ -345,6 +339,12 @@ export const ProfilePreferences: React.FC = () => {
                   Escolha entre claro, escuro ou automático
                 </p>
               </div>
+              {localPreferences.editor_theme === 'auto' && (
+                <Badge variant="secondary" className="gap-1">
+                  <Monitor className="w-3 h-3" />
+                  Auto-detectado
+                </Badge>
+              )}
             </div>
             
             <Select
@@ -372,7 +372,12 @@ export const ProfilePreferences: React.FC = () => {
                 <SelectItem value="auto">
                   <div className="flex items-center gap-2">
                     <Monitor className="w-4 h-4 text-purple-500" />
-                    <span>Automático (Sistema)</span>
+                    <div>
+                      <div>Automático (Sistema)</div>
+                      <div className="text-xs text-muted-foreground">
+                        Sincroniza com o tema do seu sistema operacional
+                      </div>
+                    </div>
                   </div>
                 </SelectItem>
               </SelectContent>

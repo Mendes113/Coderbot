@@ -25,6 +25,10 @@ interface CodeEditorProps {
   showActions?: boolean;
   enableLinting?: boolean;
   enableLSP?: boolean;
+  fontSize?: number;
+  showMinimap?: boolean;
+  showLineNumbers?: boolean;
+  enableLigatures?: boolean;
   hints?: Array<{
     line: number;
     message: string;
@@ -277,6 +281,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   showActions = true,
   enableLinting = true,
   enableLSP = true,
+  fontSize = 14,
+  showMinimap = true,
+  showLineNumbers = true,
+  enableLigatures = true,
   hints = []
 }) => {
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -300,25 +308,88 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     // Aplicar tema baseado na prop
     monaco.editor.setTheme(theme === 'dark' ? 'custom-dark' : 'custom-light');
     
-    // Configurações do editor
+    // Configurações do editor (usando as preferências do usuário)
+    // Modo Avançado tem recursos profissionais extras
+    const isAdvancedMode = showMinimap; // showMinimap é true apenas no modo avançado
+    
     editor.updateOptions({
-      fontSize: 14,
-      lineHeight: 20,
+      fontSize: fontSize,
+      lineHeight: Math.floor(fontSize * 1.5),
       fontFamily: '"Fira Code", "Cascadia Code", "JetBrains Mono", monospace',
-      fontLigatures: true,
-      minimap: { enabled: false },
+      fontLigatures: enableLigatures,
+      
+      // Minimap (Modo Avançado)
+      minimap: { 
+        enabled: showMinimap,
+        maxColumn: 120,
+        renderCharacters: true,
+        showSlider: 'mouseover'
+      },
+      
+      // Navegação e estrutura
       scrollBeyondLastLine: false,
-      renderWhitespace: 'selection',
       wordWrap: 'on',
-      lineNumbers: 'on',
+      lineNumbers: showLineNumbers ? 'on' : 'off',
       glyphMargin: true,
-      folding: true,
       lineDecorationsWidth: 10,
       lineNumbersMinChars: 3,
       renderLineHighlight: 'line',
-      quickSuggestions: enableLSP,
+      
+      // Recursos de código avançado (Modo Avançado)
+      folding: isAdvancedMode, // Code folding apenas no avançado
+      foldingStrategy: isAdvancedMode ? 'indentation' : undefined,
+      showFoldingControls: isAdvancedMode ? 'mouseover' : 'never',
+      
+      // Guides de indentação e brackets
+      guides: {
+        bracketPairs: isAdvancedMode,
+        bracketPairsHorizontal: isAdvancedMode,
+        highlightActiveBracketPair: isAdvancedMode,
+        indentation: isAdvancedMode,
+        highlightActiveIndentation: isAdvancedMode
+      },
+      
+      // Whitespace rendering
+      renderWhitespace: isAdvancedMode ? 'all' : 'selection',
+      
+      // Rulers (guias verticais) no modo avançado
+      rulers: isAdvancedMode ? [80, 120] : [],
+      
+      // Sticky scroll (mantém contexto visível no topo)
+      stickyScroll: {
+        enabled: isAdvancedMode
+      },
+      
+      // Sugestões e autocomplete
+      quickSuggestions: enableLSP ? {
+        other: true,
+        comments: false,
+        strings: true
+      } : false,
       suggestOnTriggerCharacters: enableLSP,
       acceptSuggestionOnEnter: enableLSP ? 'on' : 'off',
+      suggest: {
+        showWords: enableLSP,
+        showSnippets: enableLSP,
+        showKeywords: enableLSP,
+      },
+      
+      // Parameter hints
+      parameterHints: {
+        enabled: isAdvancedMode
+      },
+      
+      // Hover hints
+      hover: {
+        enabled: isAdvancedMode
+      },
+      
+      // Code lens (informações inline)
+      codeLens: isAdvancedMode,
+      
+      // Formatação
+      formatOnPaste: isAdvancedMode,
+      formatOnType: isAdvancedMode,
     });
 
     // Configurar LSP se habilitado
@@ -471,6 +542,73 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       monaco.editor.setTheme(theme === 'dark' ? 'custom-dark' : 'custom-light');
     }
   }, [theme]);
+
+  // Atualizar configurações do editor quando as preferências mudarem
+  useEffect(() => {
+    if (editorRef.current) {
+      const isAdvancedMode = showMinimap; // showMinimap é true apenas no modo avançado
+      
+      editorRef.current.updateOptions({
+        fontSize: fontSize,
+        lineHeight: Math.floor(fontSize * 1.5),
+        fontLigatures: enableLigatures,
+        
+        minimap: { 
+          enabled: showMinimap,
+          maxColumn: 120,
+          renderCharacters: true,
+          showSlider: 'mouseover'
+        },
+        
+        lineNumbers: showLineNumbers ? 'on' : 'off',
+        
+        // Recursos avançados
+        folding: isAdvancedMode,
+        foldingStrategy: isAdvancedMode ? 'indentation' : undefined,
+        showFoldingControls: isAdvancedMode ? 'mouseover' : 'never',
+        
+        guides: {
+          bracketPairs: isAdvancedMode,
+          bracketPairsHorizontal: isAdvancedMode,
+          highlightActiveBracketPair: isAdvancedMode,
+          indentation: isAdvancedMode,
+          highlightActiveIndentation: isAdvancedMode
+        },
+        
+        renderWhitespace: isAdvancedMode ? 'all' : 'selection',
+        rulers: isAdvancedMode ? [80, 120] : [],
+        
+        stickyScroll: {
+          enabled: isAdvancedMode
+        },
+        
+        quickSuggestions: enableLSP ? {
+          other: true,
+          comments: false,
+          strings: true
+        } : false,
+        suggestOnTriggerCharacters: enableLSP,
+        acceptSuggestionOnEnter: enableLSP ? 'on' : 'off',
+        suggest: {
+          showWords: enableLSP,
+          showSnippets: enableLSP,
+          showKeywords: enableLSP,
+        },
+        
+        parameterHints: {
+          enabled: isAdvancedMode
+        },
+        
+        hover: {
+          enabled: isAdvancedMode
+        },
+        
+        codeLens: isAdvancedMode,
+        formatOnPaste: isAdvancedMode,
+        formatOnType: isAdvancedMode,
+      });
+    }
+  }, [fontSize, enableLigatures, showMinimap, showLineNumbers, enableLSP]);
 
   return (
     <div className={cn('flex flex-col border rounded-lg overflow-hidden', className)}>
