@@ -985,7 +985,7 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
                     <Badge variant="secondary" className="rounded-full px-2 py-0 text-[11px] font-medium">
                       {filteredExamples.length} ativos
                     </Badge>
-                  </div>
+                  dasdad</div>
                   <p className="text-xs text-muted-foreground">
                     Inspirações prontas para usar no editor
                   </p>
