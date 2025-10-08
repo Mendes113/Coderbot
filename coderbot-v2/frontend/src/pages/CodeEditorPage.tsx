@@ -760,7 +760,7 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
                 <div className="h-6 w-px bg-border" />
                 
                 {/* Mode Toggle */}
-                <Button
+                {/* <Button
                   variant="outline"
                   size="sm"
                   onClick={toggleMode}
@@ -783,7 +783,7 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
                       <span className="text-xs font-medium">Modo Avançado</span>
                     </>
                   )}
-                </Button>
+                </Button> */}
               </div>
               
               {/* Right: Quick Actions */}
