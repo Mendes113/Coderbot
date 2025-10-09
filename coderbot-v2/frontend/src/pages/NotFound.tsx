@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { Button } from "@/components/ui/button";
-import { Home, ArrowLeft } from "lucide-react";
+import { Home, ArrowLeft, BotIcon } from "lucide-react";
 
 const NotFound = () => {
   const location = useLocation();
@@ -60,12 +60,18 @@ const NotFound = () => {
           </Button>
           
           <Button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/dashboard/chat")}
             size="lg"
             className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
           >
             <Home className="mr-2 h-5 w-5" />
-            Ir para Home
+            Voltar para o CoderBot
+            {/* add a bot icon here animated */}
+            <span className="inline-block animate-bounce">
+              {/* <img src="/bot-icon.svg" alt="Bot Icon" className="h-5 w-5" /> */}
+              <BotIcon className="ml-2 h-5 w-5" />
+            </span>
+
           </Button>
         </div>
 

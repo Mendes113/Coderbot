@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import judge_router, exercises_router  # Importa os roteadores
+from app.routers import piston_router, exercises_router  # Importa os roteadores
 from app.config import settings  # Importa para garantir que a config seja lida na inicialização
 from supabase import create_client, Client
 from fastapi.middleware.cors import CORSMiddleware
@@ -74,7 +74,7 @@ async def startup_event():
 
 # Incluir os roteadores na aplicação (seguindo princípios SOLID e modularização)
 # app.include_router(deepseek_router.router)
-app.include_router(judge_router.router)
+app.include_router(piston_router.router)
 app.include_router(exercises_router.router)
 app.include_router(whiteboard_router)
 # app.include_router(educational_chat_router)  # Chat com metodologias educacionais

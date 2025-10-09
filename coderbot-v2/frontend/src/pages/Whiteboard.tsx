@@ -12,6 +12,7 @@ import {
 } from "@/integrations/pocketbase/client";
 import { useAuthState } from "@/hooks/useAuthState";
 import { useDrawings } from "@/hooks/useDrawings";
+import { useMissionTracker } from "@/hooks/useMissionTracker";
 import { DrawingList } from "@/components/whiteboard/DrawingList";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
@@ -113,6 +114,11 @@ const Whiteboard: React.FC = () => {
   const { currentUser } = useAuthState();
   const { drawings, loading, refresh } = useDrawings(currentUser?.id);
 
+  // Mission Tracker - Rastreamento automático de progresso das missões
+  // Nota: classId deve vir do contexto quando o usuário estiver em uma turma
+  const [classId] = useState<string | undefined>(undefined);
+  const { trackCustomAction } = useMissionTracker(classId);
+
   // ---------- Estado local otimizado ----------
   const [editorVisible, setEditorVisible] = useState(false);
   const [scene, setScene] = useState<SceneJSON | null>(null);
@@ -176,6 +182,12 @@ const Whiteboard: React.FC = () => {
 
       if (!isAutoSave) {
         toast.success("Quadro salvo");
+        
+        // Rastrear salvamento de desenho para progresso da missão
+        await trackCustomAction('whiteboard_save', {
+          drawingId: activeId || 'new',
+          dataSize: compressedData.length,
+        });
       }
 
       refresh();

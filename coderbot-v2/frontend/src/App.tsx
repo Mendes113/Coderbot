@@ -17,9 +17,10 @@ import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
 import { gamificationService } from "@/services/gamification/GamificationService";
 import { AchievementDetectors } from "@/components/gamification/AchievementDetectors";
 import { NotificationProvider } from "@/context/NotificationContext";
+import { ExamplesProvider, defaultExamples } from "@/context/ExamplesContext";
+import { CodeEditorProvider } from "@/context/CodeEditorContext";
 import Auth from "./pages/Auth";
-// import { CodeEditorProvider } from "@/context/CodeEditorContext";
-// import { CodeEditorProvider } from "@/context/CodeEditorContext";
+import CodeEditorPage from "./pages/CodeEditorPage";
 
 // Lazy loading otimizado com preload para rotas críticas
 const Index = React.lazy(() => import("./pages/Index"));
@@ -206,9 +207,10 @@ const App = () => {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <NotificationProvider>
-            {/* <CodeEditorProvider> */}
-            <Toaster />
-            <Sonner />
+            <ExamplesProvider initialExamples={defaultExamples}>
+              <CodeEditorProvider>
+              <Toaster />
+              <Sonner />
             <AnalyticsConsentBanner
               open={consentStatus === 'unknown'}
               onAccept={handleConsentAccept}
@@ -239,6 +241,7 @@ const App = () => {
                     <Route path="student" element={<StudentDashboard />} />
                     <Route path="whiteboard" element={<Whiteboard />} />
                     <Route path="notes" element={<NotesPage />} />
+                    <Route path="code-editor" element={<CodeEditorPage />} />
                   </Route>
                   <Route
                     path="teacher/*"
@@ -273,7 +276,8 @@ const App = () => {
                 </Routes>
               </Suspense>
             </BrowserRouter>
-            {/* </CodeEditorProvider> */}
+            </CodeEditorProvider>
+            </ExamplesProvider>
           </NotificationProvider>
         </TooltipProvider>
       </QueryClientProvider>

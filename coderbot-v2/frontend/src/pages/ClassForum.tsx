@@ -753,16 +753,16 @@ const ClassForumPage = () => {
     // Redirecionar baseado no tipo de missão
     switch (activity.mission.type) {
       case 'chat_interaction':
-        navigate('/chat');
+        navigate('/dashboard/chat');
         break;
       case 'notes_creation':
-        navigate('/notes');
+        navigate('/dashboard/notes');
         break;
       case 'code_execution':
-        navigate('/editor');
+        navigate('/dashboard/code-editor');
         break;
       case 'exercise_completion':
-        navigate('/exercises');
+        navigate('/dashboard/exercises');
         break;
       default:
         toast.info('Atividade iniciada! Continue no ambiente apropriado.');
