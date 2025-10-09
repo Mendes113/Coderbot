@@ -536,6 +536,17 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     toast.success('Código resetado!');
   }, [initialCode]);
 
+  // 🔥 FIX: Atualizar código quando initialCode prop mudar (ex: ao trocar de linguagem)
+  useEffect(() => {
+    console.log('🔄 [CodeEditor] initialCode mudou:', initialCode?.substring(0, 50));
+    if (initialCode !== undefined && initialCode !== code) {
+      setCode(initialCode);
+      if (editorRef.current) {
+        editorRef.current.setValue(initialCode);
+      }
+    }
+  }, [initialCode]); // Removido 'code' para evitar loop infinito
+
   // Atualizar tema quando prop muda
   useEffect(() => {
     if (editorRef.current) {
