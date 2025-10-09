@@ -42,6 +42,7 @@ import CodeEditor from "@/components/chat/CodeEditor";
 import ExamplesPanel from "@/components/chat/ExamplesPanel";
 import { type CodeExample } from "@/context/ExamplesContext";
 import { getCurrentUser, pb } from "@/integrations/pocketbase/client";
+import { useMissionTracker } from "@/hooks/useMissionTracker";
 
 // Small hash for stable ids (same as ChatMessage pattern)
 const simpleHash = (s: string) => {
@@ -1152,6 +1153,9 @@ console.log(verificarIdade(16)); // "Menor de idade"`,
     subject?: string;
   }>({});
 
+  // Mission Tracker - Rastreamento automático de progresso das missões
+  const { trackChatMessage } = useMissionTracker(chatContext.classId);
+
   // Save chat context to session
   const saveChatContext = useCallback(async (classId?: string, subject?: string) => {
     if (!sessionId) return;
@@ -1514,6 +1518,9 @@ console.log(verificarIdade(16)); // "Menor de idade"`,
         messageLength: input.length,
         hasContext: !!(chatContext.classId && chatContext.subject),
       });
+
+      // Rastrear progresso da missão de chat_interaction
+      await trackChatMessage(input);
 
       // Update the user message with the real ID from PocketBase
       setMessages(prev => 

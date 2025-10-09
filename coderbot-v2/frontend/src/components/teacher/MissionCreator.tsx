@@ -154,7 +154,7 @@ export const MissionCreator = ({ classId, onMissionCreated }: MissionCreatorProp
           Criar Missão
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[95vh] overflow-y-auto sm:max-w-4xl w-full">
         <DialogHeader>
           <DialogTitle>Criar nova missão</DialogTitle>
           <DialogDescription>

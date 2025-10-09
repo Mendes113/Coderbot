@@ -223,7 +223,7 @@ export const CreateForumPostDialog = ({ classId, onPostCreated }: CreateForumPos
           Criar Post
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="max-h-[95vh] overflow-y-auto sm:max-w-5xl w-full">
         <DialogHeader>
           <DialogTitle>Criar novo post no fórum</DialogTitle>
           <DialogDescription>

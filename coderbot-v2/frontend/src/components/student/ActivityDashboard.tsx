@@ -56,15 +56,19 @@ export const ActivityDashboard = ({ classId }: ActivityDashboardProps) => {
       switch (activity.mission.type) {
         case 'chat_interaction':
           // Abrir chat
-          window.location.href = '/chat';
+          window.location.href = '/dashboard/chat';
           break;
         case 'notes_creation':
           // Abrir notas musicais
-          window.location.href = '/notes';
+          window.location.href = '/dashboard/notes';
           break;
         case 'code_execution':
           // Abrir editor de código
-          window.location.href = '/editor';
+          window.location.href = '/dashboard/code-editor';
+          break;
+        case 'exercise_completion':
+          // Abrir exercícios
+          window.location.href = '/dashboard/exercises';
           break;
         default:
           // Atividade genérica

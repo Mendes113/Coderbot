@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import BlockNoteEditor from "@/components/notes/BlockNoteEditor";
 import { useNotes, type Note, type NoteFilters } from "@/hooks/useNotes";
+import { useMissionTracker } from "@/hooks/useMissionTracker";
 import { toast } from "sonner";
 
 const SUBJECTS = [
@@ -66,6 +67,11 @@ export default function NotesPage() {
     filterNotes,
     getNoteById,
   } = useNotes();
+
+  // Mission Tracker - Rastreamento automático de progresso das missões
+  // Nota: classId deve vir do contexto quando o usuário estiver em uma turma
+  const [classId] = useState<string | undefined>(undefined);
+  const { trackNoteCreation } = useMissionTracker(classId);
 
   const [currentNote, setCurrentNote] = useState<Note | null>(null);
   const [filters, setFilters] = useState<NoteFilters>({});
@@ -131,6 +137,9 @@ export default function NotesPage() {
       if (updated) {
         setCurrentNote(updated);
         setIsEditing(false);
+        
+        // Rastrear criação/atualização de nota para progresso da missão
+        await trackNoteCreation(currentNote.title, content.length);
       }
       toast.success("Anotação salva!");
     } catch (error) {

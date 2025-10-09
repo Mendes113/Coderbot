@@ -43,6 +43,7 @@ import ExamplesPanel from '@/components/chat/ExamplesPanel';
 import { useExamples, type CodeExample } from '@/context/ExamplesContext';
 import { useCodeEditor } from '@/context/CodeEditorContext';
 import { useCodePersistence } from '@/hooks/useCodePersistence';
+import { useMissionTracker } from '@/hooks/useMissionTracker';
 import { Link, useNavigate } from 'react-router-dom';
 
 // Função utilitária para execução segura de JavaScript
@@ -546,6 +547,11 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
   const [fileName, setFileName] = useState('untitled');
   const [currentExampleId, setCurrentExampleId] = useState<string | null>(null);
 
+  // Mission Tracker - Rastreamento automático de progresso das missões
+  // Nota: classId deve vir do contexto quando o usuário estiver em uma turma
+  const [classId, setClassId] = useState<string | undefined>(undefined);
+  const { trackCodeExecution } = useMissionTracker(classId);
+
   // Sync theme with context
   React.useEffect(() => {
     setTheme(editorTheme);
@@ -639,6 +645,11 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
         }
         
         setOutput(output || '[Success] Código executado com sucesso!');
+        
+        // Rastrear execução de código para progresso da missão
+        if (!executionResult.executionError) {
+          await trackCodeExecution(currentLanguage, code.length);
+        }
         
         // Marcar exemplo como executado se estivermos executando um exemplo
         if (currentExampleId) {
