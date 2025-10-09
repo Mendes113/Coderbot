@@ -415,7 +415,7 @@ const ClassForumPage = () => {
         const progressPromises = classMissions.map(async (mission) => {
           try {
             const progress = await pb.collection('student_mission_progress').getFirstListItem(
-              `mission = "${mission.id}" && student = "${userId}"`
+              `mission="${mission.id}"&&student="${userId}"`
             );
 
             const currentValue = progress?.current_value || 0;
