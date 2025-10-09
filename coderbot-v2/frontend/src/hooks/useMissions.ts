@@ -53,7 +53,7 @@ export const useMissions = (options: UseMissionsOptions = {}) => {
 
         // Buscar matrículas ativas do usuário
         const enrollments = await pb.collection('class_enrollments').getFullList({
-          filter: `student = "${user.id}" && status = "active"`,
+          filter: `student="${user.id}"&&status="active"`,
           sort: '-created',
         });
 
