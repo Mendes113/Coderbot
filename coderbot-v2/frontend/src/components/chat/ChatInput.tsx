@@ -1,32 +1,38 @@
 import { useState, useEffect, useRef } from "react";
-import { Send, Sparkles, Heart, Smile, Zap, Star, ThumbsUp, Mic, MicOff, Bot, Command, Code2 } from "lucide-react";
+import { Send, Sparkles, Heart, Smile, Zap, Star, ThumbsUp, Mic, MicOff, Bot, Command, Code2, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useMobileDetection } from "@/hooks/useMobileDetection";
 import { MobileChatInput } from "./MobileChatInput";
+import { type Mission } from "@/hooks/useMissions";
+import { MissionSelectorCompact } from "./MissionSelector";
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
   isLoading: boolean;
   analogiesEnabled: boolean;
   setAnalogiesEnabled?: (enabled: boolean) => void;
+  // Props para missões
+  hasMissionSelected?: boolean;
+  selectedMission?: Mission | null;
+  missions?: Mission[];
+  onMissionSelect?: (mission: Mission) => void;
+  isLoadingMissions?: boolean;
 }
 
 // Main ChatInput component that switches between mobile and desktop versions
-export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalogiesEnabled }: ChatInputProps) => {
-  const { isMobile, isTablet } = useMobileDetection();
-
-  // Use mobile version for mobile and tablet devices
-  if (isMobile || isTablet) {
-    return (
-      <MobileChatInput
-        onSendMessage={onSendMessage}
-        isLoading={isLoading}
-      />
-    );
-  }
-
-  // Desktop version continues below...
+export default function ChatInput({ 
+  onSendMessage, 
+  isLoading,
+  analogiesEnabled,
+  setAnalogiesEnabled,
+  hasMissionSelected = true,
+  selectedMission = null,
+  missions = [],
+  onMissionSelect = () => {},
+  isLoadingMissions = false
+}: ChatInputProps) {
+  // Hooks devem vir antes de qualquer return condicional
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [showEncouragement, setShowEncouragement] = useState(false);
@@ -39,6 +45,8 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalo
   const inputRef = useRef<HTMLInputElement>(null);
   const [showSmartSuggestions, setShowSmartSuggestions] = useState(false);
   
+  const { isMobile, isTablet } = useMobileDetection();
+
   const encouragementMessages = [
     { icon: Heart, text: "Pergunta interessante! ✨", color: "from-purple-50 to-pink-50 border-purple-200", textColor: "text-purple-700", animation: "animate-pulse" },
     { icon: Star, text: "Ótima curiosidade! 🌟", color: "from-yellow-50 to-orange-50 border-yellow-200", textColor: "text-orange-700", animation: "animate-bounce" },
@@ -113,11 +121,13 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalo
         if (inputRef.current) {
           inputRef.current.style.transform = 'scale(1)';
         }
-      }, 100);
+      }, 200);
     }
     
-    setTimeout(() => setLastMessageSent(false), 4000);
-    setTimeout(() => setShowCelebration(false), 1500);
+    setTimeout(() => {
+      setLastMessageSent(false);
+      setShowCelebration(false);
+    }, 2000);
   };
 
   const handleSuggestionClick = (suggestion: string) => {
@@ -131,6 +141,18 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalo
   const toggleRecording = () => {
     setIsRecording(!isRecording);
   };
+
+  // Use mobile version for mobile and tablet devices
+  if (isMobile || isTablet) {
+    return (
+      <MobileChatInput
+        onSendMessage={onSendMessage}
+        isLoading={isLoading}
+      />
+    );
+  }
+
+  // Desktop version continues below...
 
   return (
     <div className="relative w-full max-w-4xl mx-auto">
@@ -181,89 +203,124 @@ export const ChatInput = ({ onSendMessage, isLoading, analogiesEnabled, setAnalo
 
       {/* Container principal do input */}
       <div className="relative bg-white dark:bg-neutral-900 rounded-2xl shadow-lg border border-gray-200 dark:border-neutral-800 hover:border-purple-300 dark:hover:border-purple-800 transition-all duration-300 focus-within:border-purple-400 dark:focus-within:border-purple-700 focus-within:shadow-xl focus-within:ring-4 focus-within:ring-purple-100 dark:focus-within:ring-purple-900/30">
-        <form onSubmit={handleSubmit} className="flex items-center gap-3 p-2">
-          <div className="relative flex-1">
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder={isLoading ? "CoderBot está pensando..." : "Como posso te ajudar hoje? "}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onFocus={() => setInputFocused(true)}
-              onBlur={() => setInputFocused(false)}
-              disabled={isLoading}
-              aria-label="Mensagem"
-              className={cn(
-                "w-full bg-transparent text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 px-4 py-3 text-base outline-none transition-all duration-300",
-                isLoading ? "opacity-60 cursor-not-allowed" : "",
-                "placeholder:font-medium"
-              )}
-              style={{ minWidth: 0 }}
-              maxLength={3500}
-            />
-            {charCount > 0 && (
-              <div className="absolute right-4 bottom-1 text-xs text-gray-400 dark:text-gray-500 font-medium">
-                {charCount}/500
+        {/* Se não tem missão selecionada, mostra apenas o seletor de missões */}
+        {!hasMissionSelected ? (
+          <div className="p-6">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-full">
+                <Target className="h-8 w-8 text-purple-600 dark:text-purple-400" />
               </div>
-            )}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                  Selecione uma tema para começar
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Escolha um tema para direcionar nossa conversa
+                </p>
+              </div>
+              <MissionSelectorCompact
+                missions={missions}
+                selectedMission={selectedMission}
+                onSelectMission={onMissionSelect}
+                isLoading={isLoadingMissions}
+              />
+            </div>
           </div>
-          
-          <div className="flex items-center gap-2">
-            
-
-            {typeof setAnalogiesEnabled === "function" && (
-              <button
-                type="button"
-                aria-label={analogiesEnabled ? "Desativar analogias" : "Ativar analogias"}
-                title={analogiesEnabled ? "Analogias ativadas - Aprendizado mais criativo!" : "Ativar analogias para um aprendizado mais visual"}
-                onClick={() => setAnalogiesEnabled(!analogiesEnabled)}
-                className={cn(
-                  "p-2.5 rounded-xl transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-purple-400",
-                  analogiesEnabled ? 
-                    "bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/30 ring-2 ring-purple-200 dark:ring-purple-900/30" : 
-                    "bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 hover:bg-purple-100 dark:hover:bg-purple-900/20 hover:text-purple-600"
-                )}
-              >
-                <Sparkles className={cn(
-                  "h-5 w-5 transition-all duration-300",
-                  analogiesEnabled ? "animate-pulse" : ""
-                )} />
-              </button>
-            )}
-
-            {/* Dica de código */}
-            <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
-              <Code2 className="h-4 w-4" />
-              <span>Peça: "mostre o código"</span>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex items-center gap-3 p-2">
+            {/* Botão de missão compacto quando há missão selecionada */}
+            <div className="shrink-0">
+              <MissionSelectorCompact
+                missions={missions}
+                selectedMission={selectedMission}
+                onSelectMission={onMissionSelect}
+                isLoading={isLoadingMissions}
+              />
             </div>
 
-            <button
-              type="submit"
-              disabled={isLoading || !input.trim()}
-              aria-label={isLoading ? "Processando..." : "Enviar mensagem"}
-              className={cn(
-                "p-2.5 rounded-xl transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-purple-400 relative overflow-hidden group",
-                isLoading ? 
-                  "bg-purple-200 cursor-not-allowed" : 
-                  input.trim() ? 
-                    "bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white hover:scale-105 hover:shadow-lg active:scale-95 shadow-md" :
-                    "bg-gray-200 text-gray-400 cursor-not-allowed"
+            <div className="relative flex-1">
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder={isLoading ? "CoderBot está pensando..." : "Como posso te ajudar hoje? "}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onFocus={() => setInputFocused(true)}
+                onBlur={() => setInputFocused(false)}
+                disabled={isLoading || !hasMissionSelected}
+                aria-label="Mensagem"
+                className={cn(
+                  "w-full bg-transparent text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 px-4 py-3 text-base outline-none transition-all duration-300",
+                  isLoading || !hasMissionSelected ? "opacity-60 cursor-not-allowed" : "",
+                  "placeholder:font-medium"
+                )}
+                style={{ minWidth: 0 }}
+                maxLength={3500}
+              />
+              {charCount > 0 && (
+                <div className="absolute right-4 bottom-1 text-xs text-gray-400 dark:text-gray-500 font-medium">
+                  {charCount}/500
+                </div>
               )}
-            >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <>
-                  <Send className={cn(
-                    "h-5 w-5 transition-transform duration-200",
-                    input.trim() ? "group-hover:translate-x-0.5 group-hover:-translate-y-0.5" : ""
+            </div>
+            
+            <div className="flex items-center gap-2">
+              
+
+              {typeof setAnalogiesEnabled === "function" && (
+                <button
+                  type="button"
+                  aria-label={analogiesEnabled ? "Desativar analogias" : "Ativar analogias"}
+                  title={analogiesEnabled ? "Analogias ativadas - Aprendizado mais criativo!" : "Ativar analogias para um aprendizado mais visual"}
+                  onClick={() => setAnalogiesEnabled(!analogiesEnabled)}
+                  className={cn(
+                    "p-2.5 rounded-xl transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-purple-400",
+                    analogiesEnabled ? 
+                      "bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/30 ring-2 ring-purple-200 dark:ring-purple-900/30" : 
+                      "bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 hover:bg-purple-100 dark:hover:bg-purple-900/20 hover:text-purple-600"
+                  )}
+                >
+                  <Sparkles className={cn(
+                    "h-5 w-5 transition-all duration-300",
+                    analogiesEnabled ? "animate-pulse" : ""
                   )} />
-                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 opacity-0 group-hover:opacity-100 group-hover:translate-x-full transition-all duration-500 -skew-x-12"></div>
-                </>
+                </button>
               )}
-            </button>
-          </div>
-        </form>
+
+              {/* Dica de código */}
+              <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
+                <Code2 className="h-4 w-4" />
+                <span>Peça: "mostre o código"</span>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading || !input.trim() || !hasMissionSelected}
+                aria-label={isLoading ? "Processando..." : "Enviar mensagem"}
+                className={cn(
+                  "p-2.5 rounded-xl transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-purple-400 relative overflow-hidden group",
+                  isLoading ? 
+                    "bg-purple-200 cursor-not-allowed" : 
+                    input.trim() && hasMissionSelected ? 
+                      "bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white hover:scale-105 hover:shadow-lg active:scale-95 shadow-md" :
+                      "bg-gray-200 text-gray-400 cursor-not-allowed"
+                )}
+              >
+                {isLoading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <Send className={cn(
+                      "h-5 w-5 transition-transform duration-200",
+                      input.trim() && hasMissionSelected ? "group-hover:translate-x-0.5 group-hover:-translate-y-0.5" : ""
+                    )} />
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 opacity-0 group-hover:opacity-100 group-hover:translate-x-full transition-all duration-500 -skew-x-12"></div>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )}
         {isLoading && (
           <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-100 dark:bg-neutral-800 rounded-b-2xl overflow-hidden">
             <div className="h-full bg-gradient-to-r from-purple-600 to-purple-400 animate-pulse"></div>

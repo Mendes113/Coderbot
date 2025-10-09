@@ -1,4 +1,4 @@
-import { User, MessageSquare, GraduationCap, Presentation, BookOpen, X, Bell, Check, CheckCheck, LogOut } from "lucide-react";
+import { User, MessageSquare, GraduationCap, Presentation, BookOpen, X, Bell, Check, CheckCheck, LogOut, Code } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -352,7 +352,7 @@ export const AppSidebar = ({ currentNav, onNavChange, onNotificationClick }: App
 
   const mainNavItems: NavItem[] = useMemo(() => [
     { id: "chat", label: "Chat", icon: MessageSquare, accessKey: "c", path: "/dashboard/chat" },
-
+    { id: "code-editor", label: "Editor", icon: Code, accessKey: "e", path: "/dashboard/code-editor" },
     {
       id: "student",
       label: "Aluno",

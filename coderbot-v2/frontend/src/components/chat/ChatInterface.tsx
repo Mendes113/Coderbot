@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { AnalogySettings } from "@/components/chat/AnalogySettings";
 import { ChatMessage } from "@/components/chat/ChatMessage";
-import { ChatInput } from "@/components/chat/ChatInput";
+import ChatInput from "@/components/chat/ChatInput";
 import { InitialWelcomeMessages } from "@/components/chat/InitialWelcomeMessages";
 import { Message, fetchChatResponse } from "@/services/api";
 import { toast } from "@/components/ui/sonner";
@@ -36,6 +36,17 @@ import { QuizInteraction } from "@/components/chat/QuizInteraction";
 import posthog from "posthog-js";
 import type { QuizAnswerEvent } from "@/components/chat/ChatMessage";
 // import { ProfileHeader } from "@/components/profile/ProfileHeader";
+
+// Importar novos componentes do wireframe
+import CodeEditor from "@/components/chat/CodeEditor";
+import ExamplesPanel from "@/components/chat/ExamplesPanel";
+import { type CodeExample } from "@/context/ExamplesContext";
+import { getCurrentUser, pb } from "@/integrations/pocketbase/client";
+import { useMissionTracker } from "@/hooks/useMissionTracker";
+
+// Importar sistema de missões
+import { useMissions, type Mission } from "@/hooks/useMissions";
+import { MissionSelectorExpanded } from "@/components/chat/MissionSelector";
 
 // Small hash for stable ids (same as ChatMessage pattern)
 const simpleHash = (s: string) => {
@@ -595,6 +606,137 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const [showWorkedExamples, setShowWorkedExamples] = useState(false);
   const [segmentMessageIds, setSegmentMessageIds] = useState<string[]>([]);
 
+  // Estados para o novo layout de 2 colunas
+  const [showExamplesPanel, setShowExamplesPanel] = useState(true);
+  const [selectedExample, setSelectedExample] = useState<CodeExample | null>(null);
+  
+  // Estados para o sistema de missões
+  const {
+    missions,
+    isLoading: isLoadingMissions,
+    selectedMission,
+    selectMission,
+    clearSelectedMission,
+  } = useMissions({ autoFetch: true });
+  
+  // Estado para controlar se o usuário já selecionou uma missão
+  const [hasMissionSelected, setHasMissionSelected] = useState(false);
+  
+  // Exemplos mockados para demonstração
+  const [codeExamples] = useState<CodeExample[]>([
+    {
+      id: '1',
+      title: 'Função Soma Básica',
+      code: `function somar(a, b) {
+  return a + b;
+}
+
+// Teste da função
+console.log(somar(5, 3)); // Output: 8
+console.log(somar(10, 7)); // Output: 17`,
+      language: 'javascript',
+      type: 'correct',
+      explanation: 'Esta é a forma correta de criar uma função que soma dois números. Note o uso correto dos parâmetros e da palavra-chave return.',
+      tags: ['função', 'básico', 'soma', 'javascript'],
+      difficulty: 'beginner',
+      hints: [
+        { line: 1, message: 'Declara uma função com dois parâmetros', type: 'info' },
+        { line: 2, message: 'Retorna a soma dos parâmetros', type: 'info' },
+        { line: 5, message: 'Exemplo de uso da função', type: 'info' }
+      ]
+    },
+    {
+      id: '2',
+      title: 'Função Sem Return (Erro)',
+      code: `function somar(a, b) {
+  a + b; // ❌ Faltando return!
+}
+
+// Teste - vai retornar undefined
+console.log(somar(5, 3)); // Output: undefined`,
+      language: 'javascript',
+      type: 'incorrect',
+      explanation: 'Este exemplo mostra um erro comum: esquecer de usar return. Sem return, a função não retorna o valor calculado, retornando undefined.',
+      tags: ['função', 'erro', 'return', 'undefined'],
+      difficulty: 'beginner',
+      hints: [
+        { line: 2, message: 'Faltando palavra-chave return - este é o erro!', type: 'error' },
+        { line: 6, message: 'Resultado será undefined por falta do return', type: 'warning' }
+      ]
+    },
+    {
+      id: '3',
+      title: 'Loop For Correto',
+      code: `// Loop que conta de 0 a 4
+for (let i = 0; i < 5; i++) {
+  console.log('Número:', i);
+}
+
+// Output:
+// Número: 0
+// Número: 1
+// Número: 2
+// Número: 3
+// Número: 4`,
+      language: 'javascript',
+      type: 'correct',
+      explanation: 'Loop for básico que imprime números de 0 a 4. Note a estrutura: inicialização (let i = 0), condição (i < 5), incremento (i++).',
+      tags: ['loop', 'for', 'iteração', 'contador'],
+      difficulty: 'beginner',
+      hints: [
+        { line: 2, message: 'Estrutura do for: inicialização; condição; incremento', type: 'info' },
+        { line: 3, message: 'Código executado a cada iteração', type: 'info' }
+      ]
+    },
+    {
+      id: '4',
+      title: 'Array e Map',
+      code: `const numeros = [1, 2, 3, 4, 5];
+
+// Multiplicar cada número por 2
+const dobrados = numeros.map(num => num * 2);
+
+console.log('Original:', numeros);
+console.log('Dobrados:', dobrados);
+
+// Output:
+// Original: [1, 2, 3, 4, 5]
+// Dobrados: [2, 4, 6, 8, 10]`,
+      language: 'javascript',
+      type: 'correct',
+      explanation: 'Exemplo de como usar o método map() para transformar cada elemento de um array. Map sempre retorna um novo array.',
+      tags: ['array', 'map', 'transformação', 'funcional'],
+      difficulty: 'intermediate',
+      hints: [
+        { line: 4, message: 'map() aplica a função a cada elemento', type: 'info' },
+        { line: 4, message: 'Arrow function: num => num * 2', type: 'info' }
+      ]
+    },
+    {
+      id: '5',
+      title: 'Condicionais If/Else',
+      code: `function verificarIdade(idade) {
+  if (idade >= 18) {
+    return "Maior de idade";
+  } else {
+    return "Menor de idade";
+  }
+}
+
+console.log(verificarIdade(20)); // "Maior de idade"
+console.log(verificarIdade(16)); // "Menor de idade"`,
+      language: 'javascript',
+      type: 'correct',
+      explanation: 'Estrutura condicional básica usando if/else para verificar se uma pessoa é maior de idade.',
+      tags: ['condicional', 'if', 'else', 'idade'],
+      difficulty: 'beginner',
+      hints: [
+        { line: 2, message: 'Condição: idade >= 18', type: 'info' },
+        { line: 4, message: 'Caso alternativo com else', type: 'info' }
+      ]
+    }
+  ]);
+
   // Formata um segmento com um cabeçalho markdown amigável para o usuário
   const getSegmentBadge = useCallback((type: string): string => {
     switch (type) {
@@ -666,6 +808,51 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const getNextStepButtonLabel = useCallback((): string => {
     return 'Avançar etapa';
   }, []);
+
+
+
+  const handleExampleSelect = useCallback((example: CodeExample) => {
+    setSelectedExample(example);
+    toast.success(`Exemplo "${example.title}" selecionado! Você pode copiá-lo ou estudá-lo.`);
+  }, []);
+
+  const toggleExamplesPanel = useCallback(() => {
+    setShowExamplesPanel(!showExamplesPanel);
+  }, [showExamplesPanel]);
+
+  // Handler para seleção de missão
+  const handleMissionSelect = useCallback((mission: Mission) => {
+    selectMission(mission);
+    setHasMissionSelected(true);
+    
+    // Tocar som de sucesso
+    // soundEffects.playSuccess();
+    
+    // Adicionar mensagem inicial do bot sobre a missão
+    const missionWelcomeMessage: Message = {
+      id: `mission-welcome-${Date.now()}`,
+      content: `🎯 Ótimo! Vamos trabalhar na missão **"${mission.title}"**.\n\n${mission.description}\n\nEstou aqui para te ajudar com qualquer dúvida sobre este tema. Como posso começar a ajudar você?`,
+      isAi: true,
+      timestamp: new Date(),
+    };
+    
+    setMessages([missionWelcomeMessage]);
+    setShowWelcomeMessages(false);
+    setWelcomeComplete(true);
+    
+    toast.success(`Missão "${mission.title}" iniciada!`, {
+      icon: '🎯',
+      duration: 3000,
+    });
+    
+    // Tracking analytics
+    trackEvent('mission_selected', {
+      missionId: mission.id,
+      missionTitle: mission.title,
+      missionType: mission.type,
+      difficulty: mission.difficulty,
+    });
+  }, [selectMission, trackEvent]);
 
   // Session metrics (start/end)
   const sessionStartRef = useRef<number | null>(null);
@@ -1015,6 +1202,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     classId?: string;
     subject?: string;
   }>({});
+
+  // Mission Tracker - Rastreamento automático de progresso das missões
+  const { trackChatMessage } = useMissionTracker(chatContext.classId);
 
   // Save chat context to session
   const saveChatContext = useCallback(async (classId?: string, subject?: string) => {
@@ -1379,6 +1569,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
         hasContext: !!(chatContext.classId && chatContext.subject),
       });
 
+      // Rastrear progresso da missão de chat_interaction
+      await trackChatMessage(input);
+
       // Update the user message with the real ID from PocketBase
       setMessages(prev => 
         prev.map(msg => 
@@ -1411,12 +1604,25 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
       
       try {
         const userIdStr = typeof userId === 'string' ? userId : (userId ? JSON.stringify(userId) : "anonymous");
+        
+        // Adicionar contexto da missão selecionada
+        const missionContext = selectedMission ? {
+          missionId: selectedMission.id,
+          missionTitle: selectedMission.title,
+          missionDescription: selectedMission.description,
+          missionType: selectedMission.type,
+          difficulty: selectedMission.difficulty,
+          topics: selectedMission.topics,
+          learningObjectives: selectedMission.learningObjectives,
+        } : null;
+        
         const userContext = {
           userId: userIdStr,
-          currentTopic: chatContext.subject || "",
+          currentTopic: chatContext.subject || selectedMission?.title || "",
           classId: chatContext.classId || null,
-          difficultyLevel: userProfile.difficulty_level || "medium",
+          difficultyLevel: selectedMission?.difficulty || userProfile.difficulty_level || "medium",
           learningProgress: userProfile.learning_progress || {},
+          mission: missionContext, // Adicionar contexto da missão
           quizStats: {
             correctCount: quizCorrectCount,
             wrongCount: quizWrongCount,
@@ -1439,6 +1645,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
         const extraContext = lastQuizAnswer && lastQuizAnswer.correct === false
           ? `\nO aluno errou a questão anterior. Explique claramente o porquê do erro e como chegar na resposta correta. Pergunta: ${lastQuizAnswer.question}.`
           : '';
+        
+        // Adicionar contexto da missão ao prompt
+        const missionContextPrompt = selectedMission
+          ? `\n\nContexto da Missão Ativa:\n- Título: ${selectedMission.title}\n- Descrição: ${selectedMission.description}\n- Tipo: ${selectedMission.type}\n- Dificuldade: ${selectedMission.difficulty || 'não especificado'}\n${selectedMission.learningObjectives ? `- Objetivos de Aprendizado: ${selectedMission.learningObjectives.join(', ')}` : ''}\n\nPor favor, mantenha suas respostas focadas neste tema e nos objetivos de aprendizado da missão.`
+          : '';
 
         const modelOption = findModelOption(normalizedModelId);
         const provider = modelOption?.provider ?? chosenProvider;
@@ -1452,7 +1663,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
         const agnoResponse = await agnoService.askQuestion({
           methodology: agnoMethodology,
           userQuery: input,
-          context: (whiteboardContext ? JSON.stringify(whiteboardContext) : `Contexto: ${knowledgeBase || 'Aprendizado geral de programação'}`) + extraContext,
+          context: (whiteboardContext ? JSON.stringify(whiteboardContext) : `Contexto: ${knowledgeBase || 'Aprendizado geral de programação'}`) + extraContext + missionContextPrompt,
           userContext,
           provider,
           modelId,
@@ -1770,8 +1981,15 @@ Obrigado pela paciência! 🤖✨`,
         </div>
       )}
 
-      {/* Conteúdo principal */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+      {/* Conteúdo principal - Layout de 2 colunas: Chat + Exemplos */}
+      <div className="flex-1 flex min-w-0 h-full overflow-hidden">
+        {/* Layout de 2 colunas: Chat | Exemplos */}
+        <div className="flex flex-1 min-h-0">
+          {/* Coluna 1: Chat/Mensagens */}
+          <div className={cn(
+            "flex flex-col min-w-0",
+            isMobile || !showExamplesPanel ? "flex-1" : "flex-1 border-r lg:w-2/3"
+          )}>
         {/* Header sempre visível */}
       <div className="px-4 py-3 border-b shrink-0 sticky top-0 z-40 edu-card backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
@@ -2015,72 +2233,171 @@ Obrigado pela paciência! 🤖✨`,
           <div ref={messagesEndRef} />
         </div>
       </div>
-      {/* Input fixo no rodapé */}
-      <div className={cn(
-        "border-t p-4 edu-card backdrop-blur shrink-0 bg-background/70 supports-[backdrop-filter]:bg-background/60 sticky bottom-0",
-        isMobile ? "pb-6" : ""
-      )}>
-        {/* Barra de avanço de etapas (worked examples ou segmentos tradicionais) */}
-        {(showWorkedExamples || segmentMessageIds.length > 1) && !isLoading && !showWelcomeMessages && (
-          <div className="max-w-3xl mx-auto edu-mb-4 edu-card flex items-center justify-between edu-px-4 edu-py-3">
-            {showWorkedExamples && workedExampleData ? (
-              // Barra específica para worked examples
-              <>
-                <div className="flex items-center gap-3">
-                  <div className="text-sm font-medium">
-                    📚 Worked Example: {workedExampleData.topic}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {currentSegmentIndex + 1} de {workedExampleData.frontend_segments.length}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {workedExampleData.scientific_basis.map((basis, index) => (
-                      <span key={index} className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
-                        {basis.split(' ')[0]}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button size="sm" variant="outline" onClick={handlePrevWorkedExampleSegment} disabled={currentSegmentIndex === 0}>
-                    Voltar
-                  </Button>
-                  {currentSegmentIndex < workedExampleData.frontend_segments.length - 1 ? (
-                    <Button size="sm" variant="default" onClick={handleNextWorkedExampleSegment}>
-                      Próxima etapa
-                    </Button>
-                  ) : (
-                    <Button size="sm" variant="default" onClick={handleWorkedExampleComplete} className="bg-green-600 hover:bg-green-700">
-                      Concluir exemplo
-                    </Button>
-                  )}
-                </div>
-              </>
-            ) : (
-              // Barra tradicional para segmentos antigos
-              <>
-                <div className="edu-text-muted">
-                  Navegação de etapas
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button size="sm" variant="outline" onClick={handlePrevSegment} disabled={segmentMessageIds.length <= 1}>
-                    Voltar etapa
-                  </Button>
-                </div>
-              </>
+
+          {/* Input fixo no rodapé da coluna de chat */}
+          <div className={cn(
+            "border-t p-4 edu-card backdrop-blur shrink-0 bg-background/70 supports-[backdrop-filter]:bg-background/60",
+            isMobile ? "pb-6" : ""
+          )}>
+            {/* Barra de avanço de etapas (worked examples ou segmentos tradicionais) */}
+            {(showWorkedExamples || segmentMessageIds.length > 1) && !isLoading && !showWelcomeMessages && (
+              <div className="mb-4 edu-card flex items-center justify-between px-4 py-3">
+                {showWorkedExamples && workedExampleData ? (
+                  // Barra específica para worked examples
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className="text-sm font-medium">
+                        📚 Worked Example: {workedExampleData.topic}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {currentSegmentIndex + 1} de {workedExampleData.frontend_segments.length}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {workedExampleData.scientific_basis.map((basis, index) => (
+                          <span key={index} className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                            {basis.split(' ')[0]}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={handlePrevWorkedExampleSegment} disabled={currentSegmentIndex === 0}>
+                        Voltar
+                      </Button>
+                      {currentSegmentIndex < workedExampleData.frontend_segments.length - 1 ? (
+                        <Button size="sm" variant="default" onClick={handleNextWorkedExampleSegment}>
+                          Próxima etapa
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="default" onClick={handleWorkedExampleComplete} className="bg-green-600 hover:bg-green-700">
+                          Concluir exemplo
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  // Barra tradicional para segmentos antigos
+                  <>
+                    <div className="edu-text-muted">
+                      Navegação de etapas
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={handlePrevSegment} disabled={segmentMessageIds.length <= 1}>
+                        Voltar etapa
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
+
+            {/* Seletor de Missões ou Input de Chat */}
+            <div className="edu-card edu-p-3">
+              {!hasMissionSelected && missions.length > 0 ? (
+                // Modo seleção de missão - bloqueia o input até selecionar
+                <div className="space-y-4">
+                  <MissionSelectorExpanded
+                    missions={missions}
+                    selectedMission={selectedMission}
+                    onSelectMission={handleMissionSelect}
+                    isLoading={isLoadingMissions}
+                  />
+                </div>
+              ) : (
+                // Modo chat normal - input desbloqueado
+                <div className="space-y-3">
+                  {/* Badge da missão ativa */}
+                  {selectedMission && (
+                    <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-950/30 dark:to-purple-900/20 rounded-xl border border-purple-200 dark:border-purple-800">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center">
+                          <Target className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold text-purple-900 dark:text-purple-100">
+                            {selectedMission.title}
+                          </div>
+                          <div className="text-xs text-purple-600 dark:text-purple-400">
+                            Missão ativa
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          clearSelectedMission();
+                          setHasMissionSelected(false);
+                          setMessages([]);
+                          toast.info('Missão desmarcada. Selecione uma nova missão para continuar.');
+                        }}
+                        className="h-7 px-2 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-200/50"
+                      >
+                        Trocar Missão
+                      </Button>
+                    </div>
+                  )}
+                  
+                  <ChatInput
+                    onSendMessage={handleSendMessage}
+                    isLoading={isLoading}
+                    analogiesEnabled={analogiesEnabled}
+                    hasMissionSelected={hasMissionSelected}
+                    selectedMission={selectedMission}
+                    missions={missions}
+                    onMissionSelect={handleMissionSelect}
+                    isLoadingMissions={isLoadingMissions}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Coluna 2: Painel de Exemplos */}
+        {showExamplesPanel && !isMobile && (
+          <div className="w-full lg:w-1/3 xl:w-96 flex flex-col min-w-0 max-w-sm">
+            {/* Header dos Exemplos */}
+            <div className="px-4 py-2 border-b bg-muted/30 flex items-center justify-between">
+              <h3 className="font-medium text-sm">📚 Exemplos de Código</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleExamplesPanel}
+                className="h-6 px-2"
+              >
+                ✕
+              </Button>
+            </div>
+            
+            {/* Painel de Exemplos */}
+            <div className="flex-1 min-h-0">
+              <ExamplesPanel
+                onExampleSelect={handleExampleSelect}
+                theme="dark"
+              />
+            </div>
           </div>
         )}
-
-        <div className="max-w-3xl mx-auto edu-card edu-p-3">
-          <ChatInput
-            onSendMessage={handleSendMessage}
-            isLoading={isLoading}
-            analogiesEnabled={analogiesEnabled}
-          />
-        </div>
       </div>
-      
+
+      {/* Botão para mostrar/ocultar painel de exemplos em mobile ou quando oculto */}
+      {(isMobile || !showExamplesPanel) && (
+        <div className="border-t p-2 bg-muted/30 flex gap-2 justify-center">
+          {!showExamplesPanel && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleExamplesPanel}
+              className="h-8"
+            >
+              📚 Mostrar Exemplos
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+
       {/* Confetti celebration - inspirado no Duolingo */}
       {/* {showConfetti && (
         <ConfettiExplosion onComplete={() => setShowConfetti(false)} />
@@ -2093,7 +2410,6 @@ Obrigado pela paciência! 🤖✨`,
           onClose={() => setShowAchievement(false)} 
         />
       )} */}
-      </div>
     </div>
   );
 };

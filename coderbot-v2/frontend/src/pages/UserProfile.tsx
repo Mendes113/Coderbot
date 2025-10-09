@@ -1,12 +1,13 @@
 // src/pages/UserProfile.tsx
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useUserData } from "@/hooks/useUserData";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { ProfileForm } from "@/components/profile/ProfileForm";
+import { ProfilePreferences } from "@/components/profile/ProfilePreferences";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { LogOut, ArrowLeft, Github } from "lucide-react";
+import { LogOut, ArrowLeft, Github, Settings } from "lucide-react";
 import { pb, startGithubOAuth } from "@/integrations/pocketbase/client";
 import { useAuthState } from "@/hooks/useAuthState";
 import { toast } from "sonner";
@@ -16,8 +17,10 @@ import { NotificationsList } from "@/components/profile/NotificationsList";
 import { AchievementsGrid } from "@/components/profile/AchievementsGrid";
 
 const UserProfile = () => {
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'profile';
   const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState("profile");
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   const { profile, loading } = useUserData();
   const navigate = useNavigate();
@@ -25,6 +28,14 @@ const UserProfile = () => {
   // 🔥 FIX: Usar hook reativo ao invés de pb.authStore.model?.id
   const { currentUser } = useAuthState();
   const userId = currentUser?.id;
+
+  // Sync tab with URL parameter
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ['profile', 'achievements', 'preferences', 'notifications', 'invites'].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   const handleLogout = () => {
     try {
@@ -110,6 +121,10 @@ const UserProfile = () => {
         <TabsList className="">
           <TabsTrigger value="profile">Perfil</TabsTrigger>
           <TabsTrigger value="achievements">Conquistas</TabsTrigger>
+          <TabsTrigger value="preferences" className="gap-2">
+            <Settings className="w-3.5 h-3.5" />
+            Preferências
+          </TabsTrigger>
           {/* <TabsTrigger value="notifications">Notificações</TabsTrigger>
           <TabsTrigger value="invites">Convites</TabsTrigger> */}
         </TabsList>
@@ -127,6 +142,10 @@ const UserProfile = () => {
 
         <TabsContent value="achievements" className="space-y-6">
           <AchievementsGrid />
+        </TabsContent>
+
+        <TabsContent value="preferences" className="space-y-6">
+          <ProfilePreferences />
         </TabsContent>
 
         <TabsContent value="notifications" className="space-y-6">
