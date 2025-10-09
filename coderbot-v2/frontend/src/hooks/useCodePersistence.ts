@@ -43,9 +43,17 @@ export function useCodePersistence(options: UseCodePersistenceOptions = {}): Use
   const lastCodeRef = useRef<string>('');
   const lastLanguageRef = useRef<string>('');
   const lastFileNameRef = useRef<string>('');
+  const isLoadingRef = useRef<boolean>(false);
+  const hasLoadedRef = useRef<boolean>(false);
+  const saveCodeRef = useRef<typeof saveCode | null>(null);
 
   // Carregar códigos salvos do usuário
   const loadCode = useCallback(async () => {
+    // Evitar múltiplas chamadas simultâneas
+    if (isLoadingRef.current) {
+      return;
+    }
+
     if (!isAuthenticated()) {
       // Se não autenticado, tentar carregar do localStorage
       try {
@@ -62,9 +70,14 @@ export function useCodePersistence(options: UseCodePersistenceOptions = {}): Use
       return;
     }
 
+    isLoadingRef.current = true;
+
     try {
       const user = getCurrentUser();
-      if (!user) return;
+      if (!user) {
+        isLoadingRef.current = false;
+        return;
+      }
 
       const records = await pb.collection(COLLECTION_NAME).getFullList<CodeSnippetRecord>({
         filter: `user = "${user.id}"`,
@@ -82,11 +95,15 @@ export function useCodePersistence(options: UseCodePersistenceOptions = {}): Use
         lastFileNameRef.current = latest.fileName;
         setLastSaved(new Date(latest.lastModified));
       }
+
+      hasLoadedRef.current = true;
     } catch (error) {
       console.error('Erro ao carregar códigos salvos:', error);
       if (onSaveError) {
         onSaveError(error as Error);
       }
+    } finally {
+      isLoadingRef.current = false;
     }
   }, [onSaveError]);
 
@@ -147,8 +164,11 @@ export function useCodePersistence(options: UseCodePersistenceOptions = {}): Use
 
       setLastSaved(new Date(record.lastModified));
       
-      // Atualizar lista
-      await loadCode();
+      // Atualizar lista apenas se necessário (não recarregar tudo)
+      setSavedSnippets(prev => {
+        const updated = prev.filter(s => s.id !== record.id);
+        return [record, ...updated];
+      });
 
       if (onSaveSuccess) {
         onSaveSuccess();
@@ -168,7 +188,12 @@ export function useCodePersistence(options: UseCodePersistenceOptions = {}): Use
     } finally {
       setIsSaving(false);
     }
-  }, [currentSnippetId, loadCode, onSaveSuccess, onSaveError]);
+  }, [currentSnippetId, onSaveSuccess, onSaveError]);
+
+  // Atualizar ref do saveCode
+  useEffect(() => {
+    saveCodeRef.current = saveCode;
+  }, [saveCode]);
 
   // Deletar código
   const deleteCode = useCallback(async (id: string) => {
@@ -218,14 +243,19 @@ export function useCodePersistence(options: UseCodePersistenceOptions = {}): Use
 
     // Criar novo timer
     autoSaveTimerRef.current = setTimeout(() => {
-      saveCode(code, language, fileName);
+      if (saveCodeRef.current) {
+        saveCodeRef.current(code, language, fileName);
+      }
     }, autoSaveDelay);
-  }, [autoSave, autoSaveDelay, saveCode]);
+  }, [autoSave, autoSaveDelay]);
 
-  // Carregar ao montar
+  // Carregar ao montar (apenas uma vez)
   useEffect(() => {
-    loadCode();
-  }, [loadCode]);
+    if (!hasLoadedRef.current) {
+      loadCode();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Executar apenas na montagem
 
   // Cleanup
   useEffect(() => {
