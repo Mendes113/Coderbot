@@ -53,15 +53,17 @@ export const useMissions = (options: UseMissionsOptions = {}) => {
   } = useQuery({
     queryKey: ['missions', classId, status],
     queryFn: async () => {
+      console.log('[useMissions] 🚀 Query iniciada!', { classId, status, autoFetch });
+      
       if (!classId) {
         // Buscar turmas do usuário primeiro
         const user = pb.authStore.record;
         if (!user?.id) {
-          console.log('[useMissions] Usuário não autenticado');
+          console.log('[useMissions] ❌ Usuário não autenticado');
           throw new Error('Usuário não autenticado');
         }
 
-        console.log('[useMissions] Buscando turmas do usuário:', user.id);
+        console.log('[useMissions] ✅ Usuário autenticado:', user.id, user.email);
 
         // Buscar matrículas ativas do usuário
         const enrollments = await pb.collection('class_members').getFullList({
@@ -110,7 +112,13 @@ export const useMissions = (options: UseMissionsOptions = {}) => {
     },
     enabled: autoFetch,
     staleTime: 1000 * 60 * 5, // 5 minutos
+    retry: 1,
   });
+
+  // Log de erros
+  if (error) {
+    console.error('[useMissions] ❌ Erro na query:', error);
+  }
 
   // Selecionar missão
   const selectMission = useCallback((mission: Mission | null) => {
@@ -160,6 +168,17 @@ export const useMissions = (options: UseMissionsOptions = {}) => {
   const getMissionById = useCallback((missionId: string) => {
     return missions.find(m => m.id === missionId);
   }, [missions]);
+
+  // Log de debug para verificar o estado
+  console.log('[useMissions] 📊 Estado atual:', {
+    missionsCount: missions.length,
+    isLoading,
+    error: error?.message,
+    selectedMission: selectedMission?.title,
+    autoFetch,
+    classId,
+    status
+  });
 
   return {
     missions,
