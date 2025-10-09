@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -84,6 +84,18 @@ const ExampleCard: React.FC<{
 }> = ({ example, onSelect, theme = 'dark', showExecutionInfo = false }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showCode, setShowCode] = useState(false);
+
+  const codeBlockSizing = useMemo(() => {
+    const lineCount = example.code.split('\n').length || 1;
+    const lineHeight = 20; // px
+    const verticalPadding = 32; // px from p-4 (top + bottom)
+    const minLines = 6;
+    const maxLines = 22;
+    const clampedLines = Math.min(Math.max(lineCount, minLines), maxLines);
+    const height = clampedLines * lineHeight + verticalPadding;
+    const maxHeight = maxLines * lineHeight + verticalPadding;
+    return { height, maxHeight };
+  }, [example.code]);
 
   const handleCopy = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -286,7 +298,9 @@ const ExampleCard: React.FC<{
                     </Badge>
                   </div>
                 </div>
-                <ScrollArea className="max-h-64">
+                <ScrollArea
+                  style={{ height: codeBlockSizing.height, maxHeight: codeBlockSizing.maxHeight }}
+                >
                   <div className="p-4 bg-slate-950 dark:bg-slate-900">
                     <pre className="text-sm leading-relaxed text-slate-100 font-mono whitespace-pre-wrap break-words overflow-wrap-anywhere">
                       <code className="language-javascript">{example.code}</code>

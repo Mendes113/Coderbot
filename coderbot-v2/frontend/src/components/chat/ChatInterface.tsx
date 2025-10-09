@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { AnalogySettings } from "@/components/chat/AnalogySettings";
 import { ChatMessage } from "@/components/chat/ChatMessage";
-import { ChatInput } from "@/components/chat/ChatInput";
+import ChatInput from "@/components/chat/ChatInput";
 import { InitialWelcomeMessages } from "@/components/chat/InitialWelcomeMessages";
 import { Message, fetchChatResponse } from "@/services/api";
 import { toast } from "@/components/ui/sonner";
@@ -43,6 +43,10 @@ import ExamplesPanel from "@/components/chat/ExamplesPanel";
 import { type CodeExample } from "@/context/ExamplesContext";
 import { getCurrentUser, pb } from "@/integrations/pocketbase/client";
 import { useMissionTracker } from "@/hooks/useMissionTracker";
+
+// Importar sistema de missões
+import { useMissions, type Mission } from "@/hooks/useMissions";
+import { MissionSelectorExpanded } from "@/components/chat/MissionSelector";
 
 // Small hash for stable ids (same as ChatMessage pattern)
 const simpleHash = (s: string) => {
@@ -606,6 +610,18 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const [showExamplesPanel, setShowExamplesPanel] = useState(true);
   const [selectedExample, setSelectedExample] = useState<CodeExample | null>(null);
   
+  // Estados para o sistema de missões
+  const {
+    missions,
+    isLoading: isLoadingMissions,
+    selectedMission,
+    selectMission,
+    clearSelectedMission,
+  } = useMissions({ autoFetch: true });
+  
+  // Estado para controlar se o usuário já selecionou uma missão
+  const [hasMissionSelected, setHasMissionSelected] = useState(false);
+  
   // Exemplos mockados para demonstração
   const [codeExamples] = useState<CodeExample[]>([
     {
@@ -803,6 +819,40 @@ console.log(verificarIdade(16)); // "Menor de idade"`,
   const toggleExamplesPanel = useCallback(() => {
     setShowExamplesPanel(!showExamplesPanel);
   }, [showExamplesPanel]);
+
+  // Handler para seleção de missão
+  const handleMissionSelect = useCallback((mission: Mission) => {
+    selectMission(mission);
+    setHasMissionSelected(true);
+    
+    // Tocar som de sucesso
+    // soundEffects.playSuccess();
+    
+    // Adicionar mensagem inicial do bot sobre a missão
+    const missionWelcomeMessage: Message = {
+      id: `mission-welcome-${Date.now()}`,
+      content: `🎯 Ótimo! Vamos trabalhar na missão **"${mission.title}"**.\n\n${mission.description}\n\nEstou aqui para te ajudar com qualquer dúvida sobre este tema. Como posso começar a ajudar você?`,
+      isAi: true,
+      timestamp: new Date(),
+    };
+    
+    setMessages([missionWelcomeMessage]);
+    setShowWelcomeMessages(false);
+    setWelcomeComplete(true);
+    
+    toast.success(`Missão "${mission.title}" iniciada!`, {
+      icon: '🎯',
+      duration: 3000,
+    });
+    
+    // Tracking analytics
+    trackEvent('mission_selected', {
+      missionId: mission.id,
+      missionTitle: mission.title,
+      missionType: mission.type,
+      difficulty: mission.difficulty,
+    });
+  }, [selectMission, trackEvent]);
 
   // Session metrics (start/end)
   const sessionStartRef = useRef<number | null>(null);
@@ -1554,12 +1604,25 @@ console.log(verificarIdade(16)); // "Menor de idade"`,
       
       try {
         const userIdStr = typeof userId === 'string' ? userId : (userId ? JSON.stringify(userId) : "anonymous");
+        
+        // Adicionar contexto da missão selecionada
+        const missionContext = selectedMission ? {
+          missionId: selectedMission.id,
+          missionTitle: selectedMission.title,
+          missionDescription: selectedMission.description,
+          missionType: selectedMission.type,
+          difficulty: selectedMission.difficulty,
+          topics: selectedMission.topics,
+          learningObjectives: selectedMission.learningObjectives,
+        } : null;
+        
         const userContext = {
           userId: userIdStr,
-          currentTopic: chatContext.subject || "",
+          currentTopic: chatContext.subject || selectedMission?.title || "",
           classId: chatContext.classId || null,
-          difficultyLevel: userProfile.difficulty_level || "medium",
+          difficultyLevel: selectedMission?.difficulty || userProfile.difficulty_level || "medium",
           learningProgress: userProfile.learning_progress || {},
+          mission: missionContext, // Adicionar contexto da missão
           quizStats: {
             correctCount: quizCorrectCount,
             wrongCount: quizWrongCount,
@@ -1582,6 +1645,11 @@ console.log(verificarIdade(16)); // "Menor de idade"`,
         const extraContext = lastQuizAnswer && lastQuizAnswer.correct === false
           ? `\nO aluno errou a questão anterior. Explique claramente o porquê do erro e como chegar na resposta correta. Pergunta: ${lastQuizAnswer.question}.`
           : '';
+        
+        // Adicionar contexto da missão ao prompt
+        const missionContextPrompt = selectedMission
+          ? `\n\nContexto da Missão Ativa:\n- Título: ${selectedMission.title}\n- Descrição: ${selectedMission.description}\n- Tipo: ${selectedMission.type}\n- Dificuldade: ${selectedMission.difficulty || 'não especificado'}\n${selectedMission.learningObjectives ? `- Objetivos de Aprendizado: ${selectedMission.learningObjectives.join(', ')}` : ''}\n\nPor favor, mantenha suas respostas focadas neste tema e nos objetivos de aprendizado da missão.`
+          : '';
 
         const modelOption = findModelOption(normalizedModelId);
         const provider = modelOption?.provider ?? chosenProvider;
@@ -1595,7 +1663,7 @@ console.log(verificarIdade(16)); // "Menor de idade"`,
         const agnoResponse = await agnoService.askQuestion({
           methodology: agnoMethodology,
           userQuery: input,
-          context: (whiteboardContext ? JSON.stringify(whiteboardContext) : `Contexto: ${knowledgeBase || 'Aprendizado geral de programação'}`) + extraContext,
+          context: (whiteboardContext ? JSON.stringify(whiteboardContext) : `Contexto: ${knowledgeBase || 'Aprendizado geral de programação'}`) + extraContext + missionContextPrompt,
           userContext,
           provider,
           modelId,
@@ -2223,12 +2291,65 @@ Obrigado pela paciência! 🤖✨`,
               </div>
             )}
 
+            {/* Seletor de Missões ou Input de Chat */}
             <div className="edu-card edu-p-3">
-              <ChatInput
-                onSendMessage={handleSendMessage}
-                isLoading={isLoading}
-                analogiesEnabled={analogiesEnabled}
-              />
+              {!hasMissionSelected && missions.length > 0 ? (
+                // Modo seleção de missão - bloqueia o input até selecionar
+                <div className="space-y-4">
+                  <MissionSelectorExpanded
+                    missions={missions}
+                    selectedMission={selectedMission}
+                    onSelectMission={handleMissionSelect}
+                    isLoading={isLoadingMissions}
+                  />
+                </div>
+              ) : (
+                // Modo chat normal - input desbloqueado
+                <div className="space-y-3">
+                  {/* Badge da missão ativa */}
+                  {selectedMission && (
+                    <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-950/30 dark:to-purple-900/20 rounded-xl border border-purple-200 dark:border-purple-800">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center">
+                          <Target className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold text-purple-900 dark:text-purple-100">
+                            {selectedMission.title}
+                          </div>
+                          <div className="text-xs text-purple-600 dark:text-purple-400">
+                            Missão ativa
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          clearSelectedMission();
+                          setHasMissionSelected(false);
+                          setMessages([]);
+                          toast.info('Missão desmarcada. Selecione uma nova missão para continuar.');
+                        }}
+                        className="h-7 px-2 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-200/50"
+                      >
+                        Trocar Missão
+                      </Button>
+                    </div>
+                  )}
+                  
+                  <ChatInput
+                    onSendMessage={handleSendMessage}
+                    isLoading={isLoading}
+                    analogiesEnabled={analogiesEnabled}
+                    hasMissionSelected={hasMissionSelected}
+                    selectedMission={selectedMission}
+                    missions={missions}
+                    onMissionSelect={handleMissionSelect}
+                    isLoadingMissions={isLoadingMissions}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
