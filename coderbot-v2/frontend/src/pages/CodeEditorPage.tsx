@@ -539,6 +539,7 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
   
   const [currentCode, setCurrentCode] = useState(LANGUAGE_TEMPLATES.javascript);
   const [currentLanguage, setCurrentLanguage] = useState('javascript');
+  const previousLanguageRef = React.useRef('javascript'); // Para reverter se cancelar
   const [theme, setTheme] = useState<'light' | 'dark'>(editorTheme || 'dark');
   const [isRunning, setIsRunning] = useState(false);
   const [output, setOutput] = useState<string>('');
@@ -558,8 +559,14 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
   }, [editorTheme]);
 
   const handleLanguageChange = useCallback((language: string) => {
+    console.log('🔄 [handleLanguageChange] Tentando trocar de', currentLanguage, 'para', language);
+    
     const currentTemplate = LANGUAGE_TEMPLATES[currentLanguage as keyof typeof LANGUAGE_TEMPLATES];
     const hasUnsavedChanges = currentCode !== currentTemplate;
+    
+    console.log('🔄 [handleLanguageChange] Código atual:', currentCode.substring(0, 50));
+    console.log('🔄 [handleLanguageChange] Template esperado:', currentTemplate?.substring(0, 50));
+    console.log('🔄 [handleLanguageChange] Tem alterações?', hasUnsavedChanges);
     
     // Se houver código diferente do template, perguntar ao usuário
     if (hasUnsavedChanges) {
@@ -570,11 +577,19 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
       );
       
       if (!confirmed) {
-        return; // Usuário cancelou, não troca de linguagem
+        console.log('❌ [handleLanguageChange] Usuário CANCELOU a troca!');
+        // Forçar o Select a voltar para o valor anterior
+        // Pequeno delay para garantir que o componente processe
+        setTimeout(() => {
+          setCurrentLanguage(previousLanguageRef.current);
+        }, 0);
+        return;
       }
     }
     
     // Trocar linguagem e carregar template
+    console.log('✅ [handleLanguageChange] Trocando para', language);
+    previousLanguageRef.current = language; // Salvar novo valor
     setCurrentLanguage(language);
     const template = LANGUAGE_TEMPLATES[language as keyof typeof LANGUAGE_TEMPLATES];
     if (template) {
@@ -601,6 +616,28 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
     setShowOutput(true);
     
     const startTime = Date.now();
+    
+    // 🔴 DEBUG: Verificar se o código e linguagem batem
+    console.log('🐛 [DEBUG] =====================');
+    console.log('🐛 [DEBUG] Linguagem selecionada:', currentLanguage);
+    console.log('🐛 [DEBUG] Código (primeiras 200 chars):', code.substring(0, 200));
+    console.log('🐛 [DEBUG] =====================');
+    
+    // 🔴 VERIFICAÇÃO: Se selecionou Python mas está tentando executar JavaScript
+    if (currentLanguage === 'python' && (code.includes('console.log') || code.includes('function ') || code.includes('=>'))) {
+      const errorMsg = `⚠️ ERRO DE LINGUAGEM DETECTADO!\n\n` +
+        `Você selecionou PYTHON no dropdown, mas o código no editor é JAVASCRIPT!\n\n` +
+        `O código contém sintaxe JavaScript (console.log, function, =>)\n\n` +
+        `Por favor:\n` +
+        `1. Troque para JavaScript no dropdown superior, OU\n` +
+        `2. Escreva código Python válido\n\n` +
+        `Código detectado como JavaScript não será executado como Python!`;
+      
+      setOutput(errorMsg);
+      toast.error('Incompatibilidade: Linguagem selecionada ≠ Código');
+      setIsRunning(false);
+      return;
+    }
     
     try {
       if (currentLanguage === 'javascript') {
@@ -857,7 +894,11 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 {/* Language Selector */}
-                <Select value={currentLanguage} onValueChange={handleLanguageChange}>
+                <Select 
+                  key={currentLanguage} 
+                  value={currentLanguage} 
+                  onValueChange={handleLanguageChange}
+                >
                   <SelectTrigger className="w-48 h-9 bg-background/80 backdrop-blur-sm border-purple-200/50 dark:border-purple-800/50 focus:border-purple-400 dark:focus:border-purple-600 transition-colors">
                     <SelectValue />
                   </SelectTrigger>
