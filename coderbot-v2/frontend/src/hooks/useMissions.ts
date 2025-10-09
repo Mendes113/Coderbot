@@ -65,9 +65,9 @@ export const useMissions = (options: UseMissionsOptions = {}) => {
 
         console.log('[useMissions] ✅ Usuário autenticado:', user.id, user.email);
 
-        // Buscar matrículas ativas do usuário
+        // Buscar matrículas do usuário (qualquer role: student, teacher, admin)
         const enrollments = await pb.collection('class_members').getFullList({
-          filter: `user = "${user.id}" && role = "student"`,
+          filter: `user = "${user.id}"`,
           sort: '-created',
         });
 
