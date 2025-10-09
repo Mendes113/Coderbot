@@ -63,12 +63,12 @@ export const useMissions = (options: UseMissionsOptions = {}) => {
 
         // Buscar missões de todas as turmas do usuário
         const classIds = enrollments.map(e => e.class);
-        const filter = `classId ?~ "${classIds.join('|')}" && status = "${status}"`;
+        const filter = `class ?~ "${classIds.join('|')}" && status = "active"`;
         
         const records = await pb.collection('class_missions').getFullList<Mission>({
           filter,
           sort: '-created',
-          expand: 'classId,createdBy',
+          expand: 'class,teacher',
         });
 
         return records;
@@ -76,9 +76,9 @@ export const useMissions = (options: UseMissionsOptions = {}) => {
 
       // Buscar missões de uma turma específica
       const records = await pb.collection('class_missions').getFullList<Mission>({
-        filter: `classId = "${classId}" && status = "${status}"`,
+        filter: `class = "${classId}" && status = "${status}"`,
         sort: '-created',
-        expand: 'classId,createdBy',
+        expand: 'class,teacher',
       });
 
       return records;
