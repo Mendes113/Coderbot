@@ -52,8 +52,8 @@ export const useMissions = (options: UseMissionsOptions = {}) => {
         }
 
         // Buscar matrículas ativas do usuário
-        const enrollments = await pb.collection('class_enrollments').getFullList({
-          filter: `student="${user.id}"&&status="active"`,
+        const enrollments = await pb.collection('class_members').getFullList({
+          filter: `user = "${user.id}" && role = "student"`,
           sort: '-created',
         });
 
@@ -62,7 +62,7 @@ export const useMissions = (options: UseMissionsOptions = {}) => {
         }
 
         // Buscar missões de todas as turmas do usuário
-        const classIds = enrollments.map(e => e.classId);
+        const classIds = enrollments.map(e => e.class);
         const filter = `classId ?~ "${classIds.join('|')}" && status = "${status}"`;
         
         const records = await pb.collection('class_missions').getFullList<Mission>({
