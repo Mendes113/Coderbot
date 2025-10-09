@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { 
   Play, 
   Save, 
-  Download, 
   Upload, 
   RotateCcw, 
   Settings, 
@@ -43,6 +42,7 @@ import CodeEditor from '@/components/chat/CodeEditor';
 import ExamplesPanel from '@/components/chat/ExamplesPanel';
 import { useExamples, type CodeExample } from '@/context/ExamplesContext';
 import { useCodeEditor } from '@/context/CodeEditorContext';
+import { useCodePersistence } from '@/hooks/useCodePersistence';
 import { Link, useNavigate } from 'react-router-dom';
 
 // Função utilitária para execução segura de JavaScript
@@ -517,6 +517,25 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
       return matchesTitle || matchesLanguageName || matchesTags;
     });
   }, [examples, selectedLanguage, searchQuery]);
+  
+  // Persistência de código
+  const {
+    isSaving,
+    lastSaved,
+    hasUnsavedChanges,
+    saveCode,
+    triggerAutoSave,
+  } = useCodePersistence({
+    autoSave: true,
+    autoSaveDelay: 3000,
+    onSaveSuccess: () => {
+      console.log('Código salvo automaticamente');
+    },
+    onSaveError: (error) => {
+      console.error('Erro ao salvar código:', error);
+    },
+  });
+  
   const [currentCode, setCurrentCode] = useState(LANGUAGE_TEMPLATES.javascript);
   const [currentLanguage, setCurrentLanguage] = useState('javascript');
   const [theme, setTheme] = useState<'light' | 'dark'>(editorTheme || 'dark');
@@ -533,11 +552,29 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
   }, [editorTheme]);
 
   const handleLanguageChange = useCallback((language: string) => {
+    const currentTemplate = LANGUAGE_TEMPLATES[currentLanguage as keyof typeof LANGUAGE_TEMPLATES];
+    const hasUnsavedChanges = currentCode !== currentTemplate;
+    
+    // Se houver código diferente do template, perguntar ao usuário
+    if (hasUnsavedChanges) {
+      const confirmed = window.confirm(
+        `Você tem alterações não salvas em ${currentLanguage.toUpperCase()}.\n\n` +
+        `Ao trocar para ${language.toUpperCase()}, seu código atual será perdido.\n\n` +
+        `Deseja continuar?`
+      );
+      
+      if (!confirmed) {
+        return; // Usuário cancelou, não troca de linguagem
+      }
+    }
+    
+    // Trocar linguagem e carregar template
     setCurrentLanguage(language);
     const template = LANGUAGE_TEMPLATES[language as keyof typeof LANGUAGE_TEMPLATES];
     if (template) {
       setCurrentCode(template);
       setCurrentExampleId(null); // Reset example tracking
+      toast.success(`Linguagem alterada para ${language.toUpperCase()}`);
     }
     
     // Atualizar nome do arquivo
@@ -545,11 +582,13 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
     if (langConfig) {
       setFileName(`untitled.${langConfig.extension}`);
     }
-  }, []);
+  }, [currentLanguage, currentCode]);
 
   const handleCodeChange = useCallback((code: string) => {
     setCurrentCode(code);
-  }, []);
+    // Trigger auto-save
+    triggerAutoSave(code, currentLanguage, fileName);
+  }, [currentLanguage, fileName, triggerAutoSave]);
 
   const handleRunCode = useCallback(async (code: string) => {
     setIsRunning(true);
@@ -703,7 +742,11 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
     }
   }, [currentLanguage, currentExampleId, markAsExecuted]);
 
-  const handleSaveFile = useCallback(() => {
+  const handleSaveFile = useCallback(async () => {
+    // Salvar no banco de dados
+    await saveCode(currentCode, currentLanguage, fileName);
+    
+    // Também fazer download local
     const element = document.createElement('a');
     const file = new Blob([currentCode], { type: 'text/plain' });
     element.href = URL.createObjectURL(file);
@@ -711,8 +754,7 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
-    toast.success('Arquivo salvo!');
-  }, [currentCode, fileName]);
+  }, [currentCode, fileName, currentLanguage, saveCode]);
 
   const handleLoadExample = useCallback((example: CodeExample) => {
     setCurrentCode(example.code);
@@ -849,6 +891,28 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
               
               {/* Action Buttons */}
               <div className="flex items-center gap-2">
+                {/* Indicador de salvamento */}
+                {isSaving && (
+                  <Badge variant="secondary" className="gap-1 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Salvando...
+                  </Badge>
+                )}
+                
+                {!isSaving && lastSaved && (
+                  <Badge variant="secondary" className="gap-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                    <CheckCircle className="w-3 h-3" />
+                    Salvo {new Date(lastSaved).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </Badge>
+                )}
+                
+                {hasUnsavedChanges && !isSaving && (
+                  <Badge variant="secondary" className="gap-1 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">
+                    <AlertCircle className="w-3 h-3" />
+                    Alterações não salvas
+                  </Badge>
+                )}
+                
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -863,10 +927,15 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
                   variant="outline" 
                   size="sm" 
                   onClick={handleSaveFile}
+                  disabled={isSaving}
                   className="h-9 gap-2"
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Salvar</span>
+                  {isSaving ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Save className="w-3.5 h-3.5" />
+                  )}
+                  <span className="hidden sm:inline">{isSaving ? 'Salvando...' : 'Salvar'}</span>
                 </Button>
                 
                 <Button 

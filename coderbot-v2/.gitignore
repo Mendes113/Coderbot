@@ -28,4 +28,5 @@ backend/app/routers/__pycache__/deepseek_router.cpython-313.pyc
 backend/.env
 .qodo
 backend/venv
-venv/ 
+venv/
+release 
