@@ -6,15 +6,20 @@ export interface Mission {
   id: string;
   title: string;
   description: string;
-  type: 'quiz' | 'exercise' | 'project' | 'learning_path' | 'discussion';
-  status: 'active' | 'completed' | 'pending';
-  difficulty?: 'beginner' | 'intermediate' | 'advanced';
-  topics?: string[];
-  dueDate?: string;
-  classId: string;
-  createdBy: string;
+  type: 'chat_interaction' | 'code_execution' | 'exercise_completion' | 'notes_creation' | 'custom';
+  status: 'active' | 'completed' | 'expired' | 'paused';
+  target_value: number;
+  reward_points: number;
+  class: string; // ID da turma
+  teacher: string; // ID do professor
+  starts_at?: string;
+  ends_at?: string;
+  max_participants?: number;
   created: string;
   updated: string;
+  // Campos opcionais para compatibilidade
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  topics?: string[];
   tags?: string[];
   estimatedDuration?: number; // em minutos
   learningObjectives?: string[];
@@ -23,6 +28,10 @@ export interface Mission {
     url: string;
     type: 'video' | 'article' | 'documentation' | 'example';
   }>;
+  // Aliases para compatibilidade com código antigo
+  classId?: string;
+  createdBy?: string;
+  dueDate?: string;
 }
 
 interface UseMissionsOptions {
@@ -48,8 +57,11 @@ export const useMissions = (options: UseMissionsOptions = {}) => {
         // Buscar turmas do usuário primeiro
         const user = pb.authStore.record;
         if (!user?.id) {
+          console.log('[useMissions] Usuário não autenticado');
           throw new Error('Usuário não autenticado');
         }
+
+        console.log('[useMissions] Buscando turmas do usuário:', user.id);
 
         // Buscar matrículas ativas do usuário
         const enrollments = await pb.collection('class_members').getFullList({
@@ -57,13 +69,21 @@ export const useMissions = (options: UseMissionsOptions = {}) => {
           sort: '-created',
         });
 
+        console.log('[useMissions] Turmas encontradas:', enrollments.length);
+
         if (enrollments.length === 0) {
+          console.log('[useMissions] Nenhuma turma encontrada para o usuário');
           return [];
         }
 
         // Buscar missões de todas as turmas do usuário
         const classIds = enrollments.map(e => e.class);
-        const filter = `class ?~ "${classIds.join('|')}" && status = "active"`;
+        console.log('[useMissions] IDs das turmas:', classIds);
+        
+        // Criar filtro com OR para cada turma
+        const classFilters = classIds.map(id => `class = "${id}"`).join(' || ');
+        const filter = `(${classFilters}) && status = "active"`;
+        console.log('[useMissions] Filtro de missões:', filter);
         
         const records = await pb.collection('class_missions').getFullList<Mission>({
           filter,
@@ -71,15 +91,20 @@ export const useMissions = (options: UseMissionsOptions = {}) => {
           expand: 'class,teacher',
         });
 
+        console.log('[useMissions] Missões encontradas:', records.length, records);
+
         return records;
       }
 
       // Buscar missões de uma turma específica
+      console.log('[useMissions] Buscando missões da turma:', classId);
       const records = await pb.collection('class_missions').getFullList<Mission>({
         filter: `class = "${classId}" && status = "${status}"`,
         sort: '-created',
         expand: 'class,teacher',
       });
+
+      console.log('[useMissions] Missões da turma encontradas:', records.length);
 
       return records;
     },
