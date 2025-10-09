@@ -242,11 +242,28 @@ export const MissionSelectorCompact: React.FC<MissionSelectorProps> = ({
   isLoading,
   className,
 }) => {
+  console.log('[MissionSelectorCompact] 📦 Props recebidas:', {
+    missionsCount: missions.length,
+    isLoading,
+    selectedMission: selectedMission?.title,
+    missions: missions.map(m => ({ id: m.id, title: m.title }))
+  });
+
   if (isLoading) {
     return (
       <Select disabled>
         <SelectTrigger className={cn('w-full', className)}>
           <SelectValue placeholder="Carregando..." />
+        </SelectTrigger>
+      </Select>
+    );
+  }
+
+  if (missions.length === 0) {
+    return (
+      <Select disabled>
+        <SelectTrigger className={cn('w-full', className)}>
+          <SelectValue placeholder="Nenhuma missão disponível" />
         </SelectTrigger>
       </Select>
     );

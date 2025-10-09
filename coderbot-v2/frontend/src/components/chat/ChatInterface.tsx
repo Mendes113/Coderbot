@@ -619,6 +619,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     clearSelectedMission,
   } = useMissions({ autoFetch: true });
   
+  // Log de debug para missões
+  console.log('[ChatInterface] 🎯 Missões carregadas:', {
+    count: missions.length,
+    isLoading: isLoadingMissions,
+    missions: missions.map(m => ({ id: m.id, title: m.title, type: m.type }))
+  });
+  
   // Estado para controlar se o usuário já selecionou uma missão
   const [hasMissionSelected, setHasMissionSelected] = useState(false);
   
