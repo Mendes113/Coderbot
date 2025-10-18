@@ -20,6 +20,11 @@ export interface CodeExample {
     output?: string;
     executionTime?: number;
   };
+  // Analytics metadata
+  viewCount?: number;
+  copyCount?: number;
+  focusModeCount?: number;
+  lastViewed?: Date;
 }
 
 interface ExamplesContextType {
@@ -39,6 +44,10 @@ interface ExamplesContextType {
   setSelectedLanguage: (language: string | 'all') => void;
   selectedType: 'all' | 'correct' | 'incorrect';
   setSelectedType: (type: 'all' | 'correct' | 'incorrect') => void;
+  // Analytics tracking
+  trackExampleView: (exampleId: string) => void;
+  trackExampleCopy: (exampleId: string, context: 'inline_card' | 'modal_focus') => void;
+  trackFocusMode: (exampleId: string) => void;
 }
 
 const ExamplesContext = createContext<ExamplesContextType | undefined>(undefined);
@@ -104,6 +113,35 @@ export const ExamplesProvider: React.FC<ExamplesProviderProps> = ({
     return examples.find(example => example.id === id);
   }, [examples]);
 
+  // Analytics tracking functions
+  const trackExampleView = useCallback((exampleId: string) => {
+    const example = examples.find(e => e.id === exampleId);
+    if (example) {
+      updateExample(exampleId, {
+        viewCount: (example.viewCount || 0) + 1,
+        lastViewed: new Date()
+      });
+    }
+  }, [examples, updateExample]);
+
+  const trackExampleCopy = useCallback((exampleId: string, context: 'inline_card' | 'modal_focus') => {
+    const example = examples.find(e => e.id === exampleId);
+    if (example) {
+      updateExample(exampleId, {
+        copyCount: (example.copyCount || 0) + 1
+      });
+    }
+  }, [examples, updateExample]);
+
+  const trackFocusMode = useCallback((exampleId: string) => {
+    const example = examples.find(e => e.id === exampleId);
+    if (example) {
+      updateExample(exampleId, {
+        focusModeCount: (example.focusModeCount || 0) + 1
+      });
+    }
+  }, [examples, updateExample]);
+
   const value: ExamplesContextType = {
     examples,
     setExamples,
@@ -119,7 +157,10 @@ export const ExamplesProvider: React.FC<ExamplesProviderProps> = ({
     selectedLanguage,
     setSelectedLanguage,
     selectedType,
-    setSelectedType
+    setSelectedType,
+    trackExampleView,
+    trackExampleCopy,
+    trackFocusMode
   };
 
   return (

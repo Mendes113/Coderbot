@@ -22,6 +22,8 @@ from app.services.agno_methodology_service import (
     MethodologyType,
     get_methodology_config,
 )
+from app.services.examples_rag_service import ExamplesRAGService, get_examples_rag_service
+from app.services.pocketbase_service import get_pocketbase_client
 
 router = APIRouter(
     prefix="/agno",
@@ -60,6 +62,14 @@ class AgnoRequest(BaseModel):
         default=None,
         description="Contexto do usuário para personalização"
     )
+    mission_context: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Contexto da missão ativa (para validação e enriquecimento)"
+    )
+    chat_session_id: Optional[str] = Field(
+        default=None,
+        description="ID da sessão de chat (para rastreabilidade de exemplos)"
+    )
     # Preferências de saída
     include_final_code: Optional[bool] = Field(
         default=True,
@@ -87,6 +97,9 @@ class ResponseSegment(BaseModel):
     type: str = Field(description="Tipo do segmento (intro, steps, correct_example, incorrect_example, reflection, final_code)")
     content: str = Field(description="Conteúdo em Markdown do segmento. Para final_code, apenas um bloco de código")
     language: Optional[str] = Field(default=None, description="Linguagem do bloco de código quando type=final_code")
+    # NOVO: suporte a feedback de exemplos
+    example_id: Optional[str] = Field(default=None, description="ID do exemplo salvo no PocketBase (se aplicável)")
+    can_vote: Optional[bool] = Field(default=False, description="Se este segmento aceita feedback de upvote/downvote")
 
 class AgnoResponse(BaseModel):
     """Modelo de resposta do sistema AGNO."""
@@ -214,6 +227,36 @@ async def ask_question(
         AgnoResponse: Resposta processada pelo sistema AGNO
     """
     try:
+        # Obter instância do ExamplesRAGService
+        pb_client = get_pocketbase_client()
+        examples_rag = get_examples_rag_service(pb_client)
+        
+        # VALIDAÇÃO ANTI-GIBBERISH
+        validation = examples_rag.validate_educational_query(
+            user_query=request.user_query,
+            mission_context=request.mission_context
+        )
+        
+        if not validation["is_valid"]:
+            logger.info(f"Query rejeitada: {request.user_query[:50]} | Razão: {validation['reason']}")
+            return AgnoResponse(
+                response=f"⚠️ {validation['reason']}\n\n{validation.get('suggested_redirect', 'Pergunte sobre programação!')}",
+                methodology=request.methodology,
+                is_xml_formatted=False,
+                metadata={
+                    "validation_failed": True,
+                    "validation_reason": validation["reason"],
+                    "confidence": validation.get("confidence", 0.0)
+                },
+                segments=[]
+            )
+        
+        # Log de validação bem-sucedida
+        logger.info(
+            f"Query validada com sucesso: {request.user_query[:50]} | "
+            f"Confidence: {validation.get('confidence', 0.0):.2f}"
+        )
+        
         # Converte contexto do usuário para formato esperado pelo service
         user_context = None
         if request.user_context:
@@ -234,15 +277,59 @@ async def ask_question(
             include_final_code=request.include_final_code,
             max_final_code_lines=request.max_final_code_lines or 150
         )
+        
+        # SALVAR EXEMPLOS GERADOS
+        # Processar segmentos e salvar exemplos correct/incorrect
+        segments = result.get("segments", [])
+        chat_session_id = request.chat_session_id or f"session_{int(time.time())}"
+        
+        for i, segment in enumerate(segments):
+            segment_type = segment.get("type", "")
+            
+            # Identificar segmentos que são exemplos
+            if segment_type in ["correct_example", "incorrect_example"]:
+                try:
+                    # Extrair dados do exemplo do conteúdo do segmento
+                    example_data = {
+                        "type": "correct" if segment_type == "correct_example" else "incorrect",
+                        "title": segment.get("title", "Exemplo"),
+                        "code": segment.get("content", ""),  # O conteúdo já é o código
+                        "language": segment.get("language", "python"),
+                        "explanation": segment.get("title", "")  # Título como explicação inicial
+                    }
+                    
+                    # Salvar no PocketBase
+                    example_id = await examples_rag.save_generated_example(
+                        example_data=example_data,
+                        user_query=request.user_query,
+                        chat_session_id=chat_session_id,
+                        mission_context=request.mission_context,
+                        segment_index=i
+                    )
+                    
+                    # Adicionar ID do exemplo ao segmento
+                    if example_id:
+                        segment["example_id"] = example_id
+                        segment["can_vote"] = True
+                        logger.info(f"Exemplo salvo: {example_id} | Tipo: {example_data['type']}")
+                    
+                except Exception as e:
+                    logger.error(f"Erro ao salvar exemplo do segmento {i}: {e}")
+                    # Não falhar a requisição se não conseguir salvar
 
         # Converte resultado do service para formato de resposta esperado
         return AgnoResponse(
             response=result["response"],
             methodology=result["methodology"],
             is_xml_formatted=result["is_xml_formatted"],
-            metadata=result["metadata"],
+            metadata={
+                **result.get("metadata", {}),
+                "validation_confidence": validation.get("confidence", 0.0),
+                "keyword_matches": validation.get("keyword_matches", 0),
+                "mission_aligned": validation.get("mission_aligned", False)
+            },
             extras=result["extras"],
-            segments=result["segments"]
+            segments=segments
         )
         
     except ValueError as e:
@@ -276,3 +363,151 @@ async def get_worked_example(
     request.methodology = MethodologyType.WORKED_EXAMPLES.value
     
     return await ask_question(request, agno_service)
+
+
+# --- Novos Endpoints: Exemplos RAG e Feedback ---
+
+class ExampleFeedbackRequest(BaseModel):
+    """Modelo para submissão de feedback de exemplo."""
+    vote: str = Field(description="Tipo de voto: 'up' ou 'down'", pattern="^(up|down)$")
+    feedback_type: str = Field(
+        default="helpful",
+        description="Tipo de feedback: helpful, not_helpful, incorrect, needs_improvement"
+    )
+    comment: Optional[str] = Field(default=None, description="Comentário opcional", max_length=1000)
+
+
+@router.post("/examples/{example_id}/feedback")
+async def submit_example_feedback(
+    example_id: str,
+    feedback: ExampleFeedbackRequest
+):
+    """
+    Registra feedback de um aluno sobre um exemplo.
+    
+    Args:
+        example_id: ID do exemplo no PocketBase
+        feedback: Dados do feedback (vote, tipo, comentário)
+    
+    Returns:
+        Dict com informações do feedback atualizado
+    """
+    try:
+        pb_client = get_pocketbase_client()
+        examples_rag = get_examples_rag_service(pb_client)
+        
+        # Obter user_id do usuário autenticado
+        # TODO: Implementar autenticação adequada
+        user_id = pb_client.auth_store.model.id if pb_client.auth_store.is_valid else "anonymous"
+        
+        result = await examples_rag.update_feedback_score(
+            example_id=example_id,
+            vote=feedback.vote,
+            user_id=user_id,
+            feedback_type=feedback.feedback_type,
+            comment=feedback.comment
+        )
+        
+        return {
+            "status": "success",
+            "data": result
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao processar feedback: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao processar feedback: {str(e)}"
+        )
+
+
+@router.get("/examples/{example_id}")
+async def get_example_details(example_id: str):
+    """
+    Retorna detalhes de um exemplo com estatísticas de feedback.
+    
+    Args:
+        example_id: ID do exemplo
+    
+    Returns:
+        Dict com dados do exemplo + feedbacks
+    """
+    try:
+        pb_client = get_pocketbase_client()
+        examples_rag = get_examples_rag_service(pb_client)
+        
+        example_data = await examples_rag.get_example_with_feedback(example_id)
+        
+        return {
+            "status": "success",
+            "data": example_data
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar exemplo: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Exemplo não encontrado: {str(e)}"
+        )
+
+
+@router.get("/examples")
+async def search_examples(
+    query: str = Query(description="Query de busca"),
+    mission_id: Optional[str] = Query(default=None, description="ID da missão"),
+    top_k: int = Query(default=3, description="Número de resultados"),
+    min_quality_score: float = Query(default=0.6, description="Score mínimo de qualidade")
+):
+    """
+    Busca exemplos relevantes (preparado para RAG futuro).
+    
+    Args:
+        query: Query de busca
+        mission_id: ID da missão (opcional)
+        top_k: Número de resultados
+        min_quality_score: Score mínimo
+    
+    Returns:
+        Lista de exemplos relevantes
+    """
+    try:
+        pb_client = get_pocketbase_client()
+        examples_rag = get_examples_rag_service(pb_client)
+        
+        # Buscar missão se ID fornecido
+        mission_context = None
+        if mission_id:
+            try:
+                mission = await pb_client.collection('class_missions').get_one(mission_id)
+                mission_context = {
+                    "id": mission.id,
+                    "title": mission.title,
+                    "topics": mission.topics if hasattr(mission, 'topics') else [],
+                    "difficulty": mission.difficulty if hasattr(mission, 'difficulty') else None
+                }
+            except Exception as e:
+                logger.warning(f"Missão não encontrada: {mission_id} | {e}")
+        
+        examples = await examples_rag.search_relevant_examples(
+            user_query=query,
+            mission_context=mission_context,
+            top_k=top_k,
+            min_quality_score=min_quality_score
+        )
+        
+        return {
+            "status": "success",
+            "data": {
+                "examples": examples,
+                "query": query,
+                "count": len(examples)
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar exemplos: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao buscar exemplos: {str(e)}"
+        )
+

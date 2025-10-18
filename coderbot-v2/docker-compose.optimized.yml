@@ -40,8 +40,8 @@ services:
   # Backend API (core profile) - otimizado
   backend:
     build:
-      context: ./backend
-      dockerfile: ../docker/Dockerfile.backend
+      context: .
+      dockerfile: docker/Dockerfile.backend
     container_name: coderbot-backend
     # ports:
     #   - "8000:8000"  # Acessível apenas via nginx
@@ -107,8 +107,8 @@ services:
   # Frontend React App (core profile) - usando Dockerfile otimizado
   frontend:
     build:
-      context: ./frontend
-      dockerfile: ../docker/Dockerfile.frontend
+      context: .
+      dockerfile: docker/Dockerfile.frontend
       args:
         VITE_POCKETBASE_URL: /pb
         VITE_PUBLIC_POSTHOG_KEY: ${VITE_PUBLIC_POSTHOG_KEY:-}
@@ -201,101 +201,9 @@ services:
     volumes:
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
 
-  # Judge0 - Execução de código (opcional - perfil judge)
-  judge0-db:
-    image: postgres:13
-    container_name: coderbot-judge0-db
-    environment:
-      - POSTGRES_USER=judge0
-      - POSTGRES_PASSWORD=judge0
-      - POSTGRES_DB=judge0
-    networks:
-      - coderbot-network
-    restart: unless-stopped
-    logging: *default-logging
-    profiles: [judge]
-    cpus: "0.50"
-    mem_limit: "512m"
-
-  judge0-redis:
-    image: redis:6-alpine
-    container_name: coderbot-judge0-redis
-    networks:
-      - coderbot-network
-    restart: unless-stopped
-    logging: *default-logging
-    profiles: [judge]
-    cpus: "0.25"
-    mem_limit: "128m"
-
-  judge0:
-    image: judge0/judge0:latest
-    container_name: coderbot-judge0
-    ports:
-      - "2358:2358"
-    environment:
-      - DATABASE_URL=postgresql://judge0:judge0@judge0-db:5432/judge0
-      - REDIS_URL=redis://judge0-redis:6379/0
-      - REDIS_HOST=judge0-redis
-      - REDIS_PORT=6379
-      - SIDEKIQ_REDIS_URL=redis://judge0-redis:6379/0
-      - QUEUE_REDIS_URL=redis://judge0-redis:6379/0
-      - CACHE_REDIS_URL=redis://judge0-redis:6379/0
-      - DISABLE_CACHE=false
-      - RAILS_ENV=production
-      - ALLOW_ORIGIN=*
-      - ENABLE_WAIT_RESULT=true
-      - ENABLE_COMPILER_OPTIONS=true
-    depends_on:
-      judge0-db:
-        condition: service_started
-      judge0-redis:
-        condition: service_started
-    networks:
-      - coderbot-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:2358/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    logging: *default-logging
-    profiles: [judge]
-    cpus: "1.00"
-    mem_limit: "1024m"
-    ulimits:
-      nofile:
-        soft: 16384
-        hard: 65536
-    stop_grace_period: 15s
-
-  judge0-worker:
-    image: judge0/judge0:latest
-    container_name: coderbot-judge0-worker
-    environment:
-      - DATABASE_URL=postgresql://judge0:judge0@judge0-db:5432/judge0
-      - REDIS_URL=redis://judge0-redis:6379/0
-      - RAILS_ENV=production
-      - ALLOW_ORIGIN=*
-    depends_on:
-      judge0-db:
-        condition: service_started
-      judge0-redis:
-        condition: service_started
-    networks:
-      - coderbot-network
-    restart: unless-stopped
-    command: /bin/sh -lc 'bundle exec rake jobs:work'
-    logging: *default-logging
-    profiles: [judge]
-    cpus: "0.50"
-    mem_limit: "512m"
-
 volumes:
   pocketbase_data:
     driver: local
-  # code_server_data:
-  #   driver: local
 
 networks:
   coderbot-network:

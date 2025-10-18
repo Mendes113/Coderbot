@@ -10,14 +10,14 @@ RUN apk add --no-cache curl
 # Definir diretório de trabalho
 WORKDIR /app
 
-# Copiar apenas arquivos de configuração (assumindo contexto em coderbot-v2/frontend)
-COPY package.json pnpm-lock.yaml ./
+# Copiar apenas arquivos de configuração (contexto: .)
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
 
 # Instalar dependências com cache do store do pnpm
 RUN --mount=type=cache,target=/root/.pnpm-store pnpm install --frozen-lockfile --prefer-offline
 
 # Copiar o código da aplicação
-COPY . .
+COPY frontend/ .
 
 # Garantir remoção de artefatos não usados
 

@@ -903,3 +903,10 @@ class PocketBaseService(PocketBaseService):
 # Recreate global instance AFTER extending the class so it includes class management methods
 from app.config import settings
 pb_service = PocketBaseService(base_url=settings.pocketbase_url)
+
+def get_pocketbase_client() -> PocketBaseService:
+    """
+    Factory function to get the PocketBase service instance.
+    This provides a consistent interface for dependency injection.
+    """
+    return pb_service
