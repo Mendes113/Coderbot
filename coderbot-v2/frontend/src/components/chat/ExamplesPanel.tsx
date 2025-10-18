@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { CheckCircle, XCircle, Sparkles, Copy, Maximize2, X, ArrowRight, ChevronUp } from 'lucide-react';
+import { CheckCircle, XCircle, Sparkles, Copy, Maximize2, X, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'react-hot-toast';
 import { useExamples, type CodeExample } from '@/context/ExamplesContext';
@@ -186,7 +186,6 @@ const ExampleCard: React.FC<{
   const handleCopy = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     navigator.clipboard.writeText(example.code);
-    toast.success('Código copiado! 📋');
     
     // Analytics: código copiado
     posthog?.capture?.('edu_example_code_copied', {
@@ -221,7 +220,7 @@ const ExampleCard: React.FC<{
   const theme = useMemo(() => {
     if (example.type === 'incorrect') {
       return {
-        gradient: 'bg-gradient-to-br from-rose-400 via-rose-500 to-rose-600',
+        gradient: 'bg-gradient-to-br from-rose-400 via-pink-500 to-rose-600',
         border: 'border border-rose-400/40',
         shadow: 'shadow-[0_18px_0_-6px_rgba(225,29,72,0.35),0_32px_52px_-30px_rgba(225,29,72,0.55)]',
         focusRing: 'focus-visible:ring-rose-200/70',
@@ -249,19 +248,6 @@ const ExampleCard: React.FC<{
   }, [example.type]);
 
   const labelText = example.type === 'correct' ? 'Exemplo Correto' : 'Exemplo com Erro';
-  const summaryText = useMemo(() => {
-    if (!example.explanation) return example.type === 'correct'
-      ? 'Veja uma solução que pode servir de referência.'
-      : 'Analise este trecho e encontre o erro.';
-
-    if (example.explanation.length <= 140) {
-      return example.explanation;
-    }
-
-    return `${example.explanation.slice(0, 140).trim()}…`;
-  }, [example.explanation, example.type]);
-
-  const ctaText = example.type === 'correct' ? 'Explorar exemplo' : 'Investigar erro';
   const compactMode = isSiblingExpanded && !isExpanded;
 
   return (
@@ -271,8 +257,8 @@ const ExampleCard: React.FC<{
           onClick={handleSelect}
           aria-label={labelText}
           className={cn(
-            'group relative flex w-full flex-col justify-between rounded-3xl text-left transition-transform duration-300 ease-out',
-            compactMode ? 'min-h-[150px] p-5' : 'min-h-[220px] p-6',
+            'group relative flex w-full flex-col justify-center items-center rounded-3xl text-left transition-transform duration-300 ease-out',
+            compactMode ? 'h-[100px]' : 'h-full min-h-[200px]',
             'cursor-pointer hover:-translate-y-1 active:translate-y-0.5',
             'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-offset-0',
             theme.gradient,
@@ -282,60 +268,53 @@ const ExampleCard: React.FC<{
           )}
         >
           <div
-            className="pointer-events-none absolute inset-0 opacity-35"
+            className="pointer-events-none absolute inset-0 opacity-35 rounded-3xl"
             style={{
               backgroundImage:
                 'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.25), transparent 55%), radial-gradient(circle at 80% 15%, rgba(255,255,255,0.12), transparent 55%)',
             }}
           />
           {theme.overlay && (
-            <div className={cn('pointer-events-none absolute inset-0', theme.overlay)} />
+            <div className={cn('pointer-events-none absolute inset-0 rounded-3xl', theme.overlay)} />
           )}
-          <div className="relative flex h-full flex-col gap-4">
+          <div className="relative flex items-center justify-center">
             <span
               className={cn(
-                'inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]',
+                'inline-flex w-fit items-center gap-3 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-[0.14em]',
                 theme.chipClass
               )}
             >
               {example.type === 'correct' ? (
-                <CheckCircle className="h-3.5 w-3.5 text-emerald-700" />
+                <CheckCircle className="h-5 w-5 text-emerald-700" strokeWidth={2.5} />
               ) : (
-                <XCircle className="h-3.5 w-3.5 text-rose-500" />
+                <XCircle className="h-5 w-5 text-rose-500" strokeWidth={2.5} />
               )}
               {labelText}
             </span>
-            <p className={cn(
-              'max-w-md text-sm leading-relaxed text-white/85',
-              compactMode ? 'line-clamp-2' : 'line-clamp-3'
-            )}>
-              {summaryText}
-            </p>
-            <div className="mt-auto flex items-center gap-2 text-sm font-semibold text-white">
-              <span>{ctaText}</span>
-              <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
-            </div>
           </div>
-          <div className="pointer-events-none absolute -bottom-2 right-4 opacity-50 sm:right-6">
+          <div className="pointer-events-none absolute bottom-4 right-6 opacity-40">
             {example.type === 'correct' ? (
-              <CheckCircle className={cn('h-20 w-20', theme.accentIcon)} strokeWidth={1.2} />
+              <CheckCircle className={cn('h-24 w-24', theme.accentIcon)} strokeWidth={1.5} />
             ) : (
-              <XCircle className={cn('h-20 w-20', theme.accentIcon)} strokeWidth={1.2} />
+              <XCircle className={cn('h-24 w-24', theme.accentIcon)} strokeWidth={1.5} />
             )}
           </div>
         </button>
       )}
 
       {isExpanded && (
-        <div className="mt-4 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
-          <div
-            className={cn(
-              'relative overflow-hidden rounded-3xl px-6 py-6 text-white',
-              theme.gradient,
-              theme.border,
-              theme.shadow
-            )}
-          >
+        <div className={cn(
+          "flex flex-col rounded-2xl overflow-hidden border-2 shadow-xl animate-in fade-in slide-in-from-top-2 duration-300",
+          example.type === 'correct' 
+            ? 'border-emerald-400/40 bg-emerald-50/5' 
+            : 'border-rose-400/40 bg-rose-50/5'
+        )}>
+          {/* Header com mesmo design do botão */}
+          <div className={cn(
+            'relative overflow-hidden px-5 py-4',
+            theme.gradient,
+            theme.border
+          )}>
             <div
               className="pointer-events-none absolute inset-0 opacity-30"
               style={{
@@ -346,77 +325,109 @@ const ExampleCard: React.FC<{
             {theme.overlay && (
               <div className={cn('pointer-events-none absolute inset-0', theme.overlay)} />
             )}
-            <div className="relative flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
-                    {example.type === 'correct' ? (
-                      <CheckCircle className={cn('h-7 w-7', theme.iconTint)} />
-                    ) : (
-                      <XCircle className={cn('h-7 w-7', theme.iconTint)} />
-                    )}
-                  </div>
-                  <div>
-                    <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/85">
-                      {labelText}
+            
+            <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/25 backdrop-blur-sm">
+                  {example.type === 'correct' ? (
+                    <CheckCircle className="h-5 w-5 text-white" strokeWidth={2.5} />
+                  ) : (
+                    <XCircle className="h-5 w-5 text-white" strokeWidth={2.5} />
+                  )}
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono uppercase tracking-[0.12em]">
+                    <span className={cn('rounded-full px-2.5 py-1 font-bold capitalize', theme.chipClass)}>
+                      {example.language}
                     </span>
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-mono uppercase tracking-[0.08em] text-white/70">
-                      <span className={cn('rounded-full px-2 py-1 capitalize', theme.languageChip)}>
-                        {example.language}
-                      </span>
-                      <span className={cn('rounded-full px-2 py-1 font-sans', theme.statusChip)}>
-                        {example.type === 'correct' ? '✓ Correto' : '✗ Com erro'}
-                      </span>
-                    </div>
+                    <span className={cn('rounded-full px-2.5 py-1 font-bold', theme.statusChip)}>
+                      {example.type === 'correct' ? '✓ Correto' : '✗ Com erro'}
+                    </span>
                   </div>
                 </div>
-                <p className="max-w-xl text-sm leading-relaxed text-white/90">
-                  {example.explanation}
-                </p>
               </div>
-              <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleSelect}
-                  className="h-8 px-3 text-xs font-semibold text-white/90 hover:bg-white/15 hover:text-white"
-                >
-                  <ChevronUp className="mr-1 h-3.5 w-3.5" />
-                  Ocultar
-                </Button>
+              
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   onClick={handleOpenModal}
-                  className="h-8 px-3 text-xs font-semibold text-white/90 hover:bg-white/15 hover:text-white"
+                  className="h-8 px-3 text-xs font-semibold text-white/90 hover:bg-white/20 hover:text-white"
                 >
-                  <Maximize2 className="mr-1 h-3.5 w-3.5" />
+                  <Maximize2 className="mr-1.5 h-3.5 w-3.5" />
                   Foco
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={handleCopy}
-                  className="h-8 px-3 text-xs font-semibold text-white/90 hover:bg-white/15 hover:text-white"
+                  onClick={handleSelect}
+                  className="h-8 px-3 text-xs font-semibold text-white/90 hover:bg-white/20 hover:text-white"
                 >
-                  <Copy className="mr-1 h-3.5 w-3.5" />
-                  Copiar
+                  <ChevronUp className="mr-1.5 h-3.5 w-3.5" />
+                  Ocultar
                 </Button>
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-800/70 bg-slate-950/90 shadow-xl">
-            <ScrollArea className="max-h-64">
-              <div className="p-4">
-                <pre className="text-sm font-mono text-slate-100">
-                  <code>{example.code}</code>
-                </pre>
+          {/* Card de Descrição */}
+          <div className="px-5 py-4 border-b border-border/50">
+            <div className="flex items-start gap-3">
+              <div className={cn(
+                "mt-1 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg",
+                example.type === 'correct' ? 'bg-emerald-500/15' : 'bg-rose-500/15'
+              )}>
+                {example.type === 'correct' ? (
+                  <CheckCircle className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-400" />
+                ) : (
+                  <XCircle className="h-4.5 w-4.5 text-rose-600 dark:text-rose-400" />
+                )}
               </div>
-            </ScrollArea>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-bold text-foreground mb-2">
+                  {labelText}
+                </h4>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {example.explanation}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Card de Código - Estilo Mac */}
+          <div className="bg-slate-950 m-4 rounded-xl border border-slate-800/70 shadow-lg overflow-hidden">
+            {/* Barra superior estilo Mac */}
+            <div className="flex items-center justify-between bg-slate-900/80 px-4 py-2.5 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-red-500/80 hover:bg-red-500 transition-colors cursor-pointer"></div>
+                  <div className="w-3 h-3 rounded-full bg-yellow-500/80 hover:bg-yellow-500 transition-colors cursor-pointer"></div>
+                  <div className="w-3 h-3 rounded-full bg-green-500/80 hover:bg-green-500 transition-colors cursor-pointer"></div>
+                </div>
+                <span className="ml-3 text-xs font-medium text-slate-400">
+                  {example.title || `exemplo.${example.language}`}
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleCopy}
+                className="h-7 px-3 text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+              >
+                <Copy className="mr-1.5 h-3.5 w-3.5" />
+                Copiar
+              </Button>
+            </div>
+
+            {/* Área de código com scroll */}
+            <div className="overflow-x-auto overflow-y-auto max-h-80">
+              <pre className="p-4 text-sm font-mono text-slate-100 leading-relaxed">
+                <code className="block">{example.code}</code>
+              </pre>
+            </div>
           </div>
         </div>
       )}
@@ -452,7 +463,6 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
     const previousPairIndex = currentPairIndex;
     setCurrentPairIndex(prev => prev + 1);
     setExpandedCard(null);
-    toast.success('Novos exemplos gerados! 🎯');
     
     // Analytics: gerar novos exemplos
     posthog?.capture?.('edu_examples_regenerated', {
@@ -551,9 +561,14 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
         </div>
 
         {/* Cards ocupam toda altura restante */}
-        <div className="flex-1 flex flex-col gap-4 p-6 min-h-0">
+        <div className="flex-1 flex flex-col gap-4 p-6 min-h-0 overflow-auto">
           {/* Exemplo Correto */}
-          <div className="flex-1 min-h-0">
+          <div className={cn(
+            "transition-all duration-300 ease-out",
+            expandedCard === 'correct' && 'flex-[3]',
+            expandedCard === 'incorrect' && 'flex-[0.3] min-h-[100px]',
+            !expandedCard && 'flex-1 min-h-[200px]'
+          )}>
             <ExampleCard
               example={currentCorrect}
               onSelect={handleSelectExample}
@@ -564,7 +579,12 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
           </div>
 
           {/* Exemplo Incorreto */}
-          <div className="flex-1 min-h-0">
+          <div className={cn(
+            "transition-all duration-300 ease-out",
+            expandedCard === 'incorrect' && 'flex-[3]',
+            expandedCard === 'correct' && 'flex-[0.3] min-h-[100px]',
+            !expandedCard && 'flex-1 min-h-[200px]'
+          )}>
             <ExampleCard
               example={currentIncorrect}
               onSelect={handleSelectExample}

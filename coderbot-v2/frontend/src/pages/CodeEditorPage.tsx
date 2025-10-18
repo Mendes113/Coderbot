@@ -809,7 +809,7 @@ export const CodeEditorPage: React.FC<CodeEditorPageProps> = ({ className }) => 
     setCurrentLanguage(example.language);
     setCurrentExampleId(example.id);
     setFileName(`${example.title.toLowerCase().replace(/\s+/g, '_')}.${example.language === 'javascript' ? 'js' : example.language}`);
-    toast.success(`Exemplo "${example.title}" carregado!`);
+    // toast.success(`Exemplo "${example.title}" carregado!`);
   }, []);
 
   const handleReset = useCallback(() => {
