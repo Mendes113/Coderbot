@@ -820,7 +820,7 @@ console.log(verificarIdade(16)); // "Menor de idade"`,
 
   const handleExampleSelect = useCallback((example: CodeExample) => {
     setSelectedExample(example);
-    toast.success(`Exemplo "${example.title}" selecionado! Você pode copiá-lo ou estudá-lo.`);
+    // toast.success(`Exemplo "${example.title}" selecionado! Você pode copiá-lo ou estudá-lo.`);
   }, []);
 
   const toggleExamplesPanel = useCallback(() => {
