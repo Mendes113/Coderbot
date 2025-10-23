@@ -11,6 +11,7 @@ interface ExamplesPanelProps {
   className?: string;
   onExampleSelect?: (example: CodeExample) => void;
   theme?: 'light' | 'dark';
+  hasUserInteracted?: boolean;
 }
 
 // Modal para exibir exemplo em tela cheia
@@ -647,7 +648,8 @@ const ExampleCard: React.FC<{
 export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
   className,
   onExampleSelect,
-  theme = 'dark'
+  theme = 'dark',
+  hasUserInteracted = false
 }) => {
   const { examples } = useExamples();
   
@@ -683,6 +685,13 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
     };
   }, [examples]);
 
+  React.useEffect(() => {
+    if (!hasUserInteracted) {
+      setExpandedCard(null);
+      setModalExample(null);
+    }
+  }, [hasUserInteracted]);
+
   // Pegar um exemplo correto e um incorreto
   const correctExamples = useMemo(() => 
     examples.filter(ex => ex.type === 'correct'),
@@ -699,8 +708,13 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
   const currentCorrect = correctExamples.length ? correctExamples[safeCorrectIndex] : undefined;
   const currentIncorrect = incorrectExamples.length ? incorrectExamples[safeIncorrectIndex] : undefined;
   const hasExamplePairs = Boolean(currentCorrect && currentIncorrect);
+  const canShowExamples = hasUserInteracted && hasExamplePairs;
 
   const handleGenerateNew = useCallback(() => {
+    if (!hasUserInteracted) {
+      toast.error('Envie uma pergunta no chat para desbloquear novos exemplos.');
+      return;
+    }
     if (!correctExamples.length || !incorrectExamples.length) {
       return;
     }
@@ -718,20 +732,28 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
       totalIncorrectExamples: incorrectExamples.length,
       timestamp: new Date().toISOString()
     });
-  }, [currentPairIndex, currentCorrect, currentIncorrect, correctExamples.length, incorrectExamples.length]);
+  }, [currentPairIndex, currentCorrect, currentIncorrect, correctExamples.length, hasUserInteracted, incorrectExamples.length]);
 
   const handleSelectExample = useCallback((example: CodeExample) => {
+    if (!hasUserInteracted) {
+      toast.error('Envie uma pergunta no chat para explorar os exemplos.');
+      return;
+    }
     const cardType = example.type === 'correct' ? 'correct' : 'incorrect';
     setExpandedCard(expandedCard === cardType ? null : cardType);
     
     if (onExampleSelect) {
       onExampleSelect(example);
     }
-  }, [onExampleSelect, expandedCard]);
+  }, [expandedCard, hasUserInteracted, onExampleSelect]);
 
   const handleOpenModal = useCallback((example: CodeExample) => {
+    if (!hasUserInteracted) {
+      toast.error('Envie uma pergunta no chat para abrir os exemplos em foco.');
+      return;
+    }
     setModalExample(example);
-  }, []);
+  }, [hasUserInteracted]);
 
   const handleCloseModal = useCallback(() => {
     setModalExample(null);
@@ -868,18 +890,22 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
               onClick={handleGenerateNew}
               variant="outline"
               size="sm"
-              disabled={!hasExamplePairs}
+              disabled={!hasUserInteracted || !hasExamplePairs}
               className="border-2 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-all"
             >
               <Sparkles className="w-4 h-4 mr-2" />
-              {hasExamplePairs ? 'Gerar Outros' : 'Aguardando participação'}
+              {!hasUserInteracted
+                ? 'Envie uma pergunta para desbloquear'
+                : hasExamplePairs
+                  ? 'Gerar Outros'
+                  : 'Aguardando novos exemplos'}
             </Button>
           </div>
         </div>
 
         {/* Cards ocupam toda altura restante */}
         <div className="flex-1 flex flex-col gap-4 p-6 min-h-0 overflow-auto">
-          {hasExamplePairs ? (
+          {canShowExamples ? (
             <>
               {/* Exemplo Correto */}
               <div className={cn(
@@ -922,12 +948,21 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
               </div>
             </>
           ) : (
-            <div className="flex flex-1 flex-col items-center justify-center text-center rounded-xl border border-dashed border-muted-foreground/40 bg-muted/20 p-6">
-              <Sparkles className="mb-3 h-6 w-6 text-purple-500" />
-              <p className="text-sm text-muted-foreground max-w-xs">
-                Envie uma pergunta no chat para desbloquear exemplos personalizados. Assim que o tutor gerar respostas, você verá pares corretos e incorretos alinhados ao seu objetivo de estudo.
-              </p>
-            </div>
+            !hasUserInteracted ? (
+              <div className="flex flex-1 flex-col items-center justify-center text-center rounded-xl border border-dashed border-muted-foreground/40 bg-muted/20 p-6">
+                <Sparkles className="mb-3 h-6 w-6 text-purple-500" />
+                <p className="text-sm text-muted-foreground max-w-xs">
+                  Envie sua primeira pergunta no chat para desbloquear exemplos gerados a partir da sua dúvida.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-1 flex-col items-center justify-center text-center rounded-xl border border-dashed border-muted-foreground/40 bg-muted/20 p-6">
+                <Sparkles className="mb-3 h-6 w-6 text-purple-500 animate-spin" />
+                <p className="text-sm text-muted-foreground max-w-xs">
+                  Gerando novos exemplos com base na sua pergunta. Assim que estiverem prontos, eles aparecerão aqui.
+                </p>
+              </div>
+            )
           )}
         </div>
       </div>

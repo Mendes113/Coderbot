@@ -17,7 +17,7 @@ import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
 import { gamificationService } from "@/services/gamification/GamificationService";
 import { AchievementDetectors } from "@/components/gamification/AchievementDetectors";
 import { NotificationProvider } from "@/context/NotificationContext";
-import { ExamplesProvider, defaultExamples } from "@/context/ExamplesContext";
+import { ExamplesProvider } from "@/context/ExamplesContext";
 import { CodeEditorProvider } from "@/context/CodeEditorContext";
 import Auth from "./pages/Auth";
 import CodeEditorPage from "./pages/CodeEditorPage";
@@ -207,7 +207,7 @@ const App = () => {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <NotificationProvider>
-            <ExamplesProvider initialExamples={defaultExamples}>
+            <ExamplesProvider>
               <CodeEditorProvider>
               <Toaster />
               <Sonner />

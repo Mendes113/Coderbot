@@ -27,14 +27,17 @@ import {
   Music,
   BookOpen,
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import {
   joinClassByCode,
   listClassEvents,
   listMyClasses,
   getLastInteractionsForClasses,
   getCurrentUser,
+  getStudentMissionProgress,
 } from "@/integrations/pocketbase/client";
 import { useMissions, type Mission } from "@/hooks/useMissions";
+import { useActivityProgress } from "@/hooks/useActivityProgress";
 import type { ClassEvent } from "@/integrations/pocketbase/client";
 
 type StudentClass = {
@@ -43,6 +46,15 @@ type StudentClass = {
   title: string;
   description?: string;
   teacherName?: string;
+};
+
+type MissionProgress = {
+  missionId: string;
+  currentValue: number;
+  targetValue: number;
+  percentage: number;
+  isCompleted: boolean;
+  isInProgress: boolean;
 };
 
 type UpcomingEvent = {
@@ -180,12 +192,74 @@ export const StudentDashboard = () => {
   const [joining, setJoining] = useState<boolean>(false);
   const [joinFeedback, setJoinFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [activeTab, setActiveTab] = useState<string>("classes");
+  const [missionProgress, setMissionProgress] = useState<Map<string, MissionProgress>>(new Map());
 
   // Hook para buscar missões de todas as turmas
   const { missions, isLoading: missionsLoading, error: missionsError } = useMissions({
     status: 'active',
     autoFetch: true
   });
+
+  // Função para carregar progresso das missões
+  const loadMissionProgress = async () => {
+    if (missions.length === 0) return;
+
+    try {
+      const currentUser = await getCurrentUser();
+      if (!currentUser) return;
+
+      const progressPromises = missions.map(async (mission) => {
+        const progress = await getStudentMissionProgress(mission.id, currentUser.id);
+
+        const currentValue = progress?.current_value || 0;
+        const targetValue = mission.target_value;
+        const percentage = targetValue > 0 ? Math.min((currentValue / targetValue) * 100, 100) : 0;
+
+        return {
+          missionId: mission.id,
+          currentValue,
+          targetValue,
+          percentage,
+          isCompleted: progress?.status === 'completed' || percentage >= 100,
+          isInProgress: progress?.status === 'in_progress' && !progress?.completed_at,
+        };
+      });
+
+      const progressResults = await Promise.all(progressPromises);
+      const progressMap = new Map();
+
+      progressResults.forEach((progress) => {
+        progressMap.set(progress.missionId, progress);
+      });
+
+      setMissionProgress(progressMap);
+    } catch (error) {
+      console.error('Erro ao carregar progresso das missões:', error);
+    }
+  };
+
+  // Carregar progresso quando as missões forem carregadas
+  useEffect(() => {
+    if (missions.length > 0) {
+      loadMissionProgress();
+    }
+  }, [missions]);
+
+  // Função helper para obter progresso de uma missão
+  const getMissionProgress = (missionId: string): MissionProgress | null => {
+    return missionProgress.get(missionId) || null;
+  };
+
+  // Função helper para obter o nome da classe de uma missão
+  const getMissionClassName = (mission: Mission): string => {
+    if (mission.expand?.class?.title) {
+      return mission.expand.class.title;
+    }
+    if (mission.expand?.class?.name) {
+      return mission.expand.class.name;
+    }
+    return 'Turma';
+  };
 
   const loadMyClasses = async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
@@ -809,12 +883,45 @@ export const StudentDashboard = () => {
                         </Badge>
                       </div>
 
+                      {/* Informações da turma */}
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <School className="h-3 w-3" />
+                        <span>{getMissionClassName(mission)}</span>
+                      </div>
+
                       {mission.estimatedDuration && (
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
                           <Clock className="h-3 w-3" />
                           <span>{mission.estimatedDuration} min</span>
                         </div>
                       )}
+
+                      {/* Barra de progresso */}
+                      {(() => {
+                        const progress = getMissionProgress(mission.id);
+                        if (!progress) return null;
+
+                        return (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">Progresso</span>
+                              <span className="font-medium">
+                                {progress.currentValue}/{progress.targetValue}
+                              </span>
+                            </div>
+                            <Progress
+                              value={progress.percentage}
+                              className={`h-2 ${progress.isCompleted ? 'bg-green-100' : 'bg-blue-100'}`}
+                            />
+                            {progress.isCompleted && (
+                              <div className="flex items-center gap-1 text-sm text-green-600">
+                                <CheckCircle className="h-3 w-3" />
+                                <span>Concluída!</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       <Button
                         className="w-full"

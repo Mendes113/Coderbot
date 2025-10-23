@@ -5,7 +5,7 @@ import ChatInput from "@/components/chat/ChatInput";
 import { InitialWelcomeMessages } from "@/components/chat/InitialWelcomeMessages";
 import { Message, fetchChatResponse } from "@/services/api";
 import { toast } from "@/components/ui/sonner";
-import { Loader2, MessageSquarePlus, Settings, Brain, Sparkles, Heart, Zap, Star, Trophy, Target, Flame, Gift, ThumbsUp, Smile, PartyPopper } from "lucide-react";
+import { Loader2, MessageSquarePlus, Settings, Brain, Sparkles, Heart, Zap, Star, Trophy, Target, Flame, Gift, ThumbsUp, Smile, PartyPopper, CheckCircle2 } from "lucide-react";
 import confetti from 'canvas-confetti';
 import { 
   Drawer, 
@@ -610,7 +610,35 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
 
   // Estados para o novo layout de 2 colunas
   const [showExamplesPanel, setShowExamplesPanel] = useState(true);
+  const [hasUserSentMessage, setHasUserSentMessage] = useState(false);
   const { examples: storedExamples, setExamples } = useExamples();
+
+  const connectionSteps = useMemo(() => ([
+    {
+      key: 'model',
+      label: 'Modelo de IA pronto',
+      description: 'Motor principal carregado com instruções educacionais.',
+      state: 'done' as const,
+    },
+    {
+      key: 'session',
+      label: 'Sessão criada',
+      description: 'Perfil sincronizado e contexto preservado.',
+      state: 'done' as const,
+    },
+    {
+      key: 'backend',
+      label: 'Serviços conectados',
+      description: 'Backend e exemplos contextuais disponíveis.',
+      state: 'done' as const,
+    },
+    {
+      key: 'finalizing',
+      label: 'Finalizando ambiente',
+      description: 'Organizando ferramentas de estudo e preferências.',
+      state: 'active' as const,
+    },
+  ]), []);
 
   // Estados para o sistema de missões
   const {
@@ -864,6 +892,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     };
     
     setMessages([missionWelcomeMessage]);
+    setHasUserSentMessage(false);
+    setExamples([]);
     setShowWelcomeMessages(false);
     setWelcomeComplete(true);
     
@@ -879,7 +909,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
       missionType: mission.type,
       difficulty: mission.difficulty,
     });
-  }, [selectMission, trackEvent]);
+  }, [selectMission, setExamples, trackEvent]);
 
   // Session metrics (start/end)
   const sessionStartRef = useRef<number | null>(null);
@@ -1317,6 +1347,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
       try {
         const newSessionId = await chatService.createSession();
         setSessionId(newSessionId);
+        setHasUserSentMessage(false);
+        setExamples([]);
         sessionStorage.setItem("coderbot_last_chat_session", newSessionId);
 
         // Track session started
@@ -1347,14 +1379,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     try {
       setIsLoading(true);
       const sessionMessages = await chatService.loadSessionMessages(newSessionId);
+      setExamples([]);
       if (sessionMessages && sessionMessages.length > 0) {
         setMessages(sessionMessages);
         setShowWelcomeMessages(false);
         setWelcomeComplete(true);
+        setHasUserSentMessage(sessionMessages.some((message) => !message.isAi));
       } else {
         setMessages([]);
         setShowWelcomeMessages(true);
         setWelcomeComplete(false);
+        setHasUserSentMessage(false);
       }
       setSessionId(newSessionId);
       sessionStorage.setItem("coderbot_last_chat_session", newSessionId);
@@ -1378,6 +1413,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     setMessages([]);
     setShowWelcomeMessages(true);
     setWelcomeComplete(false);
+    setHasUserSentMessage(false);
+    setExamples([]);
     try {
       const newSessionId = await chatService.createSession();
       setSessionId(newSessionId);
@@ -1394,6 +1431,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     setShowWelcomeMessages(false);
     setWelcomeComplete(true);
     setMessages(INITIAL_MESSAGES);
+    setHasUserSentMessage(false);
+    setExamples([]);
     
     // Save initial messages to database now that welcome is complete
     if (sessionId) {
@@ -1417,6 +1456,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     setShowWelcomeMessages(false);
     setWelcomeComplete(true);
     setMessages(INITIAL_MESSAGES);
+    setHasUserSentMessage(false);
+    setExamples([]);
     
     // Save initial messages to database
     if (sessionId) {
@@ -1577,6 +1618,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    setHasUserSentMessage(true);
     setIsLoading(true);
 
     // Temp AI message id needs outer scope to be accessible in catch/finally
@@ -1939,53 +1981,71 @@ Obrigado pela paciência! 🤖✨`,
           </div>
 
           <div className="flex-1 flex items-center justify-center edu-px-4">
-            <div className="text-center edu-spacing-8 max-w-md">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-r from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] edu-card edu-shadow-lg">
-                <Brain className="w-10 h-10 text-white animate-pulse" />
+            <div className="w-full max-w-xl edu-spacing-8">
+              <div className="flex flex-col items-center text-center gap-5">
+                <div className="relative flex h-24 w-24 items-center justify-center">
+                  <span className="absolute inset-0 rounded-full border border-dashed border-[hsl(var(--education-primary))]/40 animate-[spin_4s_linear_infinite]" />
+                  <span className="absolute inset-3 rounded-full bg-[hsl(var(--education-primary))]/10 blur-md" />
+                  <Loader2 className="relative z-10 h-10 w-10 text-[hsl(var(--education-primary))] animate-spin" strokeWidth={2.5} />
+                </div>
+                <div className="space-y-1">
+                  <h2 className="edu-heading-h2">Conectando ao CoderBot</h2>
+                  <p className="edu-text-body text-muted-foreground">
+                    Estamos preparando o ambiente de estudo personalizado, sincronizando modelos, exemplos e ferramentas.
+                  </p>
+                </div>
               </div>
 
-              <div className="edu-spacing-3">
-                <h2 className="edu-heading-h2">
-                  Preparando sua experiência
-                </h2>
-                <p className="edu-text-body">
-                  Carregando modelos de IA, configurando sessão e conectando sistemas...
-                </p>
-              </div>
-
-              <div className="edu-spacing-3">
-                <div className="w-full edu-card rounded-full h-2 overflow-hidden">
-                  <div className="bg-gradient-to-r from-[hsl(var(--education-primary))] to-[hsl(var(--education-secondary))] h-full rounded-full animate-progress-bar"
-                       style={{ width: '75%' }}>
+              <div className="rounded-[2rem] border border-border/60 bg-background/70 px-6 py-6 shadow-lg backdrop-blur">
+                <div className="flex flex-col gap-4 text-left">
+                  <div className="flex items-start gap-4">
+                    <div className="relative flex h-12 w-12 items-center justify-center">
+                      <span className="absolute inset-0 rounded-2xl bg-[hsl(var(--education-primary))]/15 blur-sm" />
+                      <span className="absolute inset-0 rounded-2xl border border-dashed border-[hsl(var(--education-primary))]/40 animate-[spin_6s_linear_infinite]" />
+                      <Sparkles className="relative z-10 h-6 w-6 text-[hsl(var(--education-primary))]" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-foreground">Sincronizando com o CoderBot</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Validando sua sessão, carregando preferências e preparando materiais de apoio para começar o estudo.
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex justify-center items-center edu-gap-2 edu-text-muted">
-                  <div className="flex items-center edu-gap-1">
-                    <div className="w-2 h-2 bg-[hsl(var(--education-primary))] rounded-full animate-bounce-gentle" style={{ animationDelay: '0s' }}></div>
-                    <div className="w-2 h-2 bg-[hsl(var(--education-primary))] rounded-full animate-bounce-gentle" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-[hsl(var(--education-primary))] rounded-full animate-bounce-gentle" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-2">
+                    {connectionSteps.map((step) => (
+                      <div
+                        key={step.key}
+                        className={cn(
+                          "edu-card rounded-2xl px-4 py-3 text-left transition-all duration-300 border border-border/60",
+                          step.state === 'active'
+                            ? "border-[hsl(var(--education-primary))]/60 bg-[hsl(var(--education-primary))]/5 shadow-lg"
+                            : "bg-background/70"
+                        )}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={cn(
+                              "flex h-10 w-10 items-center justify-center rounded-xl border",
+                              step.state === 'active'
+                                ? "border-dashed border-[hsl(var(--education-primary))]/60 bg-[hsl(var(--education-primary))]/10"
+                                : "border-transparent bg-[hsl(var(--education-success))]/10"
+                            )}
+                          >
+                            {step.state === 'active' ? (
+                              <Loader2 className="h-4 w-4 text-[hsl(var(--education-primary))] animate-spin" strokeWidth={2.5} />
+                            ) : (
+                              <CheckCircle2 className="h-4 w-4 text-[hsl(var(--education-success))]" strokeWidth={2.5} />
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold text-foreground">{step.label}</p>
+                            <p className="text-xs text-muted-foreground leading-snug">{step.description}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <span>Conectando...</span>
-                </div>
-              </div>
-
-              <div className="edu-grid edu-text-caption">
-                <div className="flex items-center edu-gap-2 edu-success">
-                  <div className="w-1.5 h-1.5 bg-[hsl(var(--education-success))] rounded-full"></div>
-                  <span>Modelo IA</span>
-                </div>
-                <div className="flex items-center edu-gap-2 edu-success">
-                  <div className="w-1.5 h-1.5 bg-[hsl(var(--education-success))] rounded-full"></div>
-                  <span>Sessão criada</span>
-                </div>
-                <div className="flex items-center edu-gap-2 edu-success">
-                  <div className="w-1.5 h-1.5 bg-[hsl(var(--education-success))] rounded-full"></div>
-                  <span>Backend conectado</span>
-                </div>
-                <div className="flex items-center edu-gap-2">
-                  <div className="w-1.5 h-1.5 bg-[hsl(var(--education-primary))] rounded-full animate-pulse"></div>
-                  <span>Finalizando...</span>
                 </div>
               </div>
             </div>
@@ -2359,6 +2419,8 @@ Obrigado pela paciência! 🤖✨`,
                           clearSelectedMission();
                           setHasMissionSelected(false);
                           setMessages([]);
+                          setHasUserSentMessage(false);
+                          setExamples([]);
                           toast.info('Missão desmarcada. Selecione uma nova missão para continuar.');
                         }}
                         className="h-7 px-2 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-200/50"
@@ -2402,7 +2464,7 @@ Obrigado pela paciência! 🤖✨`,
             
             {/* Painel de Exemplos */}
             <div className="flex-1 min-h-0">
-              <ExamplesPanel theme="dark" />
+              <ExamplesPanel theme="dark" hasUserInteracted={hasUserSentMessage} />
             </div>
           </div>
         )}
