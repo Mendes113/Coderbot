@@ -5,7 +5,7 @@ import ChatInput from "@/components/chat/ChatInput";
 import { InitialWelcomeMessages } from "@/components/chat/InitialWelcomeMessages";
 import { Message, fetchChatResponse } from "@/services/api";
 import { toast } from "@/components/ui/sonner";
-import { Loader2, MessageSquarePlus, Settings, Brain, Sparkles, Heart, Zap, Star, Trophy, Target, Flame, Gift, ThumbsUp, Smile, PartyPopper } from "lucide-react";
+import { Loader2, MessageSquarePlus, Settings, Brain, Sparkles, Heart, Zap, Star, Trophy, Target, Flame, Gift, ThumbsUp, Smile, PartyPopper, CheckCircle2 } from "lucide-react";
 import confetti from 'canvas-confetti';
 import { 
   Drawer, 

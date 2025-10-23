@@ -32,6 +32,22 @@ export interface Mission {
   classId?: string;
   createdBy?: string;
   dueDate?: string;
+  // Campos expandidos do PocketBase
+  expand?: {
+    class?: {
+      id: string;
+      title?: string;
+      name?: string;
+      description?: string;
+      code?: string;
+    };
+    teacher?: {
+      id: string;
+      name?: string;
+      full_name?: string;
+      email?: string;
+    };
+  };
 }
 
 interface UseMissionsOptions {
