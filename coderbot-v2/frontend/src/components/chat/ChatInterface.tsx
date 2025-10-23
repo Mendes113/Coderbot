@@ -40,7 +40,7 @@ import type { QuizAnswerEvent } from "@/components/chat/ChatMessage";
 // Importar novos componentes do wireframe
 import CodeEditor from "@/components/chat/CodeEditor";
 import ExamplesPanel from "@/components/chat/ExamplesPanel";
-import { type CodeExample } from "@/context/ExamplesContext";
+import { useExamples, type CodeExample } from "@/context/ExamplesContext";
 import { getCurrentUser, pb } from "@/integrations/pocketbase/client";
 import { useMissionTracker } from "@/hooks/useMissionTracker";
 
@@ -71,6 +71,8 @@ const findModelOption = (modelId: string): ProviderModelOption | undefined => {
 };
 
 const resolveProviderFromModel = (modelId: string): ProviderKey => findModelOption(modelId)?.provider ?? 'claude';
+
+const EXAMPLES_CACHE_LIMIT = 18;
 
 const ModelSelectItems = () => (
   <>
@@ -608,8 +610,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
 
   // Estados para o novo layout de 2 colunas
   const [showExamplesPanel, setShowExamplesPanel] = useState(true);
-  const [selectedExample, setSelectedExample] = useState<CodeExample | null>(null);
-  
+  const { examples: storedExamples, setExamples } = useExamples();
+
   // Estados para o sistema de missões
   const {
     missions,
@@ -628,121 +630,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   
   // Estado para controlar se o usuário já selecionou uma missão
   const [hasMissionSelected, setHasMissionSelected] = useState(false);
-  
-  // Exemplos mockados para demonstração
-  const [codeExamples] = useState<CodeExample[]>([
-    {
-      id: '1',
-      title: 'Função Soma Básica',
-      code: `function somar(a, b) {
-  return a + b;
-}
-
-// Teste da função
-console.log(somar(5, 3)); // Output: 8
-console.log(somar(10, 7)); // Output: 17`,
-      language: 'javascript',
-      type: 'correct',
-      explanation: 'Esta é a forma correta de criar uma função que soma dois números. Note o uso correto dos parâmetros e da palavra-chave return.',
-      tags: ['função', 'básico', 'soma', 'javascript'],
-      difficulty: 'beginner',
-      hints: [
-        { line: 1, message: 'Declara uma função com dois parâmetros', type: 'info' },
-        { line: 2, message: 'Retorna a soma dos parâmetros', type: 'info' },
-        { line: 5, message: 'Exemplo de uso da função', type: 'info' }
-      ]
-    },
-    {
-      id: '2',
-      title: 'Função Sem Return (Erro)',
-      code: `function somar(a, b) {
-  a + b; // ❌ Faltando return!
-}
-
-// Teste - vai retornar undefined
-console.log(somar(5, 3)); // Output: undefined`,
-      language: 'javascript',
-      type: 'incorrect',
-      explanation: 'Este exemplo mostra um erro comum: esquecer de usar return. Sem return, a função não retorna o valor calculado, retornando undefined.',
-      tags: ['função', 'erro', 'return', 'undefined'],
-      difficulty: 'beginner',
-      hints: [
-        { line: 2, message: 'Faltando palavra-chave return - este é o erro!', type: 'error' },
-        { line: 6, message: 'Resultado será undefined por falta do return', type: 'warning' }
-      ]
-    },
-    {
-      id: '3',
-      title: 'Loop For Correto',
-      code: `// Loop que conta de 0 a 4
-for (let i = 0; i < 5; i++) {
-  console.log('Número:', i);
-}
-
-// Output:
-// Número: 0
-// Número: 1
-// Número: 2
-// Número: 3
-// Número: 4`,
-      language: 'javascript',
-      type: 'correct',
-      explanation: 'Loop for básico que imprime números de 0 a 4. Note a estrutura: inicialização (let i = 0), condição (i < 5), incremento (i++).',
-      tags: ['loop', 'for', 'iteração', 'contador'],
-      difficulty: 'beginner',
-      hints: [
-        { line: 2, message: 'Estrutura do for: inicialização; condição; incremento', type: 'info' },
-        { line: 3, message: 'Código executado a cada iteração', type: 'info' }
-      ]
-    },
-    {
-      id: '4',
-      title: 'Array e Map',
-      code: `const numeros = [1, 2, 3, 4, 5];
-
-// Multiplicar cada número por 2
-const dobrados = numeros.map(num => num * 2);
-
-console.log('Original:', numeros);
-console.log('Dobrados:', dobrados);
-
-// Output:
-// Original: [1, 2, 3, 4, 5]
-// Dobrados: [2, 4, 6, 8, 10]`,
-      language: 'javascript',
-      type: 'correct',
-      explanation: 'Exemplo de como usar o método map() para transformar cada elemento de um array. Map sempre retorna um novo array.',
-      tags: ['array', 'map', 'transformação', 'funcional'],
-      difficulty: 'intermediate',
-      hints: [
-        { line: 4, message: 'map() aplica a função a cada elemento', type: 'info' },
-        { line: 4, message: 'Arrow function: num => num * 2', type: 'info' }
-      ]
-    },
-    {
-      id: '5',
-      title: 'Condicionais If/Else',
-      code: `function verificarIdade(idade) {
-  if (idade >= 18) {
-    return "Maior de idade";
-  } else {
-    return "Menor de idade";
-  }
-}
-
-console.log(verificarIdade(20)); // "Maior de idade"
-console.log(verificarIdade(16)); // "Menor de idade"`,
-      language: 'javascript',
-      type: 'correct',
-      explanation: 'Estrutura condicional básica usando if/else para verificar se uma pessoa é maior de idade.',
-      tags: ['condicional', 'if', 'else', 'idade'],
-      difficulty: 'beginner',
-      hints: [
-        { line: 2, message: 'Condição: idade >= 18', type: 'info' },
-        { line: 4, message: 'Caso alternativo com else', type: 'info' }
-      ]
-    }
-  ]);
 
   // Formata um segmento com um cabeçalho markdown amigável para o usuário
   const getSegmentBadge = useCallback((type: string): string => {
@@ -811,16 +698,149 @@ console.log(verificarIdade(16)); // "Menor de idade"`,
     [ALLOWED_SEGMENT_TYPES]
   );
 
+  const normalizeDifficulty = useCallback((value: unknown): CodeExample["difficulty"] | undefined => {
+    if (typeof value !== 'string') {
+      return undefined;
+    }
+    const normalized = value.toLowerCase();
+    return normalized === 'beginner' || normalized === 'intermediate' || normalized === 'advanced'
+      ? normalized
+      : undefined;
+  }, []);
+
+  const flattenExamplePairs = useCallback((pairs: unknown): CodeExample[] => {
+    if (!Array.isArray(pairs)) {
+      return [];
+    }
+
+    const items: CodeExample[] = [];
+
+    pairs.forEach((pair, index) => {
+      if (!pair || typeof pair !== 'object') {
+        return;
+      }
+
+      const pairObj = pair as Record<string, any>;
+      const pairId = typeof pairObj.pair_id === 'string' && pairObj.pair_id.trim().length > 0
+        ? pairObj.pair_id.trim()
+        : `pair_${index + 1}`;
+      const pairContext = typeof pairObj.context === 'string' ? pairObj.context.trim() : '';
+
+      const pushExample = (example: any, type: 'correct' | 'incorrect') => {
+        if (!example || typeof example !== 'object') {
+          return;
+        }
+
+        const code = typeof example.code === 'string' ? example.code.trim() : '';
+        if (!code) {
+          return;
+        }
+
+        const baseId = example.example_id || example.id || `${pairId}_${type}_${index}`;
+        const language = typeof example.language === 'string' && example.language.trim().length > 0
+          ? example.language.trim()
+          : 'javascript';
+
+        const explanationParts: string[] = [];
+        if (type === 'correct') {
+          if (typeof example.explanation === 'string' && example.explanation.trim().length > 0) {
+            explanationParts.push(example.explanation.trim());
+          } else if (typeof example.why_correct === 'string' && example.why_correct.trim().length > 0) {
+            explanationParts.push(example.why_correct.trim());
+          } else {
+            explanationParts.push('Este exemplo demonstra a maneira correta de resolver o problema proposto.');
+          }
+        } else {
+          if (typeof example.error_explanation === 'string' && example.error_explanation.trim().length > 0) {
+            explanationParts.push(example.error_explanation.trim());
+          }
+          if (typeof example.correction === 'string' && example.correction.trim().length > 0) {
+            explanationParts.push(`Correção sugerida: ${example.correction.trim()}`);
+          }
+          if (!explanationParts.length && typeof example.explanation === 'string' && example.explanation.trim().length > 0) {
+            explanationParts.push(example.explanation.trim());
+          }
+          if (!explanationParts.length) {
+            explanationParts.push('Analise o erro neste trecho de código e ajuste para obter o comportamento correto.');
+          }
+        }
+
+        const tagsFromExample = Array.isArray(example.tags)
+          ? example.tags.filter((tag: unknown): tag is string => typeof tag === 'string' && tag.trim().length > 0)
+          : [];
+        const combinedTags = [...tagsFromExample];
+        if (pairContext) {
+          combinedTags.push(pairContext);
+        }
+
+        items.push({
+          id: String(baseId),
+          title:
+            typeof example.title === 'string' && example.title.trim().length > 0
+              ? example.title.trim()
+              : type === 'correct'
+                ? 'Exemplo Correto'
+                : 'Exemplo Incorreto',
+          code,
+          language,
+          type,
+          explanation: explanationParts.join('\n\n'),
+          tags: combinedTags.length ? Array.from(new Set(combinedTags)) : undefined,
+          difficulty: normalizeDifficulty(example.difficulty),
+        });
+      };
+
+      pushExample(pairObj.correct, 'correct');
+      pushExample(pairObj.incorrect, 'incorrect');
+    });
+
+    return items;
+  }, [normalizeDifficulty]);
+
+  const syncExamplesWithPairs = useCallback(
+    (pairs: unknown) => {
+      const flattened = flattenExamplePairs(pairs);
+      if (!flattened.length) {
+        return;
+      }
+
+      const existingIds = new Set(flattened.map((example) => example.id));
+      const merged = [
+        ...flattened,
+        ...storedExamples.filter((example) => !existingIds.has(example.id)),
+      ];
+
+      const limited = merged.slice(0, EXAMPLES_CACHE_LIMIT);
+
+      const hasChanged =
+        limited.length !== storedExamples.length ||
+        limited.some((example, index) => {
+          const previous = storedExamples[index];
+          if (!previous) return true;
+          return (
+            previous.id !== example.id ||
+            previous.code !== example.code ||
+            previous.explanation !== example.explanation
+          );
+        });
+
+      if (!hasChanged) {
+        return;
+      }
+
+      posthog?.capture?.('edu_examples_synced_from_agno', {
+        newExamplesCount: flattened.length,
+        cacheSize: limited.length,
+      });
+
+      setExamples(limited);
+    },
+    [flattenExamplePairs, setExamples, storedExamples]
+  );
+
   // Rótulo do botão de avanço, contextual ao próximo segmento
   const getNextStepButtonLabel = useCallback((): string => {
     return 'Avançar etapa';
-  }, []);
-
-
-
-  const handleExampleSelect = useCallback((example: CodeExample) => {
-    setSelectedExample(example);
-    // toast.success(`Exemplo "${example.title}" selecionado! Você pode copiá-lo ou estudá-lo.`);
   }, []);
 
   const toggleExamplesPanel = useCallback(() => {
@@ -1679,6 +1699,9 @@ console.log(verificarIdade(16)); // "Menor de idade"`,
           diagramType,
           maxFinalCodeLines
         });
+
+        const examplePairs = (agnoResponse?.extras as { example_pairs?: unknown } | null)?.example_pairs;
+        syncExamplesWithPairs(examplePairs);
         
         // Verifica se o backend retornou segmentos estruturados
         const segments = ((agnoResponse as any)?.segments || []) as ResponseSegment[];
@@ -2379,10 +2402,7 @@ Obrigado pela paciência! 🤖✨`,
             
             {/* Painel de Exemplos */}
             <div className="flex-1 min-h-0">
-              <ExamplesPanel
-                onExampleSelect={handleExampleSelect}
-                theme="dark"
-              />
+              <ExamplesPanel theme="dark" />
             </div>
           </div>
         )}

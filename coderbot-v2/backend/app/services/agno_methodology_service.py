@@ -725,26 +725,35 @@ class AgnoMethodologyService:
                 }
             )
 
-        extras = None
+        extras: Dict[str, Any] = {}
         if final_code_info:
-            extras = {
-                "final_code": final_code_info["code_block"],
+            extras["final_code"] = final_code_info["code_block"]
+            extras["final_code_meta"] = {
                 "language": final_code_info["language"],
                 "line_count": final_code_info["line_count"],
                 "total_line_count": final_code_info["total_line_count"],
                 "truncated": final_code_info["truncated"],
             }
             if final_code_info["truncated"]:
-                extras["note"] = (
+                extras["final_code_meta"]["note"] = (
                     f"Código truncado para {max_final_code_lines or 150} linhas para manter usabilidade."
                 )
 
-        segments = self._build_segments_from_response(response, final_code_info)
+        segments_payload = self._build_segments_from_response(response, final_code_info)
+        segments = segments_payload.get("segments", [])
+        example_pairs = segments_payload.get("example_pairs", [])
+
+        if example_pairs:
+            extras["example_pairs"] = example_pairs
+            metadata["example_pairs_count"] = len(example_pairs)
 
         # Remover blocos quiz e examples da resposta principal (já estão nos segments)
         clean_response = response
-        clean_response = re.sub(r'```examples\s*\n.*?\n```', '', clean_response, flags=re.DOTALL)
+        if example_pairs:
+            clean_response = re.sub(r'```examples\s*\n.*?\n```', '', clean_response, flags=re.DOTALL)
         clean_response = re.sub(r'```quiz\s*\n.*?\n```', '', clean_response, flags=re.DOTALL)
+
+        extras = extras or None
 
         return {
             "response": clean_response.strip(),
@@ -791,116 +800,188 @@ class AgnoMethodologyService:
             "total_line_count": total_line_count,
             "truncated": truncated,
         }
+
+    def _strip_code_blocks(self, content: str) -> str:
+        """Remove blocos de código markdown para manter apenas texto explicativo."""
+        if not content:
+            return ""
+        return re.sub(r"```[\s\S]*?```", "", content).strip()
+
+    def _split_sections_by_heading(self, text: str) -> List[tuple[str, str]]:
+        """Divide o texto por headings markdown (##/###) preservando a ordem."""
+        if not text:
+            return []
+
+        pattern = re.compile(r"^(#{2,4})\s+(.+?)\s*$", re.MULTILINE)
+        matches = list(pattern.finditer(text))
+        sections: List[tuple[str, str]] = []
+
+        for idx, match in enumerate(matches):
+            start = match.end()
+            end = matches[idx + 1].start() if idx + 1 < len(matches) else len(text)
+            heading = match.group(2).strip()
+            body = text[start:end].strip()
+            sections.append((heading, body))
+
+        return sections
+
+    def _find_section(self, sections: List[tuple[str, str]], keywords: List[str]) -> Optional[tuple[str, str]]:
+        """Busca a primeira seção cujo heading contém um dos keywords."""
+        for heading, body in sections:
+            heading_lower = heading.lower()
+            if any(keyword in heading_lower for keyword in keywords):
+                return heading, body
+        return None
+
+    def _normalize_example_entry(
+        self,
+        data: Optional[Dict[str, Any]],
+        default_type: str,
+        fallback_index: int,
+    ) -> Optional[Dict[str, Any]]:
+        """Normaliza um exemplo individual garantindo campos essenciais."""
+        if not data or not isinstance(data, dict):
+            return None
+
+        code = (data.get("code") or "").strip()
+        if not code:
+            return None
+
+        language = (data.get("language") or "python").strip() or "python"
+        title = data.get("title") or ("Exemplo Correto" if default_type == "correct" else "Exemplo Incorreto")
+
+        normalized = {
+            "id": data.get("id") or f"{default_type}_{fallback_index + 1}",
+            "title": title,
+            "language": language,
+            "code": code,
+            "type": default_type,
+            "difficulty": data.get("difficulty"),
+            "tags": data.get("tags") or [],
+            "explanation": data.get("explanation"),
+            "error_explanation": data.get("error_explanation"),
+            "correction": data.get("correction"),
+        }
+
+        # Se explanation estiver vazia em exemplos corretos, tente comentar sobre objetivo
+        if default_type == "correct" and not normalized["explanation"]:
+            normalized["explanation"] = data.get("why") or "Este código implementa corretamente o comportamento solicitado."
+
+        # Para exemplos incorretos, garanta um feedback mínimo
+        if default_type == "incorrect" and not normalized["error_explanation"]:
+            normalized["error_explanation"] = data.get("explanation") or "Identifique o erro neste trecho."
+
+        return normalized
+
+    def _normalize_example_pairs(self, examples_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Converte a estrutura de exemplos do modelo em pares normalizados."""
+        if not examples_data:
+            return []
+
+        raw_pairs = []
+        if "pairs" in examples_data and isinstance(examples_data["pairs"], list):
+            raw_pairs = [pair for pair in examples_data["pairs"] if isinstance(pair, dict)]
+        else:
+            # compatibilidade com formato antigo
+            legacy_pair = {
+                "pair_id": examples_data.get("pair_id", "pair_1"),
+                "context": examples_data.get("context"),
+                "correct": examples_data.get("correct_example"),
+                "incorrect": examples_data.get("incorrect_example"),
+            }
+            # Somente adiciona se houver algum conteúdo relevante
+            if legacy_pair["correct"] or legacy_pair["incorrect"]:
+                raw_pairs = [legacy_pair]
+
+        normalized_pairs: List[Dict[str, Any]] = []
+
+        for idx, pair in enumerate(raw_pairs):
+            pair_id = pair.get("pair_id") or f"pair_{idx + 1}"
+            context = pair.get("context")
+            correct = self._normalize_example_entry(pair.get("correct"), "correct", idx)
+            incorrect = self._normalize_example_entry(pair.get("incorrect"), "incorrect", idx)
+
+            if not correct and not incorrect:
+                continue
+
+            normalized_pairs.append(
+                {
+                    "pair_id": pair_id,
+                    "context": context,
+                    "correct": correct,
+                    "incorrect": incorrect,
+                }
+            )
+
+        return normalized_pairs
     
     def _build_segments_from_response(
         self, response: str, final_code_info: Optional[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
-        """Gera segmentos básicos utilizados pelo frontend atual."""
+    ) -> Dict[str, Any]:
+        """Gera segmentos estruturados e dados complementares para o frontend."""
         segments: List[Dict[str, Any]] = []
-        
-        # Extrair exemplos interativos em JSON (se presentes)
+
+        # Extrair exemplos do bloco dedicado
         examples_data = self._extract_examples_json(response)
-        
-        # LOG: Verificar o que foi extraído
-        if examples_data:
-            self.logger.info(f"📝 Exemplos extraídos: incorrect={bool(examples_data.get('incorrect_example'))}, correct={bool(examples_data.get('correct_example'))}")
-            if examples_data.get('incorrect_example'):
-                inc = examples_data['incorrect_example']
-                self.logger.info(f"  ❌ Incorreto: code={bool(inc.get('code'))}, error={bool(inc.get('error_explanation'))}, lang={inc.get('language')}")
-            if examples_data.get('correct_example'):
-                corr = examples_data['correct_example']
-                self.logger.info(f"  ✅ Correto: code={bool(corr.get('code'))}, explanation={bool(corr.get('explanation'))}, lang={corr.get('language')}")
-        else:
-            self.logger.warning("⚠️ Nenhum exemplo foi extraído da resposta")
-        
-        # Extrair quiz em JSON (se presente)
-        quiz_data = self._extract_quiz_json(response)
-        
-        # LOG: Verificar quiz
-        if quiz_data:
-            self.logger.info(f"❓ Quiz extraído: question={bool(quiz_data.get('question'))}, options={len(quiz_data.get('options', []))}")
-        else:
-            self.logger.warning("⚠️ Nenhum quiz foi extraído da resposta")
-        
-        # Remover os blocos examples e quiz da resposta principal para evitar duplicação
+        example_pairs = self._normalize_example_pairs(examples_data) if examples_data else []
+        self.logger.info("🧊 Pares de exemplos extraídos: %d", len(example_pairs))
+
+        # Remover blocos de exemplos e quiz antes de segmentar
         clean_response = response
         if examples_data:
-            clean_response = re.sub(r'```examples\s*\n.*?\n```', '', clean_response, flags=re.DOTALL)
-        if quiz_data:
-            clean_response = re.sub(r'```quiz\s*\n.*?\n```', '', clean_response, flags=re.DOTALL)
-        
-        # ORDEM CORRETA DOS SEGMENTOS:
-        # 1. Resposta principal (reflexão + passo a passo)
-        if clean_response.strip():
+            clean_response = re.sub(r"```examples\s*\n.*?\n```", "", clean_response, flags=re.DOTALL)
+        clean_response = re.sub(r"```quiz\s*\n.*?\n```", "", clean_response, flags=re.DOTALL)
+
+        sections = self._split_sections_by_heading(clean_response)
+
+        reflection_section = self._find_section(sections, ["reflexão", "reflective"])
+        if reflection_section:
             segments.append(
                 {
-                    "id": "segment-main",
-                    "title": "Resposta Estruturada",
-                    "type": "steps",
-                    "content": clean_response.strip(),
+                    "id": "segment-reflection",
+                    "title": reflection_section[0],
+                    "type": "reflection",
+                    "content": self._strip_code_blocks(reflection_section[1]),
                     "language": None,
                 }
             )
-        
-        # 2. Exemplos (correto e incorreto) - VALIDAR SE OS CAMPOS ESTÃO PREENCHIDOS
-        if examples_data and examples_data.get('incorrect_example'):
-            incorrect = examples_data['incorrect_example']
-            # Validar que os campos essenciais existem e não estão vazios
-            if incorrect.get('code') and incorrect.get('error_explanation'):
-                segments.append(
-                    {
-                        "id": "segment-example-incorrect",
-                        "title": incorrect.get('title', 'Exemplo Incorreto'),
-                        "type": "incorrect_example",
-                        "content": f"```{incorrect.get('language', '')}\n{incorrect.get('code', '')}\n```\n\n**Erro:** {incorrect.get('error_explanation', '')}\n\n**Correção:** {incorrect.get('correction', '')}",
-                        "language": incorrect.get('language'),
-                        "code": incorrect.get('code'),
-                        "error_explanation": incorrect.get('error_explanation'),
-                        "correction": incorrect.get('correction')
-                    }
-                )
-                self.logger.info("✅ Segmento incorrect_example criado com sucesso")
+        else:
+            self.logger.warning("⚠️ Seção de reflexão não encontrada na resposta")
+
+        steps_section = self._find_section(sections, ["passo", "plano", "sequência"])
+        steps_content = self._strip_code_blocks(steps_section[1]) if steps_section else ""
+
+        additional_blocks: List[str] = []
+        for label, keywords in [
+            ("Explicações Complementares", ["justificativa", "explicação dos passos", "raciocínio"]),
+            ("Checklist de Autoavaliação", ["checklist", "autoavaliação"]),
+            ("Padrões Importantes", ["padrões", "heurísticas", "patterns"]),
+            ("Próximos Passos", ["próximos passos", "exercícios", "pratica"]),
+        ]:
+            section = self._find_section(sections, keywords)
+            if section:
+                additional_blocks.append(f"### {label}\n\n{self._strip_code_blocks(section[1])}")
+
+        if steps_content or additional_blocks:
+            combined_steps = steps_content
+            if additional_blocks:
+                combined_steps = (combined_steps + "\n\n" if combined_steps else "") + "\n\n".join(additional_blocks)
+
+            segments.append(
+                {
+                    "id": "segment-steps",
+                    "title": steps_section[0] if steps_section else "Passo a Passo",
+                    "type": "steps",
+                    "content": combined_steps.strip(),
+                    "language": None,
+                }
+            )
+        else:
+            if steps_section:
+                self.logger.warning("⚠️ Passo a passo encontrado, mas sem conteúdo textual")
             else:
-                self.logger.warning(f"❌ Exemplo incorreto INVÁLIDO (campos vazios): code={bool(incorrect.get('code'))}, error={bool(incorrect.get('error_explanation'))}")
-        
-        if examples_data and examples_data.get('correct_example'):
-            correct = examples_data['correct_example']
-            # Validar que os campos essenciais existem e não estão vazios
-            if correct.get('code') and correct.get('explanation'):
-                segments.append(
-                    {
-                        "id": "segment-example-correct",
-                        "title": correct.get('title', 'Exemplo Correto'),
-                        "type": "correct_example",
-                        "content": f"```{correct.get('language', '')}\n{correct.get('code', '')}\n```\n\n{correct.get('explanation', '')}",
-                        "language": correct.get('language'),
-                        "code": correct.get('code'),
-                        "explanation": correct.get('explanation')
-                    }
-                )
-                self.logger.info("✅ Segmento correct_example criado com sucesso")
-            else:
-                self.logger.warning(f"❌ Exemplo correto INVÁLIDO (campos vazios): code={bool(correct.get('code'))}, explanation={bool(correct.get('explanation'))}")
-        
-        # 3. Quiz (se presente) - VALIDAR ESTRUTURA
-        if quiz_data:
-            # Validar que tem question e options
-            if 'question' in quiz_data and 'options' in quiz_data and len(quiz_data['options']) > 0:
-                segments.append(
-                    {
-                        "id": "segment-quiz",
-                        "title": "Quiz",
-                        "type": "quiz",
-                        "content": json.dumps(quiz_data),
-                        "language": "quiz",
-                        "quiz_data": quiz_data
-                    }
-                )
-                self.logger.info(f"✅ Segmento quiz criado com {len(quiz_data['options'])} opções")
-            else:
-                self.logger.warning(f"❌ Quiz INVÁLIDO: question={bool(quiz_data.get('question'))}, options_count={len(quiz_data.get('options', []))}")
-        
-        # 4. Código final (último)
+                self.logger.warning("⚠️ Seção de passo a passo não encontrada")
+
         if final_code_info:
             segments.append(
                 {
@@ -912,8 +993,12 @@ class AgnoMethodologyService:
                 }
             )
 
-        self.logger.info(f"📊 Total de {len(segments)} segmentos criados: {[s['type'] for s in segments]}")
-        return segments
+        self.logger.info("📊 Total de %d segmentos criados: %s", len(segments), [s["type"] for s in segments])
+
+        return {
+            "segments": segments,
+            "example_pairs": example_pairs,
+        }
     
     def _validate_xml_response(self, response: str) -> tuple[bool, str]:  # mantido por compat
         """
@@ -1202,45 +1287,27 @@ class AgnoMethodologyService:
         try:
             examples_json = match.group(1).strip()
             examples_data = json.loads(examples_json)
-            
-            # Validar estrutura esperada
-            if 'correct_example' in examples_data or 'incorrect_example' in examples_data:
-                return examples_data
+
+            if isinstance(examples_data, dict):
+                if 'pairs' in examples_data and isinstance(examples_data['pairs'], list):
+                    return examples_data
+
+                if 'correct_example' in examples_data or 'incorrect_example' in examples_data:
+                    # Adaptar estrutura antiga para o novo formato de pares
+                    return {
+                        "pairs": [
+                            {
+                                "pair_id": examples_data.get("pair_id", "pair_1"),
+                                "context": examples_data.get("context"),
+                                "correct": examples_data.get("correct_example"),
+                                "incorrect": examples_data.get("incorrect_example"),
+                            }
+                        ]
+                    }
         except json.JSONDecodeError as e:
             self.logger.warning(f"Erro ao parsear JSON de exemplos: {e}")
         except Exception as e:
             self.logger.warning(f"Erro ao extrair exemplos: {e}")
-        
-        return None
-    
-    def _extract_quiz_json(self, response: str) -> Optional[Dict[str, Any]]:
-        """
-        Extrai quiz em formato JSON estruturado da resposta.
-        
-        Args:
-            response: Resposta do modelo
-            
-        Returns:
-            Dict com dados do quiz, ou None se não encontrado
-        """
-        # Procurar bloco ```quiz
-        quiz_pattern = re.compile(r'```quiz\s*\n(.*?)\n```', re.DOTALL | re.IGNORECASE)
-        match = quiz_pattern.search(response)
-        
-        if not match:
-            return None
-        
-        try:
-            quiz_json = match.group(1).strip()
-            quiz_data = json.loads(quiz_json)
-            
-            # Validar estrutura esperada (deve ter question e options)
-            if 'question' in quiz_data and 'options' in quiz_data:
-                return quiz_data
-        except json.JSONDecodeError as e:
-            self.logger.warning(f"Erro ao parsear JSON do quiz: {e}")
-        except Exception as e:
-            self.logger.warning(f"Erro ao extrair quiz: {e}")
         
         return None
     
@@ -1298,39 +1365,70 @@ class AgnoMethodologyService:
         return f"""Você é um tutor de programação educativo. Responda à pergunta do estudante seguindo EXATAMENTE esta estrutura:
 
 ## 🤔 Reflexão Inicial
-[Faça o estudante pensar sobre o problema antes de ver a solução]
+[Faça o estudante pensar sobre o problema de programação antes de ver qualquer código. Use somente texto.]
 
-## 📝 Passo a Passo
-1. [Primeiro passo com explicação]
-2. [Segundo passo com explicação]
-3. [Continue até resolver completamente]
+## 📝 Passo a Passo (sem código)
+1. [Descreva o primeiro passo em linguagem natural, indicando o que o código precisará fazer]
+2. [Explique o segundo passo em texto]
+3. [Continue até resolver completamente, sempre em texto]
 
-## 💡 Exemplos Interativos
-Crie exemplos REAIS e RELEVANTES baseados na pergunta do usuário. Use código funcional relacionado ao tópico perguntado.
+## ✅ Justificativas
+[Explique como os passos se conectam e quais conceitos de programação estão envolvidos]
+
+## 📋 Checklist de Autoavaliação
+- [Pergunta curta para o estudante validar se completou o passo 1]
+- [Pergunta curta para validar o entendimento do passo 2]
+
+## 💡 Padrões Importantes
+- [Padrão ou conceito-chave 1]
+- [Padrão ou conceito-chave 2]
+
+## 🧊 Painel de Exemplos (3 pares)
+Gere exemplos REAIS e RELEVANTES alinhados com a pergunta do aluno e com a missão do professor (quando fornecida). O código deve aparecer apenas dentro do JSON abaixo.
 
 ```examples
 {{
-  "incorrect_example": {{
-    "title": "Exemplo Incorreto",
-    "code": "[código incorreto RELACIONADO à pergunta, com erro real]",
-    "language": "[linguagem apropriada]",
-    "error_explanation": "Explicação clara do erro cometido neste exemplo",
-    "correction": "Como corrigir o erro apresentado"
-  }},
-  "correct_example": {{
-    "title": "Exemplo Correto",
-    "code": "[código correto RELACIONADO à pergunta, versão funcional]",
-    "language": "[linguagem apropriada]",
-    "explanation": "Por que este exemplo está correto e como ele resolve o problema"
-  }}
+  "pairs": [
+    {{
+      "pair_id": "pair_1",
+      "context": "Resumo curto relacionando a pergunta e a missão",
+      "correct": {{
+        "id": "correct_pair_1",
+        "title": "Título do exemplo correto",
+        "language": "linguagem_do_codigo",
+        "difficulty": "beginner|intermediate|advanced",
+        "tags": ["tag1", "tag2"],
+        "code": "linha1\\nlinha2\\n...",
+        "explanation": "Por que este código está correto"
+      }},
+      "incorrect": {{
+        "id": "incorrect_pair_1",
+        "title": "Título do exemplo incorreto",
+        "language": "linguagem_do_codigo",
+        "difficulty": "beginner|intermediate|advanced",
+        "tags": ["tag1", "tag2"],
+        "code": "linha1\\nlinha2\\n...",
+        "error_explanation": "Explique o erro cometido",
+        "correction": "Como corrigir o erro"
+      }}
+    }},
+    {{
+      "pair_id": "pair_2",
+      "context": "Outro recorte relevante do mesmo problema",
+      "correct": {{ ... }},
+      "incorrect": {{ ... }}
+    }},
+    {{
+      "pair_id": "pair_3",
+      "context": "Terceiro recorte complementar",
+      "correct": {{ ... }},
+      "incorrect": {{ ... }}
+    }}
+  ]
 }}
 ```
 
-IMPORTANTE: Os exemplos devem ser SOBRE O TÓPICO DA PERGUNTA, não exemplos genéricos de "Hello World".
-
-## 🎯 Padrões Importantes
-- [Padrão ou conceito-chave 1]
-- [Padrão ou conceito-chave 2]
+IMPORTANTE: Não inclua blocos de código fora do JSON acima. Os três pares devem abordar variações significativas do mesmo conceito.
 
 ## 🚀 Próximos Passos
 [Sugira exercícios para praticar]
@@ -1353,9 +1451,9 @@ PERGUNTA DO ESTUDANTE:
 
 {f'CONTEXTO ADICIONAL:\n{context}' if context else ''}
 
-IMPORTANTE: 
+IMPORTANTE:
 - Responda com TODAS as seções acima, não pule nenhuma.
-- Os exemplos DEVEM estar no bloco ```examples com JSON válido.
-- Use código funcional e realista nos exemplos.
+- Os exemplos DEVEM estar no bloco ```examples com JSON válido e 3 pares completos.
+- Use código funcional somente dentro do campo "code" de cada exemplo.
 - Use \\n para quebras de linha no código JSON.
 """

@@ -281,41 +281,58 @@ async def ask_question(
         # SALVAR EXEMPLOS GERADOS
         # Processar segmentos e salvar exemplos correct/incorrect
         segments = result.get("segments", [])
+        extras = result.get("extras") or {}
         chat_session_id = request.chat_session_id or f"session_{int(time.time())}"
-        
-        for i, segment in enumerate(segments):
-            segment_type = segment.get("type", "")
-            
-            # Identificar segmentos que são exemplos
-            if segment_type in ["correct_example", "incorrect_example"]:
-                try:
-                    # Extrair dados do exemplo do conteúdo do segmento
-                    example_data = {
-                        "type": "correct" if segment_type == "correct_example" else "incorrect",
-                        "title": segment.get("title", "Exemplo"),
-                        "code": segment.get("content", ""),  # O conteúdo já é o código
-                        "language": segment.get("language", "python"),
-                        "explanation": segment.get("title", "")  # Título como explicação inicial
-                    }
-                    
-                    # Salvar no PocketBase
-                    example_id = await examples_rag.save_generated_example(
-                        example_data=example_data,
-                        user_query=request.user_query,
-                        chat_session_id=chat_session_id,
-                        mission_context=request.mission_context,
-                        segment_index=i
-                    )
-                    
-                    # Adicionar ID do exemplo ao segmento
-                    if example_id:
-                        segment["example_id"] = example_id
-                        segment["can_vote"] = True
-                        logger.info(f"Exemplo salvo: {example_id} | Tipo: {example_data['type']}")
-                    
-                except Exception as e:
-                    logger.error(f"Erro ao salvar exemplo do segmento {i}: {e}")
-                    # Não falhar a requisição se não conseguir salvar
+
+        example_pairs = extras.get("example_pairs") if isinstance(extras, dict) else None
+        if example_pairs:
+            for pair_index, pair in enumerate(example_pairs):
+                for example_type in ("incorrect", "correct"):
+                    example_payload = pair.get(example_type)
+                    if not example_payload:
+                        continue
+
+                    try:
+                        if example_type == "correct":
+                            explanation_text = example_payload.get("explanation")
+                        else:
+                            explanation_parts = [example_payload.get("error_explanation")]
+                            correction = example_payload.get("correction")
+                            if correction:
+                                explanation_parts.append(f"Correção sugerida: {correction}")
+                            explanation_text = "\n".join(part for part in explanation_parts if part)
+
+                        example_entry = {
+                            "type": "correct" if example_type == "correct" else "incorrect",
+                            "title": example_payload.get("title", "Exemplo"),
+                            "code": example_payload.get("code", ""),
+                            "language": example_payload.get("language", "python"),
+                            "explanation": explanation_text,
+                        }
+
+                        example_id = await examples_rag.save_generated_example(
+                            example_data=example_entry,
+                            user_query=request.user_query,
+                            chat_session_id=chat_session_id,
+                            mission_context=request.mission_context,
+                            segment_index=pair_index,
+                        )
+
+                        if example_id:
+                            example_payload["example_id"] = example_id
+                            example_payload["can_vote"] = True
+                            logger.info(
+                                "Exemplo salvo: %s | Tipo: %s",
+                                example_id,
+                                example_entry["type"],
+                            )
+                    except Exception as exc:
+                        logger.error(
+                            "Erro ao salvar exemplo %s do par %s: %s",
+                            example_type,
+                            pair.get("pair_id"),
+                            exc,
+                        )
 
         # Converte resultado do service para formato de resposta esperado
         return AgnoResponse(
@@ -510,4 +527,3 @@ async def search_examples(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erro ao buscar exemplos: {str(e)}"
         )
-
