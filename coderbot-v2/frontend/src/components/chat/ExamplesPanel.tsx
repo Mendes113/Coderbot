@@ -446,6 +446,12 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
   const [expandedCard, setExpandedCard] = useState<'correct' | 'incorrect' | null>(null);
   const [modalExample, setModalExample] = useState<CodeExample | null>(null);
 
+  React.useEffect(() => {
+    setCurrentPairIndex(0);
+    setExpandedCard(null);
+    setModalExample(null);
+  }, [examples]);
+
   // Pegar um exemplo correto e um incorreto
   const correctExamples = useMemo(() => 
     examples.filter(ex => ex.type === 'correct'),
@@ -456,10 +462,17 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
     [examples]
   );
 
-  const currentCorrect = correctExamples[currentPairIndex % correctExamples.length];
-  const currentIncorrect = incorrectExamples[currentPairIndex % incorrectExamples.length];
+  const safeCorrectIndex = correctExamples.length ? currentPairIndex % correctExamples.length : 0;
+  const safeIncorrectIndex = incorrectExamples.length ? currentPairIndex % incorrectExamples.length : 0;
+
+  const currentCorrect = correctExamples.length ? correctExamples[safeCorrectIndex] : undefined;
+  const currentIncorrect = incorrectExamples.length ? incorrectExamples[safeIncorrectIndex] : undefined;
+  const hasExamplePairs = Boolean(currentCorrect && currentIncorrect);
 
   const handleGenerateNew = useCallback(() => {
+    if (!correctExamples.length || !incorrectExamples.length) {
+      return;
+    }
     const previousPairIndex = currentPairIndex;
     setCurrentPairIndex(prev => prev + 1);
     setExpandedCard(null);
@@ -520,16 +533,6 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!currentCorrect || !currentIncorrect) {
-    return (
-      <div className={cn('flex flex-col items-center justify-center h-full p-8', className)}>
-        <p className="text-sm text-muted-foreground text-center max-w-sm">
-          Nenhum exemplo disponível
-        </p>
-      </div>
-    );
-  }
-
   return (
     <>
       {/* Modal */}
@@ -552,47 +555,63 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
               onClick={handleGenerateNew}
               variant="outline"
               size="sm"
+              disabled={!hasExamplePairs}
               className="border-2 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-all"
             >
               <Sparkles className="w-4 h-4 mr-2" />
-              Gerar Outros
+              {hasExamplePairs ? 'Gerar Outros' : 'Aguardando participação'}
             </Button>
           </div>
         </div>
 
         {/* Cards ocupam toda altura restante */}
         <div className="flex-1 flex flex-col gap-4 p-6 min-h-0 overflow-auto">
-          {/* Exemplo Correto */}
-          <div className={cn(
-            "transition-all duration-300 ease-out",
-            expandedCard === 'correct' && 'flex-[3]',
-            expandedCard === 'incorrect' && 'flex-[0.3] min-h-[100px]',
-            !expandedCard && 'flex-1 min-h-[200px]'
-          )}>
-            <ExampleCard
-              example={currentCorrect}
-              onSelect={handleSelectExample}
-              isExpanded={expandedCard === 'correct'}
-              isSiblingExpanded={expandedCard === 'incorrect'}
-              onOpenModal={() => handleOpenModal(currentCorrect)}
-            />
-          </div>
+          {hasExamplePairs ? (
+            <>
+              {/* Exemplo Correto */}
+              <div className={cn(
+                "transition-all duration-300 ease-out",
+                expandedCard === 'correct' && 'flex-[3]',
+                expandedCard === 'incorrect' && 'flex-[0.3] min-h-[100px]',
+                !expandedCard && 'flex-1 min-h-[200px]'
+              )}>
+                {currentCorrect && (
+                  <ExampleCard
+                    example={currentCorrect}
+                    onSelect={handleSelectExample}
+                    isExpanded={expandedCard === 'correct'}
+                    isSiblingExpanded={expandedCard === 'incorrect'}
+                    onOpenModal={() => handleOpenModal(currentCorrect)}
+                  />
+                )}
+              </div>
 
-          {/* Exemplo Incorreto */}
-          <div className={cn(
-            "transition-all duration-300 ease-out",
-            expandedCard === 'incorrect' && 'flex-[3]',
-            expandedCard === 'correct' && 'flex-[0.3] min-h-[100px]',
-            !expandedCard && 'flex-1 min-h-[200px]'
-          )}>
-            <ExampleCard
-              example={currentIncorrect}
-              onSelect={handleSelectExample}
-              isExpanded={expandedCard === 'incorrect'}
-              isSiblingExpanded={expandedCard === 'correct'}
-              onOpenModal={() => handleOpenModal(currentIncorrect)}
-            />
-          </div>
+              {/* Exemplo Incorreto */}
+              <div className={cn(
+                "transition-all duration-300 ease-out",
+                expandedCard === 'incorrect' && 'flex-[3]',
+                expandedCard === 'correct' && 'flex-[0.3] min-h-[100px]',
+                !expandedCard && 'flex-1 min-h-[200px]'
+              )}>
+                {currentIncorrect && (
+                  <ExampleCard
+                    example={currentIncorrect}
+                    onSelect={handleSelectExample}
+                    isExpanded={expandedCard === 'incorrect'}
+                    isSiblingExpanded={expandedCard === 'correct'}
+                    onOpenModal={() => handleOpenModal(currentIncorrect)}
+                  />
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center text-center rounded-xl border border-dashed border-muted-foreground/40 bg-muted/20 p-6">
+              <Sparkles className="mb-3 h-6 w-6 text-purple-500" />
+              <p className="text-sm text-muted-foreground max-w-xs">
+                Envie uma pergunta no chat para desbloquear exemplos personalizados. Assim que o tutor gerar respostas, você verá pares corretos e incorretos alinhados ao seu objetivo de estudo.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </>
