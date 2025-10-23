@@ -606,7 +606,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
   const [workedExampleData, setWorkedExampleData] = useState<WorkedExampleData | null>(null);
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
   const [showWorkedExamples, setShowWorkedExamples] = useState(false);
-  const [segmentMessageIds, setSegmentMessageIds] = useState<string[]>([]);
+  const [segmentedResponses, setSegmentedResponses] = useState<Record<string, { segments: ResponseSegment[]; currentIndex: number }>>({});
+  const [activeSegmentMessageId, setActiveSegmentMessageId] = useState<string | null>(null);
 
   // Estados para o novo layout de 2 colunas
   const [showExamplesPanel, setShowExamplesPanel] = useState(true);
@@ -868,8 +869,38 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
 
   // Rótulo do botão de avanço, contextual ao próximo segmento
   const getNextStepButtonLabel = useCallback((): string => {
-    return 'Avançar etapa';
-  }, []);
+    if (!activeSegmentMessageId) {
+      return 'Avançar etapa';
+    }
+
+    const entry = segmentedResponses[activeSegmentMessageId];
+    if (!entry) {
+      return 'Avançar etapa';
+    }
+
+    const nextIndex = entry.currentIndex + 1;
+    if (nextIndex >= entry.segments.length) {
+      return 'Etapas concluídas';
+    }
+
+    const nextType = (entry.segments[nextIndex]?.type || '').toLowerCase();
+    switch (nextType) {
+      case 'reflection':
+        return 'Ver reflexão';
+      case 'steps':
+        return 'Ver passo a passo';
+      case 'correct_example':
+        return 'Ver exemplo correto';
+      case 'incorrect_example':
+        return 'Ver exemplo com erro';
+      case 'quiz':
+        return 'Responder quiz';
+      case 'final_code':
+        return 'Ver código final';
+      default:
+        return 'Avançar etapa';
+    }
+  }, [activeSegmentMessageId, segmentedResponses]);
 
   const toggleExamplesPanel = useCallback(() => {
     setShowExamplesPanel(!showExamplesPanel);
@@ -894,6 +925,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     setMessages([missionWelcomeMessage]);
     setHasUserSentMessage(false);
     setExamples([]);
+    setSegmentedResponses({});
+    setActiveSegmentMessageId(null);
     setShowWelcomeMessages(false);
     setWelcomeComplete(true);
     
@@ -1381,12 +1414,35 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
       const sessionMessages = await chatService.loadSessionMessages(newSessionId);
       setExamples([]);
       if (sessionMessages && sessionMessages.length > 0) {
-        setMessages(sessionMessages);
+        const segmentedState: Record<string, { segments: ResponseSegment[]; currentIndex: number }> = {};
+        let latestSegmentedId: string | null = null;
+
+        const normalizedMessages = sessionMessages.map((message) => {
+          if (message.isAi && Array.isArray(message.segments) && message.segments.length > 0) {
+            const segmentsArray = message.segments as ResponseSegment[];
+            segmentedState[message.id] = {
+              segments: segmentsArray,
+              currentIndex: 0,
+            };
+            latestSegmentedId = message.id;
+            return {
+              ...message,
+              segments: segmentsArray.slice(0, 1),
+            };
+          }
+          return message;
+        });
+
+        setSegmentedResponses(segmentedState);
+        setActiveSegmentMessageId(latestSegmentedId);
+        setMessages(normalizedMessages);
         setShowWelcomeMessages(false);
         setWelcomeComplete(true);
-        setHasUserSentMessage(sessionMessages.some((message) => !message.isAi));
+        setHasUserSentMessage(normalizedMessages.some((message) => !message.isAi));
       } else {
         setMessages([]);
+        setSegmentedResponses({});
+        setActiveSegmentMessageId(null);
         setShowWelcomeMessages(true);
         setWelcomeComplete(false);
         setHasUserSentMessage(false);
@@ -1415,6 +1471,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     setWelcomeComplete(false);
     setHasUserSentMessage(false);
     setExamples([]);
+    setSegmentedResponses({});
+    setActiveSegmentMessageId(null);
     try {
       const newSessionId = await chatService.createSession();
       setSessionId(newSessionId);
@@ -1433,6 +1491,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     setMessages(INITIAL_MESSAGES);
     setHasUserSentMessage(false);
     setExamples([]);
+    setSegmentedResponses({});
+    setActiveSegmentMessageId(null);
     
     // Save initial messages to database now that welcome is complete
     if (sessionId) {
@@ -1458,6 +1518,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     setMessages(INITIAL_MESSAGES);
     setHasUserSentMessage(false);
     setExamples([]);
+    setSegmentedResponses({});
+    setActiveSegmentMessageId(null);
     
     // Save initial messages to database
     if (sessionId) {
@@ -1760,8 +1822,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
               ? fallbackContent
               : 'Não foi possível estruturar a resposta no momento. Tente novamente em instantes.';
 
-            // setPendingSegments removed - using workedExamples now
-            setSegmentMessageIds([]);
             lastResponseLength = contentToPersist.length;
 
             const aiMsgId = await chatService.saveMessage({
@@ -1769,6 +1829,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
               isAi: true,
               sessionId,
             });
+
+            setActiveSegmentMessageId(null);
 
             setMessages(prev =>
               prev.map(msg =>
@@ -1779,37 +1841,39 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
             );
           } else {
             const [firstSeg, ...restSegs] = allowedSegments;
-
             const limitedRest = enforceSegmentLimits(restSegs, firstSeg);
+            const normalizedSegments = [firstSeg, ...limitedRest];
+            const firstSegmentContent = formatSegmentContent(firstSeg);
 
-            // setPendingSegments removed - using workedExamples now
-            setSegmentMessageIds([]);
             lastResponseLength = (firstSeg?.content || '').length;
 
-            // Salva mensagem de IA somente com o primeiro segmento + todos os segments
             const aiMsgId = await chatService.saveMessage({
-              content: formatSegmentContent(firstSeg),
+              content: firstSegmentContent,
               isAi: true,
               sessionId,
-              segments: allowedSegments,
+              segments: normalizedSegments,
             });
 
-            // Atualiza a mensagem temporária de IA com conteúdo real + id real + segments
+            setSegmentedResponses(prev => ({
+              ...prev,
+              [aiMsgId]: {
+                segments: normalizedSegments,
+                currentIndex: 0,
+              },
+            }));
+            setActiveSegmentMessageId(aiMsgId);
+
             setMessages(prev =>
               prev.map(msg =>
                 msg.id === tempId
-                  ? { ...msg, id: aiMsgId, content: formatSegmentContent(firstSeg), timestamp: new Date(), segments: allowedSegments }
+                  ? { ...msg, id: aiMsgId, content: firstSegmentContent, timestamp: new Date(), segments: [firstSeg] }
                   : msg
               )
             );
 
-            // Registrar ID da primeira etapa
-            setSegmentMessageIds(prev => [...prev, aiMsgId]);
-
-            // Analytics específico para segmentos
             trackEvent('edu_chat_segments_received', {
               sessionId,
-              totalSegments: allowedSegments.length,
+              totalSegments: normalizedSegments.length,
               provider: chosenProvider,
               model: chosenModel,
             });
@@ -1909,11 +1973,57 @@ Obrigado pela paciência! 🤖✨`,
     }
   };
 
-  // Avançar para o próximo segmento - função removida pois agora usamos WorkedExamples
-  const handleNextSegment = async () => {
-    // Função mantida para compatibilidade, mas não faz mais nada
-    console.log('handleNextSegment called but deprecated');
-  };
+  // Navegação manual entre segmentos estruturados da resposta
+  const handleNextSegment = useCallback(() => {
+    if (!activeSegmentMessageId) {
+      return;
+    }
+
+    const entry = segmentedResponses[activeSegmentMessageId];
+    if (!entry || entry.currentIndex >= entry.segments.length - 1) {
+      return;
+    }
+
+    const newIndex = entry.currentIndex + 1;
+    const nextSegment = entry.segments[newIndex];
+    if (!nextSegment) {
+      return;
+    }
+
+    setSegmentedResponses(prev => ({
+      ...prev,
+      [activeSegmentMessageId]: {
+        ...prev[activeSegmentMessageId],
+        currentIndex: newIndex,
+      },
+    }));
+
+    setMessages(prev =>
+      prev.map(msg =>
+        msg.id === activeSegmentMessageId
+          ? {
+              ...msg,
+              content: formatSegmentContent(nextSegment),
+              segments: entry.segments.slice(0, newIndex + 1),
+            }
+          : msg
+      )
+    );
+
+    if (nextSegment.type === 'quiz') {
+      soundEffects.playAchievement();
+    }
+
+    trackEvent('edu_chat_segment_navigated', {
+      direction: 'forward',
+      segmentType: nextSegment.type,
+      index: newIndex + 1,
+      total: entry.segments.length,
+      messageId: activeSegmentMessageId,
+    });
+
+    setTimeout(() => scrollToBottom(), 150);
+  }, [activeSegmentMessageId, segmentedResponses, formatSegmentContent, scrollToBottom, trackEvent]);
 
   // Controle de navegação dos worked examples
   const handleNextWorkedExampleSegment = useCallback(() => {
@@ -1953,15 +2063,59 @@ Obrigado pela paciência! 🤖✨`,
     });
   }, [workedExampleData, sessionId]);
 
-  // Voltar para o segmento anterior (apenas rola até a mensagem anterior)
-  const handlePrevSegment = () => {
-    if (segmentMessageIds.length <= 1) return;
-    const prevId = segmentMessageIds[segmentMessageIds.length - 2];
-    const el = document.getElementById(`msg-${prevId}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const handlePrevSegment = useCallback(() => {
+    if (!activeSegmentMessageId) {
+      return;
     }
-  };
+
+    const entry = segmentedResponses[activeSegmentMessageId];
+    if (!entry || entry.currentIndex === 0) {
+      return;
+    }
+
+    const newIndex = entry.currentIndex - 1;
+    const prevSegment = entry.segments[newIndex];
+    if (!prevSegment) {
+      return;
+    }
+
+    setSegmentedResponses(prev => ({
+      ...prev,
+      [activeSegmentMessageId]: {
+        ...prev[activeSegmentMessageId],
+        currentIndex: newIndex,
+      },
+    }));
+
+    setMessages(prev =>
+      prev.map(msg =>
+        msg.id === activeSegmentMessageId
+          ? {
+              ...msg,
+              content: formatSegmentContent(prevSegment),
+              segments: entry.segments.slice(0, newIndex + 1),
+            }
+          : msg
+      )
+    );
+
+    trackEvent('edu_chat_segment_navigated', {
+      direction: 'backward',
+      segmentType: prevSegment.type,
+      index: newIndex + 1,
+      total: entry.segments.length,
+      messageId: activeSegmentMessageId,
+    });
+
+    setTimeout(() => scrollToBottom(), 150);
+  }, [activeSegmentMessageId, segmentedResponses, formatSegmentContent, scrollToBottom, trackEvent]);
+
+  const activeSegmentEntry = activeSegmentMessageId ? segmentedResponses[activeSegmentMessageId] : undefined;
+  const totalSegmentCount = activeSegmentEntry?.segments.length ?? 0;
+  const currentSegmentData = activeSegmentEntry ? activeSegmentEntry.segments[activeSegmentEntry.currentIndex] : undefined;
+  const hasPrevSegmentAvailable = Boolean(activeSegmentEntry && activeSegmentEntry.currentIndex > 0);
+  const hasNextSegmentAvailable = Boolean(activeSegmentEntry && activeSegmentEntry.currentIndex < totalSegmentCount - 1);
+  const shouldShowSegmentNavigator = Boolean(activeSegmentEntry && totalSegmentCount > 1);
 
   // Return condicional APÓS todos os hooks serem declarados
   if (systemInitializing) {
@@ -2330,7 +2484,7 @@ Obrigado pela paciência! 🤖✨`,
             isMobile ? "pb-6" : ""
           )}>
             {/* Barra de avanço de etapas (worked examples ou segmentos tradicionais) */}
-            {(showWorkedExamples || segmentMessageIds.length > 1) && !isLoading && !showWelcomeMessages && (
+            {(showWorkedExamples || shouldShowSegmentNavigator) && !isLoading && !showWelcomeMessages && (
               <div className="mb-4 edu-card flex items-center justify-between px-4 py-3">
                 {showWorkedExamples && workedExampleData ? (
                   // Barra específica para worked examples
@@ -2365,19 +2519,38 @@ Obrigado pela paciência! 🤖✨`,
                       )}
                     </div>
                   </>
-                ) : (
-                  // Barra tradicional para segmentos antigos
+                ) : activeSegmentEntry ? (
                   <>
-                    <div className="edu-text-muted">
-                      Navegação de etapas
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <div className="text-sm font-medium">
+                          Etapa {activeSegmentEntry.currentIndex + 1} de {totalSegmentCount}
+                        </div>
+                        {currentSegmentData && (
+                          <div className="text-xs text-muted-foreground">
+                            {getSegmentBadge(currentSegmentData.type)}
+                          </div>
+                        )}
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {hasNextSegmentAvailable ? `Próxima: ${getNextStepButtonLabel()}` : 'Você revisou todas as etapas desta resposta.'}
+                        </div>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={handlePrevSegment} disabled={segmentMessageIds.length <= 1}>
-                        Voltar etapa
+                      <Button size="sm" variant="outline" onClick={handlePrevSegment} disabled={!hasPrevSegmentAvailable}>
+                        Voltar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={handleNextSegment}
+                        disabled={!hasNextSegmentAvailable}
+                      >
+                        {hasNextSegmentAvailable ? getNextStepButtonLabel() : 'Etapas concluídas'}
                       </Button>
                     </div>
                   </>
-                )}
+                ) : null}
               </div>
             )}
 
