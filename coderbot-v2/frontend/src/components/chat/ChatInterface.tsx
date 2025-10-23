@@ -610,6 +610,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
 
   // Estados para o novo layout de 2 colunas
   const [showExamplesPanel, setShowExamplesPanel] = useState(true);
+  const [hasUserSentMessage, setHasUserSentMessage] = useState(false);
   const { examples: storedExamples, setExamples } = useExamples();
 
   const connectionSteps = useMemo(() => ([
@@ -891,6 +892,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     };
     
     setMessages([missionWelcomeMessage]);
+    setHasUserSentMessage(false);
+    setExamples([]);
     setShowWelcomeMessages(false);
     setWelcomeComplete(true);
     
@@ -906,7 +909,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
       missionType: mission.type,
       difficulty: mission.difficulty,
     });
-  }, [selectMission, trackEvent]);
+  }, [selectMission, setExamples, trackEvent]);
 
   // Session metrics (start/end)
   const sessionStartRef = useRef<number | null>(null);
@@ -1344,6 +1347,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
       try {
         const newSessionId = await chatService.createSession();
         setSessionId(newSessionId);
+        setHasUserSentMessage(false);
+        setExamples([]);
         sessionStorage.setItem("coderbot_last_chat_session", newSessionId);
 
         // Track session started
@@ -1374,14 +1379,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     try {
       setIsLoading(true);
       const sessionMessages = await chatService.loadSessionMessages(newSessionId);
+      setExamples([]);
       if (sessionMessages && sessionMessages.length > 0) {
         setMessages(sessionMessages);
         setShowWelcomeMessages(false);
         setWelcomeComplete(true);
+        setHasUserSentMessage(sessionMessages.some((message) => !message.isAi));
       } else {
         setMessages([]);
         setShowWelcomeMessages(true);
         setWelcomeComplete(false);
+        setHasUserSentMessage(false);
       }
       setSessionId(newSessionId);
       sessionStorage.setItem("coderbot_last_chat_session", newSessionId);
@@ -1405,6 +1413,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     setMessages([]);
     setShowWelcomeMessages(true);
     setWelcomeComplete(false);
+    setHasUserSentMessage(false);
+    setExamples([]);
     try {
       const newSessionId = await chatService.createSession();
       setSessionId(newSessionId);
@@ -1421,6 +1431,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     setShowWelcomeMessages(false);
     setWelcomeComplete(true);
     setMessages(INITIAL_MESSAGES);
+    setHasUserSentMessage(false);
+    setExamples([]);
     
     // Save initial messages to database now that welcome is complete
     if (sessionId) {
@@ -1444,6 +1456,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     setShowWelcomeMessages(false);
     setWelcomeComplete(true);
     setMessages(INITIAL_MESSAGES);
+    setHasUserSentMessage(false);
+    setExamples([]);
     
     // Save initial messages to database
     if (sessionId) {
@@ -1604,6 +1618,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ whiteboardContext,
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    setHasUserSentMessage(true);
     setIsLoading(true);
 
     // Temp AI message id needs outer scope to be accessible in catch/finally
@@ -2404,6 +2419,8 @@ Obrigado pela paciência! 🤖✨`,
                           clearSelectedMission();
                           setHasMissionSelected(false);
                           setMessages([]);
+                          setHasUserSentMessage(false);
+                          setExamples([]);
                           toast.info('Missão desmarcada. Selecione uma nova missão para continuar.');
                         }}
                         className="h-7 px-2 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-200/50"
@@ -2447,7 +2464,7 @@ Obrigado pela paciência! 🤖✨`,
             
             {/* Painel de Exemplos */}
             <div className="flex-1 min-h-0">
-              <ExamplesPanel theme="dark" />
+              <ExamplesPanel theme="dark" hasUserInteracted={hasUserSentMessage} />
             </div>
           </div>
         )}
