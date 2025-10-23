@@ -18,8 +18,36 @@ const ExampleModal: React.FC<{
   example: CodeExample;
   isOpen: boolean;
   onClose: () => void;
-}> = ({ example, isOpen, onClose }) => {
-  const openTimeRef = React.useRef<number>(Date.now());
+  onFocusSessionStart?: (payload: {
+    example: CodeExample;
+    trigger: 'user_click' | 'example_switch' | 'programmatic';
+  }) => void;
+  onFocusSessionEnd?: (payload: {
+    exampleSnapshot: {
+      exampleId: string;
+      exampleTitle?: string;
+      exampleType: CodeExample['type'];
+      language: string;
+      difficulty?: string;
+      codeLength: number;
+      hasHints: boolean;
+    };
+    viewDurationMs: number;
+    reason: 'user_close' | 'example_switch' | 'unmount' | 'state_change';
+  }) => void;
+}> = ({ example, isOpen, onClose, onFocusSessionStart, onFocusSessionEnd }) => {
+  const focusStartRef = React.useRef<number | null>(null);
+  const activeExampleSnapshotRef = React.useRef<{
+    exampleId: string;
+    exampleTitle?: string;
+    exampleType: CodeExample['type'];
+    language: string;
+    difficulty?: string;
+    codeLength: number;
+    hasHints: boolean;
+  } | null>(null);
+  const wasOpenRef = React.useRef<boolean>(false);
+  const closeReasonRef = React.useRef<'user_close' | 'state_change'>('state_change');
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(example.code);
@@ -39,38 +67,110 @@ const ExampleModal: React.FC<{
   }, [example]);
 
   const handleClose = useCallback(() => {
-    // Analytics: tempo de visualização no modal
-    const viewDuration = Date.now() - openTimeRef.current;
-    posthog?.capture?.('edu_example_modal_closed', {
-      exampleId: example.id,
-      exampleTitle: example.title,
-      exampleType: example.type,
-      language: example.language,
-      viewDurationMs: viewDuration,
-      viewDurationSeconds: Math.round(viewDuration / 1000),
-      timestamp: new Date().toISOString()
-    });
-    
+    closeReasonRef.current = 'user_close';
     onClose();
-  }, [example, onClose]);
+  }, [onClose]);
 
-  React.useEffect(() => {
-    if (isOpen) {
-      openTimeRef.current = Date.now();
-      
-      // Analytics: modal aberto (modo foco)
-      posthog?.capture?.('edu_example_focus_mode_opened', {
+  const startFocusSession = React.useCallback(
+    (trigger: 'user_click' | 'example_switch' | 'programmatic') => {
+      const snapshot = {
         exampleId: example.id,
         exampleTitle: example.title,
         exampleType: example.type,
         language: example.language,
         difficulty: example.difficulty,
         codeLength: example.code.length,
-        hasHints: (example.hints?.length ?? 0) > 0,
+        hasHints: (example.hints?.length ?? 0) > 0
+      };
+
+      focusStartRef.current = Date.now();
+      activeExampleSnapshotRef.current = snapshot;
+
+      posthog?.capture?.('edu_example_focus_mode_opened', {
+        ...snapshot,
+        trigger,
         timestamp: new Date().toISOString()
       });
+
+      posthog?.capture?.('edu_example_type_accessed', {
+        exampleId: example.id,
+        exampleType: example.type,
+        accessContext: 'focus_modal',
+        trigger,
+        timestamp: new Date().toISOString()
+      });
+
+      onFocusSessionStart?.({
+        example,
+        trigger
+      });
+    },
+    [example, onFocusSessionStart]
+  );
+
+  const endFocusSession = React.useCallback(
+    (reason: 'user_close' | 'example_switch' | 'unmount' | 'state_change') => {
+      if (!focusStartRef.current || !activeExampleSnapshotRef.current) {
+        return;
+      }
+
+      const viewDuration = Date.now() - focusStartRef.current;
+      const snapshot = activeExampleSnapshotRef.current;
+
+      posthog?.capture?.('edu_example_modal_closed', {
+        ...snapshot,
+        closeReason: reason,
+        viewDurationMs: viewDuration,
+        viewDurationSeconds: Math.round(viewDuration / 1000),
+        timestamp: new Date().toISOString()
+      });
+
+      onFocusSessionEnd?.({
+        exampleSnapshot: snapshot,
+        viewDurationMs: viewDuration,
+        reason
+      });
+
+      focusStartRef.current = null;
+      activeExampleSnapshotRef.current = null;
+      closeReasonRef.current = 'state_change';
+    },
+    [onFocusSessionEnd]
+  );
+
+  React.useEffect(() => {
+    if (isOpen && !wasOpenRef.current) {
+      wasOpenRef.current = true;
+      startFocusSession('user_click');
+    } else if (!isOpen && wasOpenRef.current) {
+      wasOpenRef.current = false;
+      const mappedReason = closeReasonRef.current === 'user_close' ? 'user_close' : 'state_change';
+      endFocusSession(mappedReason);
     }
-  }, [isOpen, example]);
+  }, [endFocusSession, isOpen, startFocusSession]);
+
+  React.useEffect(() => {
+    if (!wasOpenRef.current) {
+      return;
+    }
+
+    if (
+      activeExampleSnapshotRef.current &&
+      activeExampleSnapshotRef.current.exampleId !== example.id
+    ) {
+      endFocusSession('example_switch');
+      startFocusSession('example_switch');
+    }
+  }, [endFocusSession, example.id, startFocusSession]);
+
+  React.useEffect(
+    () => () => {
+      if (wasOpenRef.current) {
+        endFocusSession('unmount');
+      }
+    },
+    [endFocusSession]
+  );
 
   if (!isOpen) return null;
 
@@ -147,40 +247,49 @@ const ExampleCard: React.FC<{
   isExpanded?: boolean;
   onOpenModal?: () => void;
   isSiblingExpanded?: boolean;
-}> = ({ example, onSelect, isExpanded = false, onOpenModal, isSiblingExpanded = false }) => {
-  const expandTimeRef = React.useRef<number>(0);
-  const wasExpandedRef = React.useRef<boolean>(false);
+  onAccess?: (payload: {
+    example: CodeExample;
+    context: 'inline_card';
+    trigger: 'user_click' | 'programmatic' | 'example_switch';
+  }) => void;
+  onViewDuration?: (payload: {
+    exampleSnapshot: {
+      exampleId: string;
+      exampleTitle?: string;
+      exampleType: CodeExample['type'];
+    };
+    context: 'inline_card';
+    viewDurationMs: number;
+    reason: 'user_toggle' | 'state_change' | 'example_changed' | 'unmount';
+  }) => void;
+}> = ({
+  example,
+  onSelect,
+  isExpanded = false,
+  onOpenModal,
+  isSiblingExpanded = false,
+  onAccess,
+  onViewDuration
+}) => {
+  const expandStartRef = React.useRef<number | null>(null);
+  const activeExampleSnapshotRef = React.useRef<{
+    exampleId: string;
+    exampleTitle?: string;
+    exampleType: CodeExample['type'];
+    language: string;
+    difficulty?: string;
+    codeLength: number;
+    hasHints: boolean;
+  } | null>(null);
+  const trackedExampleIdRef = React.useRef<string | null>(null);
+  const prevExpandedRef = React.useRef<boolean>(false);
+  const pendingActionRef = React.useRef<'expand_user' | 'collapse_user' | null>(null);
 
   const handleSelect = useCallback(() => {
     if (onSelect) {
       onSelect(example);
     }
-    
-    // Analytics: exemplo clicado/expandido
-    if (isExpanded) {
-      // Colapsando: registrar tempo de visualização
-      const viewDuration = Date.now() - expandTimeRef.current;
-      posthog?.capture?.('edu_example_collapsed', {
-        exampleId: example.id,
-        exampleType: example.type,
-        language: example.language,
-        viewDurationMs: viewDuration,
-        viewDurationSeconds: Math.round(viewDuration / 1000),
-        timestamp: new Date().toISOString()
-      });
-    } else {
-      expandTimeRef.current = Date.now();
-      posthog?.capture?.('edu_example_expanded', {
-        exampleId: example.id,
-        exampleTitle: example.title,
-        exampleType: example.type,
-        language: example.language,
-        difficulty: example.difficulty,
-        codeLength: example.code.length,
-        hasHints: (example.hints?.length ?? 0) > 0,
-        timestamp: new Date().toISOString()
-      });
-    }
+    pendingActionRef.current = isExpanded ? 'collapse_user' : 'expand_user';
   }, [example, onSelect, isExpanded]);
 
   const handleCopy = useCallback((e: React.MouseEvent) => {
@@ -207,15 +316,115 @@ const ExampleCard: React.FC<{
     }
   }, [onOpenModal]);
 
-  // Rastrear tempo de visualização quando expandido
+  const startTracking = React.useCallback(
+    (trigger: 'user_click' | 'programmatic' | 'example_switch') => {
+      const snapshot = {
+        exampleId: example.id,
+        exampleTitle: example.title,
+        exampleType: example.type,
+        language: example.language,
+        difficulty: example.difficulty,
+        codeLength: example.code.length,
+        hasHints: (example.hints?.length ?? 0) > 0
+      };
+
+      expandStartRef.current = Date.now();
+      activeExampleSnapshotRef.current = snapshot;
+      trackedExampleIdRef.current = example.id;
+
+      posthog?.capture?.('edu_example_expanded', {
+        ...snapshot,
+        trigger,
+        timestamp: new Date().toISOString()
+      });
+
+      posthog?.capture?.('edu_example_type_accessed', {
+        exampleId: example.id,
+        exampleType: example.type,
+        accessContext: 'inline_card',
+        trigger,
+        timestamp: new Date().toISOString()
+      });
+
+      onAccess?.({
+        example,
+        context: 'inline_card',
+        trigger
+      });
+    },
+    [example, onAccess]
+  );
+
+  const stopTracking = React.useCallback(
+    (reason: 'user_toggle' | 'state_change' | 'example_changed' | 'unmount') => {
+      if (!expandStartRef.current || !activeExampleSnapshotRef.current) {
+        return;
+      }
+
+      const viewDuration = Date.now() - expandStartRef.current;
+      const snapshot = activeExampleSnapshotRef.current;
+
+      posthog?.capture?.('edu_example_collapsed', {
+        ...snapshot,
+        collapseReason: reason,
+        viewDurationMs: viewDuration,
+        viewDurationSeconds: Math.round(viewDuration / 1000),
+        timestamp: new Date().toISOString()
+      });
+
+      onViewDuration?.({
+        exampleSnapshot: {
+          exampleId: snapshot.exampleId,
+          exampleTitle: snapshot.exampleTitle,
+          exampleType: snapshot.exampleType
+        },
+        context: 'inline_card',
+        viewDurationMs: viewDuration,
+        reason
+      });
+
+      expandStartRef.current = null;
+      activeExampleSnapshotRef.current = null;
+      trackedExampleIdRef.current = null;
+    },
+    [onViewDuration]
+  );
+
   React.useEffect(() => {
-    if (isExpanded && !wasExpandedRef.current) {
-      expandTimeRef.current = Date.now();
-      wasExpandedRef.current = true;
-    } else if (!isExpanded && wasExpandedRef.current) {
-      wasExpandedRef.current = false;
+    if (isExpanded && !prevExpandedRef.current) {
+      prevExpandedRef.current = true;
+      const trigger =
+        pendingActionRef.current === 'expand_user' ? 'user_click' : 'programmatic';
+      startTracking(trigger);
+      pendingActionRef.current = null;
+    } else if (!isExpanded && prevExpandedRef.current) {
+      prevExpandedRef.current = false;
+      const reason =
+        pendingActionRef.current === 'collapse_user' ? 'user_toggle' : 'state_change';
+      stopTracking(reason);
+      pendingActionRef.current = null;
     }
-  }, [isExpanded]);
+  }, [isExpanded, startTracking, stopTracking]);
+
+  React.useEffect(() => {
+    if (
+      prevExpandedRef.current &&
+      trackedExampleIdRef.current &&
+      trackedExampleIdRef.current !== example.id
+    ) {
+      stopTracking('example_changed');
+      startTracking('example_switch');
+    }
+  }, [example.id, startTracking, stopTracking]);
+
+  React.useEffect(
+    () => () => {
+      if (prevExpandedRef.current) {
+        stopTracking('unmount');
+      }
+    },
+    [stopTracking]
+  );
 
   const theme = useMemo(() => {
     if (example.type === 'incorrect') {
@@ -445,11 +654,33 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
   const [currentPairIndex, setCurrentPairIndex] = useState(0);
   const [expandedCard, setExpandedCard] = useState<'correct' | 'incorrect' | null>(null);
   const [modalExample, setModalExample] = useState<CodeExample | null>(null);
+  const typeAccessCountsRef = React.useRef({
+    total: { correct: 0, incorrect: 0 },
+    inline: { correct: 0, incorrect: 0 },
+    focus: { correct: 0, incorrect: 0 }
+  });
+  const inlineDurationsRef = React.useRef({ correct: 0, incorrect: 0 });
+  const focusStatsRef = React.useRef({
+    sessions: 0,
+    totalDurationMs: 0,
+    perType: { correct: 0, incorrect: 0 }
+  });
 
   React.useEffect(() => {
     setCurrentPairIndex(0);
     setExpandedCard(null);
     setModalExample(null);
+    typeAccessCountsRef.current = {
+      total: { correct: 0, incorrect: 0 },
+      inline: { correct: 0, incorrect: 0 },
+      focus: { correct: 0, incorrect: 0 }
+    };
+    inlineDurationsRef.current = { correct: 0, incorrect: 0 };
+    focusStatsRef.current = {
+      sessions: 0,
+      totalDurationMs: 0,
+      perType: { correct: 0, incorrect: 0 }
+    };
   }, [examples]);
 
   // Pegar um exemplo correto e um incorreto
@@ -505,6 +736,70 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
   const handleCloseModal = useCallback(() => {
     setModalExample(null);
   }, []);
+  
+  const registerInlineAccess = React.useCallback(
+    ({ example }: {
+      example: CodeExample;
+      context: 'inline_card';
+      trigger: 'user_click' | 'programmatic' | 'example_switch';
+    }) => {
+      const typeKey = example.type === 'correct' ? 'correct' : 'incorrect';
+      typeAccessCountsRef.current.total[typeKey] += 1;
+      typeAccessCountsRef.current.inline[typeKey] += 1;
+    },
+    []
+  );
+
+  const registerInlineDuration = React.useCallback(
+    ({ exampleSnapshot, viewDurationMs }: {
+      exampleSnapshot: {
+        exampleId: string;
+        exampleTitle?: string;
+        exampleType: CodeExample['type'];
+      };
+      context: 'inline_card';
+      viewDurationMs: number;
+      reason: 'user_toggle' | 'state_change' | 'example_changed' | 'unmount';
+    }) => {
+      const typeKey = exampleSnapshot.exampleType === 'correct' ? 'correct' : 'incorrect';
+      inlineDurationsRef.current[typeKey] += viewDurationMs;
+    },
+    []
+  );
+
+  const registerFocusStart = React.useCallback(
+    ({ example }: {
+      example: CodeExample;
+      trigger: 'user_click' | 'example_switch' | 'programmatic';
+    }) => {
+      const typeKey = example.type === 'correct' ? 'correct' : 'incorrect';
+      typeAccessCountsRef.current.total[typeKey] += 1;
+      typeAccessCountsRef.current.focus[typeKey] += 1;
+      focusStatsRef.current.sessions += 1;
+    },
+    []
+  );
+
+  const registerFocusEnd = React.useCallback(
+    ({ exampleSnapshot, viewDurationMs }: {
+      exampleSnapshot: {
+        exampleId: string;
+        exampleTitle?: string;
+        exampleType: CodeExample['type'];
+        language: string;
+        difficulty?: string;
+        codeLength: number;
+        hasHints: boolean;
+      };
+      viewDurationMs: number;
+      reason: 'user_close' | 'example_switch' | 'unmount' | 'state_change';
+    }) => {
+      const typeKey = exampleSnapshot.exampleType === 'correct' ? 'correct' : 'incorrect';
+      focusStatsRef.current.totalDurationMs += viewDurationMs;
+      focusStatsRef.current.perType[typeKey] += viewDurationMs;
+    },
+    []
+  );
 
   // Rastrear sessão do painel de exemplos
   React.useEffect(() => {
@@ -528,6 +823,22 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
         sessionDurationSeconds: Math.round(sessionDuration / 1000),
         pairIndex: currentPairIndex,
         expandedCard: expandedCard,
+        typeAccessCounts: typeAccessCountsRef.current,
+        inlineExampleViewDurationMs: inlineDurationsRef.current,
+        inlineExampleViewDurationSeconds: {
+          correct: Math.round(inlineDurationsRef.current.correct / 1000),
+          incorrect: Math.round(inlineDurationsRef.current.incorrect / 1000)
+        },
+        focusModeStats: {
+          sessions: focusStatsRef.current.sessions,
+          totalDurationMs: focusStatsRef.current.totalDurationMs,
+          totalDurationSeconds: Math.round(focusStatsRef.current.totalDurationMs / 1000),
+          perTypeDurationMs: focusStatsRef.current.perType,
+          perTypeDurationSeconds: {
+            correct: Math.round(focusStatsRef.current.perType.correct / 1000),
+            incorrect: Math.round(focusStatsRef.current.perType.incorrect / 1000)
+          }
+        },
         timestamp: new Date().toISOString()
       });
     };
@@ -541,6 +852,8 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
           example={modalExample}
           isOpen={!!modalExample}
           onClose={handleCloseModal}
+          onFocusSessionStart={registerFocusStart}
+          onFocusSessionEnd={registerFocusEnd}
         />
       )}
 
@@ -582,6 +895,8 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
                     isExpanded={expandedCard === 'correct'}
                     isSiblingExpanded={expandedCard === 'incorrect'}
                     onOpenModal={() => handleOpenModal(currentCorrect)}
+                    onAccess={registerInlineAccess}
+                    onViewDuration={registerInlineDuration}
                   />
                 )}
               </div>
@@ -600,6 +915,8 @@ export const ExamplesPanel: React.FC<ExamplesPanelProps> = ({
                     isExpanded={expandedCard === 'incorrect'}
                     isSiblingExpanded={expandedCard === 'correct'}
                     onOpenModal={() => handleOpenModal(currentIncorrect)}
+                    onAccess={registerInlineAccess}
+                    onViewDuration={registerInlineDuration}
                   />
                 )}
               </div>
