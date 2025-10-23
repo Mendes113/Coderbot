@@ -13,6 +13,7 @@ Seguindo padrão da indústria: router simplificado que delega lógica de negóc
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 import logging
 import time
+import re
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field
 
@@ -32,6 +33,45 @@ router = APIRouter(
 )
 
 logger = logging.getLogger(__name__)
+
+_GIBBERISH_VOWEL_PATTERN = re.compile(r"[aeiouáéíóúàãõâêôü]", re.IGNORECASE)
+
+
+def _is_gibberish_query(text: str) -> bool:
+    """
+    Heurística leve para identificar texto sem sentido (gibberish).
+    Busca por baixa presença de vogais, tokens repetidos e ausência de palavras significativas.
+    """
+    if not text:
+        return True
+
+    normalized = re.sub(r"[^a-zA-Z0-9áéíóúàãõâêôüç\s]", " ", text.lower())
+    tokens = [token for token in normalized.split() if token]
+
+    if not tokens:
+        return True
+
+    alphabetic_tokens = [t for t in tokens if re.search(r"[a-záéíóúàãõâêôüç]", t)]
+    if not alphabetic_tokens:
+        return True
+
+    vowel_tokens = sum(1 for token in alphabetic_tokens if _GIBBERISH_VOWEL_PATTERN.search(token))
+    repeated_tokens = sum(
+        1
+        for token in alphabetic_tokens
+        if len(token) > 3 and len(set(token)) <= 2
+    )
+
+    vowel_ratio = vowel_tokens / max(len(alphabetic_tokens), 1)
+    repeated_ratio = repeated_tokens / max(len(alphabetic_tokens), 1)
+    unique_ratio = len(set(alphabetic_tokens)) / max(len(alphabetic_tokens), 1)
+
+    return (
+        vowel_ratio < 0.3
+        or repeated_ratio > 0.4
+        or unique_ratio < 0.2
+        or len(alphabetic_tokens) <= 1
+    )
 
 # --- Modelos Pydantic para validação e documentação ---
 
@@ -230,6 +270,22 @@ async def ask_question(
         # Obter instância do ExamplesRAGService
         pb_client = get_pocketbase_client()
         examples_rag = get_examples_rag_service(pb_client)
+
+        if _is_gibberish_query(request.user_query):
+            logger.info("Query rejeitada por gibberish/sem sentido: %s", request.user_query[:50])
+            return AgnoResponse(
+                response=(
+                    "Hmm... não consegui entender sua pergunta. "
+                    "Vamos focar em dúvidas de programação, como linguagens, algoritmos ou estruturas de código. 💡"
+                ),
+                methodology=request.methodology,
+                is_xml_formatted=False,
+                metadata={
+                    "validation_failed": True,
+                    "validation_reason": "gibberish_or_unintelligible",
+                },
+                segments=[]
+            )
         
         # VALIDAÇÃO ANTI-GIBBERISH
         validation = examples_rag.validate_educational_query(
@@ -256,6 +312,33 @@ async def ask_question(
             f"Query validada com sucesso: {request.user_query[:50]} | "
             f"Confidence: {validation.get('confidence', 0.0):.2f}"
         )
+
+        query_lower = request.user_query.lower()
+        programming_keywords = getattr(examples_rag, "programming_keywords", [])
+        has_programming_keyword = any(
+            re.search(rf"\b{re.escape(keyword.lower())}\b", query_lower)
+            for keyword in programming_keywords
+        )
+        keyword_matches = validation.get("keyword_matches")
+        if keyword_matches is not None:
+            has_programming_keyword = has_programming_keyword or keyword_matches > 0
+
+        if not has_programming_keyword:
+            logger.info("Query rejeitada por não ser relacionada à programação: %s", request.user_query[:50])
+            return AgnoResponse(
+                response=(
+                    "Sou um tutor especializado em programação. "
+                    "Faça perguntas sobre código, linguagens, ferramentas ou arquitetura de software para que eu possa ajudar bem! 🧠💻"
+                ),
+                methodology=request.methodology,
+                is_xml_formatted=False,
+                metadata={
+                    "validation_failed": True,
+                    "validation_reason": "non_programming_scope",
+                    "validation_confidence": validation.get("confidence", 0.0),
+                },
+                segments=[]
+            )
         
         # Converte contexto do usuário para formato esperado pelo service
         user_context = None

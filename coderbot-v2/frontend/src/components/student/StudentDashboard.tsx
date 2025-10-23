@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2,
   School,
@@ -17,14 +18,23 @@ import {
   MessageSquare,
   ArrowRight,
   SortDesc,
+  Target,
+  Trophy,
+  TrendingUp,
+  Play,
+  Star,
+  Code,
+  Music,
+  BookOpen,
 } from "lucide-react";
-import { 
-  joinClassByCode, 
-  listClassEvents, 
-  listMyClasses, 
+import {
+  joinClassByCode,
+  listClassEvents,
+  listMyClasses,
   getLastInteractionsForClasses,
   getCurrentUser,
 } from "@/integrations/pocketbase/client";
+import { useMissions, type Mission } from "@/hooks/useMissions";
 import type { ClassEvent } from "@/integrations/pocketbase/client";
 
 type StudentClass = {
@@ -169,6 +179,13 @@ export const StudentDashboard = () => {
   const [joinCode, setJoinCode] = useState<string>("");
   const [joining, setJoining] = useState<boolean>(false);
   const [joinFeedback, setJoinFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("classes");
+
+  // Hook para buscar missões de todas as turmas
+  const { missions, isLoading: missionsLoading, error: missionsError } = useMissions({
+    status: 'active',
+    autoFetch: true
+  });
 
   const loadMyClasses = async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
@@ -285,7 +302,7 @@ export const StudentDashboard = () => {
     }
 
     const classIds = classes.map(cls => cls.classId);
-    getLastInteractionsForClasses(currentUser.id, classIds)
+    getLastInteractionsForClasses((currentUser as any).id, classIds)
       .then(interactions => {
         setClassInteractions(interactions);
       })
@@ -293,6 +310,76 @@ export const StudentDashboard = () => {
         console.error('Erro ao buscar interações:', err);
       });
   }, [currentUser, classes, sortByInteraction]);
+
+  // Funções auxiliares para as atividades
+  const missionTypeIcons: Record<string, React.ReactNode> = {
+    chat_interaction: <MessageSquare className="h-4 w-4" />,
+    code_execution: <Code className="h-4 w-4" />,
+    exercise_completion: <BookOpen className="h-4 w-4" />,
+    notes_creation: <Music className="h-4 w-4" />,
+    quiz: <Trophy className="h-4 w-4" />,
+    exercise: <Code className="h-4 w-4" />,
+    project: <Target className="h-4 w-4" />,
+    learning_path: <BookOpen className="h-4 w-4" />,
+    discussion: <MessageSquare className="h-4 w-4" />,
+    custom: <Target className="h-4 w-4" />,
+  };
+
+  const missionTypeLabels: Record<string, string> = {
+    chat_interaction: 'Conversa com IA',
+    code_execution: 'Execução de Código',
+    exercise_completion: 'Exercícios',
+    notes_creation: 'Notas Musicais',
+    quiz: 'Quiz',
+    exercise: 'Exercício',
+    project: 'Projeto',
+    learning_path: 'Trilha de Aprendizado',
+    discussion: 'Discussão',
+    custom: 'Personalizada',
+  };
+
+  const getDifficultyColor = (difficulty?: Mission['difficulty']) => {
+    switch (difficulty) {
+      case 'beginner':
+        return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+      case 'intermediate':
+        return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
+      case 'advanced':
+        return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+      default:
+        return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+    }
+  };
+
+  const getDifficultyLabel = (difficulty?: Mission['difficulty']) => {
+    const labels = {
+      beginner: 'Iniciante',
+      intermediate: 'Intermediário',
+      advanced: 'Avançado',
+    };
+    return difficulty ? labels[difficulty] : 'Não definido';
+  };
+
+  const handleStartActivity = (mission: Mission) => {
+    // Navegar para a atividade apropriada baseado no tipo
+    switch (mission.type) {
+      case 'chat_interaction':
+        window.location.href = '/dashboard/chat';
+        break;
+      case 'notes_creation':
+        window.location.href = '/dashboard/notes';
+        break;
+      case 'code_execution':
+        window.location.href = '/dashboard/code-editor';
+        break;
+      case 'exercise_completion':
+        window.location.href = '/dashboard/exercises';
+        break;
+      default:
+        window.location.href = '/dashboard/chat';
+        break;
+    }
+  };
 
   const handleJoinClass = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -453,23 +540,9 @@ export const StudentDashboard = () => {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
           <School className="h-7 w-7 text-education-primary" />
-          Minhas Turmas
+          Dashboard do Estudante
         </h2>
         <div className="flex flex-wrap items-center gap-2">
-          <Input
-            placeholder="Filtrar por turma, professor ou descrição..."
-            value={filterQuery}
-            onChange={(e) => setFilterQuery(e.target.value)}
-            className="w-72"
-          />
-          <Button 
-            variant={sortByInteraction ? "default" : "outline"} 
-            onClick={() => setSortByInteraction(!sortByInteraction)} 
-            className="gap-2"
-          >
-            <SortDesc className="h-4 w-4" />
-            {sortByInteraction ? "Ordenado por interação" : "Ordenar por interação"}
-          </Button>
           <Button variant="outline" onClick={() => loadMyClasses()} disabled={loading} className="gap-2">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Atualizar
@@ -477,118 +550,287 @@ export const StudentDashboard = () => {
         </div>
       </div>
 
-      <Card className="max-w-2xl">
-        <CardHeader className="pb-3">
-          <CardTitle>Entrar em uma nova turma</CardTitle>
-          <CardDescription>
-            Use o código compartilhado pelo professor para adicionar a turma ao seu painel.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <form onSubmit={handleJoinClass} className="space-y-3">
-            <div className="flex flex-col gap-2 sm:flex-row">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="classes" className="flex items-center gap-2">
+            <School className="h-4 w-4" />
+            Minhas Turmas
+          </TabsTrigger>
+          <TabsTrigger value="activities" className="flex items-center gap-2">
+            <Target className="h-4 w-4" />
+            Minhas Atividades
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="classes" className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <Input
-                placeholder="Código da turma"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value)}
-                maxLength={64}
-                className="sm:flex-1"
-                autoComplete="off"
+                placeholder="Filtrar por turma, professor ou descrição..."
+                value={filterQuery}
+                onChange={(e) => setFilterQuery(e.target.value)}
+                className="w-72"
               />
-              <Button type="submit" disabled={joining} className="sm:w-auto">
-                {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar entrada"}
+              <Button
+                variant={sortByInteraction ? "default" : "outline"}
+                onClick={() => setSortByInteraction(!sortByInteraction)}
+                className="gap-2"
+              >
+                <SortDesc className="h-4 w-4" />
+                {sortByInteraction ? "Ordenado por interação" : "Ordenar por interação"}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              O código diferencia maiúsculas e minúsculas e pode expirar conforme as regras definidas pelo professor.
-            </p>
-          </form>
+          </div>
 
-          {joinFeedback && (
-            <Alert variant={joinFeedback.type === "error" ? "destructive" : "default"}>
-              {joinFeedback.type === "error" ? (
-                <AlertTriangle className="h-4 w-4" />
-              ) : (
-                <CheckCircle className="h-4 w-4 text-education-primary" />
+          <Card className="max-w-2xl">
+            <CardHeader className="pb-3">
+              <CardTitle>Entrar em uma nova turma</CardTitle>
+              <CardDescription>
+                Use o código compartilhado pelo professor para adicionar a turma ao seu painel.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <form onSubmit={handleJoinClass} className="space-y-3">
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    placeholder="Código da turma"
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value)}
+                    maxLength={64}
+                    className="sm:flex-1"
+                    autoComplete="off"
+                  />
+                  <Button type="submit" disabled={joining} className="sm:w-auto">
+                    {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar entrada"}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  O código diferencia maiúsculas e minúsculas e pode expirar conforme as regras definidas pelo professor.
+                </p>
+              </form>
+
+              {joinFeedback && (
+                <Alert variant={joinFeedback.type === "error" ? "destructive" : "default"}>
+                  {joinFeedback.type === "error" ? (
+                    <AlertTriangle className="h-4 w-4" />
+                  ) : (
+                    <CheckCircle className="h-4 w-4 text-education-primary" />
+                  )}
+                  <AlertTitle>
+                    {joinFeedback.type === "error" ? "Não foi possível entrar" : "Tudo certo!"}
+                  </AlertTitle>
+                  <AlertDescription>{joinFeedback.message}</AlertDescription>
+                </Alert>
               )}
-              <AlertTitle>
-                {joinFeedback.type === "error" ? "Não foi possível entrar" : "Tudo certo!"}
-              </AlertTitle>
-              <AlertDescription>{joinFeedback.message}</AlertDescription>
+            </CardContent>
+          </Card>
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Erro ao carregar turmas</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-        </CardContent>
-      </Card>
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Erro ao carregar turmas</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {loading ? (
-        <div className="flex items-center justify-center h-48 text-muted-foreground gap-2">
-          <Loader2 className="h-5 w-5 animate-spin" /> Carregando turmas...
-        </div>
-      ) : filtered.length === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Nenhuma turma encontrada</CardTitle>
-            <CardDescription>
-              {classes.length === 0
-                ? "Você ainda não está inscrito em nenhuma turma. Utilize o código acima quando receber um convite."
-                : "Tente ajustar o filtro para encontrar a turma desejada."}
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((cls) => {
-            const summaryState = classSummaries[cls.classId];
-            return (
-              <Card key={cls.classId} className="hover:shadow-sm transition-shadow">
-                <CardHeader className="space-y-1">
-                  <CardTitle className="text-lg font-semibold truncate">{cls.title}</CardTitle>
-                  {cls.description && (
-                    <CardDescription className="line-clamp-2">{cls.description}</CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent className="space-y-3">{renderSummary(summaryState)}</CardContent>
-                <CardFooter className="flex flex-col gap-3">
-                  <div className="flex w-full gap-2">
-                    <Button 
-                      onClick={() => navigate(`/class/${cls.classId}`)}
-                      className="flex-1 gap-2"
-                      variant="default"
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                      Acessar Fórum
-                    </Button>
-                    <Button 
-                      onClick={() => navigate(`/class/${cls.classId}`)}
-                      className="gap-2"
-                      variant="outline"
-                    >
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="flex w-full flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Info className="h-3.5 w-3.5" />
-                      {cls.teacherName ? `Professor: ${cls.teacherName}` : "Professor não definido"}
-                    </span>
+          {loading ? (
+            <div className="flex items-center justify-center h-48 text-muted-foreground gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" /> Carregando turmas...
+            </div>
+          ) : filtered.length === 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Nenhuma turma encontrada</CardTitle>
+                <CardDescription>
+                  {classes.length === 0
+                    ? "Você ainda não está inscrito em nenhuma turma. Utilize o código acima quando receber um convite."
+                    : "Tente ajustar o filtro para encontrar a turma desejada."}
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {filtered.map((cls) => {
+                const summaryState = classSummaries[cls.classId];
+                return (
+                  <Card key={cls.classId} className="hover:shadow-sm transition-shadow">
+                    <CardHeader className="space-y-1">
+                      <CardTitle className="text-lg font-semibold truncate">{cls.title}</CardTitle>
+                      {cls.description && (
+                        <CardDescription className="line-clamp-2">{cls.description}</CardDescription>
+                      )}
+                    </CardHeader>
+                    <CardContent className="space-y-3">{renderSummary(summaryState)}</CardContent>
+                    <CardFooter className="flex flex-col gap-3">
+                      <div className="flex w-full gap-2">
+                        <Button
+                          onClick={() => navigate(`/class/${cls.classId}`)}
+                          className="flex-1 gap-2"
+                          variant="default"
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                          Acessar Fórum
+                        </Button>
+                        <Button
+                          onClick={() => navigate(`/class/${cls.classId}`)}
+                          className="gap-2"
+                          variant="outline"
+                        >
+                          <ArrowRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="flex w-full flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Info className="h-3.5 w-3.5" />
+                          {cls.teacherName ? `Professor: ${cls.teacherName}` : "Professor não definido"}
+                        </span>
                     <Badge variant="secondary" className="font-mono text-xs">
-                      ID {cls.classId}
+                      {cls.classId}
                     </Badge>
-                  </div>
-                </CardFooter>
+                      </div>
+                    </CardFooter>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="activities" className="space-y-6">
+          <div className="space-y-6">
+            {/* Header Stats */}
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total de Atividades</CardTitle>
+                  <Target className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{missions.length}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Missões disponíveis
+                  </p>
+                </CardContent>
               </Card>
-            );
-          })}
-        </div>
-      )}
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Ativas</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {missions.filter(m => m.status === 'active').length}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Disponíveis para fazer
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Concluídas</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">
+                    {missions.filter(m => m.status === 'completed').length}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Missões finalizadas
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Pontos Totais</CardTitle>
+                  <Star className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-yellow-600">
+                    {missions.reduce((sum, m) => sum + m.reward_points, 0)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Recompensas disponíveis
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Lista de Atividades */}
+            {missionsLoading ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : missions.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Target className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Nenhuma atividade encontrada</h3>
+                  <p className="text-sm text-muted-foreground text-center">
+                    Você ainda não tem atividades disponíveis. Entre em contato com seu professor para receber missões.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {missions.map((mission) => (
+                  <Card key={mission.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          {missionTypeIcons[mission.type] || <Target className="h-4 w-4" />}
+                          <CardTitle className="text-base">{mission.title}</CardTitle>
+                        </div>
+                        <Badge variant="secondary">
+                          {mission.reward_points} pts
+                        </Badge>
+                      </div>
+                      {mission.description && (
+                        <CardDescription className="mt-1">
+                          {mission.description}
+                        </CardDescription>
+                      )}
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline">
+                          {missionTypeLabels[mission.type] || mission.type}
+                        </Badge>
+                        {mission.difficulty && (
+                          <Badge className={getDifficultyColor(mission.difficulty)}>
+                            {getDifficultyLabel(mission.difficulty)}
+                          </Badge>
+                        )}
+                        <Badge variant={mission.status === 'active' ? 'default' : 'secondary'}>
+                          {mission.status === 'active' ? 'Ativa' : 'Completa'}
+                        </Badge>
+                      </div>
+
+                      {mission.estimatedDuration && (
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          <span>{mission.estimatedDuration} min</span>
+                        </div>
+                      )}
+
+                      <Button
+                        className="w-full"
+                        onClick={() => handleStartActivity(mission)}
+                      >
+                        <Play className="mr-2 h-4 w-4" />
+                        {mission.status === 'active' ? 'Iniciar Atividade' : 'Revisar'}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
