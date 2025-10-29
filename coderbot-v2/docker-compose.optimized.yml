@@ -1,3 +1,5 @@
+# docker-compose.optimized.yml
+
 x-logging: &default-logging
   driver: json-file
   options:
@@ -10,9 +12,9 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.pocketbase
-    container_name: coderbot-pocketbase
-    ports:
-      - "8090:8090"
+    # NÃO usar container_name / ports no host
+    expose:
+      - "8090"
     volumes:
       - pocketbase_data:/pb/pb_data
       - ./pocketbase/pb_migrations:/pb/pb_migrations:ro
@@ -42,9 +44,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.backend
-    container_name: coderbot-backend
-    # ports:
-    #   - "8000:8000"  # Acessível apenas via nginx
+    # sem container_name / sem ports
     environment:
       - DEEP_SEEK_API_KEY=${DEEP_SEEK_API_KEY}
       - DEEP_SEEK_API_URL=${DEEP_SEEK_API_URL}
@@ -85,11 +85,8 @@ services:
       timeout: 10s
       retries: 3
     logging: *default-logging
-    # Usa init para reaper de processos filhos
     init: true
-    # Comando leve: sem --reload e com workers controlados
     command: ["sh", "-lc", "pdm run uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers=${UVICORN_WORKERS:-1} --log-level=info"]
-    # Recursos mais contidos para reduzir consumo
     cpus: "1.00"
     mem_limit: "768m"
     ulimits:
@@ -97,14 +94,13 @@ services:
         soft: 16384
         hard: 65536
     pids_limit: 256
-    # Evita I/O em disco e acelera PDM/uvicorn
     tmpfs:
       - /tmp
     extra_hosts:
       - "host.docker.internal:host-gateway"
     stop_grace_period: 10s
 
-  # Frontend React App (core profile) - usando Dockerfile otimizado
+  # Frontend React App (core profile)
   frontend:
     build:
       context: .
@@ -113,19 +109,17 @@ services:
         VITE_POCKETBASE_URL: /pb
         VITE_PUBLIC_POSTHOG_KEY: ${VITE_PUBLIC_POSTHOG_KEY:-}
         VITE_PUBLIC_POSTHOG_HOST: ${VITE_PUBLIC_POSTHOG_HOST:-https://us.i.posthog.com}
-    container_name: coderbot-frontend
     environment:
       - VITE_POCKETBASE_URL=/pb
       - VITE_PUBLIC_POSTHOG_KEY=${VITE_PUBLIC_POSTHOG_KEY:-}
       - VITE_PUBLIC_POSTHOG_HOST=${VITE_PUBLIC_POSTHOG_HOST:-https://us.i.posthog.com}
-    # ports:
-    #   - "3002:3000"  # Acessível apenas via nginx
     depends_on:
       backend:
         condition: service_healthy
     networks:
       - coderbot-network
     restart: unless-stopped
+    # Se seu nginx do frontend escuta em 80, ajuste este healthcheck para 80
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/"]
       interval: 30s
@@ -140,64 +134,40 @@ services:
         hard: 65536
     stop_grace_period: 10s
 
-  # Chatbot Teacher Dashboard (core profile)
-  # chatbot-teacher:
-  #   build:
-  #     context: https://github.com/Chatbot-educacional/Chatbot-teacher.git#main
-  #     dockerfile: Dockerfile
-  #     args:
-  #       VITE_APP_BASE_PATH: /teacher
-  #       VITE_POCKETBASE_URL: /pb
-  #       VITE_PUBLIC_POSTHOG_KEY: ${VITE_PUBLIC_POSTHOG_KEY:-}
-  #       VITE_PUBLIC_POSTHOG_HOST: ${VITE_PUBLIC_POSTHOG_HOST:-https://us.i.posthog.com}
-  #   container_name: coderbot-teacher
-  #   environment:
-  #     - VITE_POCKETBASE_URL=/pb
-  #     - VITE_APP_BASE_PATH=/teacher
-  #     - VITE_PUBLIC_POSTHOG_KEY=${VITE_PUBLIC_POSTHOG_KEY:-}
-  #     - VITE_PUBLIC_POSTHOG_HOST=${VITE_PUBLIC_POSTHOG_HOST:-https://us.i.posthog.com}
-  #   depends_on:
-  #     pocketbase:
-  #       condition: service_healthy
-  #   networks:
-  #     - coderbot-network
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:3000/"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #   logging: *default-logging
-  #   cpus: "0.50"
-  #   mem_limit: "256m"
-  #   ulimits:
-  #     nofile:
-  #       soft: 8192
-  #       hard: 65536
-  #   stop_grace_period: 10s
-
-
-  # Reverse proxy para expor todos os serviços via uma única porta (nginx)
+  # Reverse proxy único (nginx) - exposto ao Traefik do Dokploy
   nginx:
     image: nginx:alpine
-    container_name: coderbot-nginx
     depends_on:
       backend:
         condition: service_healthy
       frontend:
-        condition: service_healthy   
+        condition: service_healthy
       pocketbase:
         condition: service_healthy
-    ports:
-      - "8080:80"
+    # sem ports no host; Traefik publica
+    expose:
+      - "80"
     networks:
       - coderbot-network
+      - dokploy-network
     restart: unless-stopped
     logging: *default-logging
     cpus: "0.25"
     mem_limit: "128m"
     volumes:
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.routers.coderbot-hmg.rule=Host(`hmg.coderbot.space`) || Host(`hmg.coderbot.shop`)
+      - traefik.http.routers.coderbot-hmg.entrypoints=websecure
+      - traefik.http.routers.coderbot-hmg.tls=true
+      - traefik.http.services.coderbot-hmg.loadbalancer.server.port=80
+      # HTTP -> HTTPS
+      - traefik.http.routers.coderbot-hmg-http.rule=Host(`hmg.coderbot.space`) || Host(`hmg.coderbot.shop`)
+      - traefik.http.routers.coderbot-hmg-http.entrypoints=web
+      - traefik.http.routers.coderbot-hmg-http.middlewares=redirect-to-https
+      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
 
 volumes:
   pocketbase_data:
@@ -206,3 +176,5 @@ volumes:
 networks:
   coderbot-network:
     driver: bridge
+  dokploy-network:
+    external: true
