@@ -1,7 +1,27 @@
 /// <reference path="../pb_data/types.d.ts" />
 migrate((app) => {
-  const contextualExamplesCollection = app.findCollectionByNameOrId("contextual_examples");
-  
+  let contextualExamplesCollection
+  try {
+    contextualExamplesCollection = app.findCollectionByNameOrId("contextual_examples")
+  } catch (_) {
+    contextualExamplesCollection = null
+  }
+
+  if (!contextualExamplesCollection) {
+    throw new Error("contextual_examples collection must exist before creating example_feedback")
+  }
+
+  let existingCollection = null
+  try {
+    existingCollection = app.findCollectionByNameOrId("example_feedback")
+  } catch (_) {
+    existingCollection = null
+  }
+
+  if (existingCollection) {
+    return existingCollection
+  }
+
   const collection = new Collection({
     "name": "example_feedback",
     "type": "base",
@@ -116,6 +136,10 @@ migrate((app) => {
 
   return app.save(collection);
 }, (app) => {
-  const collection = app.findCollectionByNameOrId("example_feedback");
-  return app.delete(collection);
+  try {
+    const collection = app.findCollectionByNameOrId("example_feedback")
+    return app.delete(collection)
+  } catch (_) {
+    return
+  }
 });
