@@ -9,7 +9,7 @@ migrate((app) => {
   }
 
   if (existingCollection) {
-    return existingCollection
+    return
   }
 
   const collection = new Collection({
