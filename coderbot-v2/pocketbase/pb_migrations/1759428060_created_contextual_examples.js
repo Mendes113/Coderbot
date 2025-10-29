@@ -1,5 +1,17 @@
 /// <reference path="../pb_data/types.d.ts" />
 migrate((app) => {
+  let existingCollection = null
+
+  try {
+    existingCollection = app.findCollectionByNameOrId("contextual_examples")
+  } catch (_) {
+    existingCollection = null
+  }
+
+  if (existingCollection) {
+    return existingCollection
+  }
+
   const collection = new Collection({
     "name": "contextual_examples",
     "type": "base",
@@ -300,6 +312,10 @@ migrate((app) => {
 
   return app.save(collection);
 }, (app) => {
-  const collection = app.findCollectionByNameOrId("contextual_examples");
-  return app.delete(collection);
+  try {
+    const collection = app.findCollectionByNameOrId("contextual_examples");
+    return app.delete(collection);
+  } catch (_) {
+    return
+  }
 });
