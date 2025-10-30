@@ -144,9 +144,9 @@ services:
         condition: service_healthy
       pocketbase:
         condition: service_healthy
-    # sem ports no host; Traefik publica
-    expose:
-      - "80"
+    # Expor porta 8080 no host para acesso local
+    ports:
+      - "8080:80"
     networks:
       - coderbot-network
       - dokploy-network
